@@ -1,0 +1,8 @@
+.*
+!.gitattributes
+!.gitignore
+!.github/
+build/
+*~
+*.swp
+~*
