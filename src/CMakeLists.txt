@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright 2020-2021, Intel Corporation
+
+add_cppstyle(src
+	${CMAKE_CURRENT_SOURCE_DIR}/*.[chp]
+	${CMAKE_CURRENT_SOURCE_DIR}/include/*.h)
+
+add_check_whitespace(src
+	${CMAKE_CURRENT_SOURCE_DIR}/*.[chp]
+	${CMAKE_CURRENT_SOURCE_DIR}/include/*.h)
+
+set(SOURCES "XXX")
+
+# XXX: enable with first sources
+# add_library(pmemstream SHARED ${SOURCES})
+
+target_include_directories(pmemstream PRIVATE . include)
+
+target_link_libraries(pmemstream PRIVATE
+	-Wl,--version-script=${PMEMSTREAM_ROOT_DIR}/src/libpmemstream.map)
+
+set_target_properties(pmemstream PROPERTIES
+	SOVERSION 1
+	PUBLIC_HEADER "include/libpmemstream.h")
+
+target_compile_definitions(pmemstream PRIVATE SRCVERSION="${SRCVERSION}")
+
+# valgrind
+# if(VALGRIND_FOUND)
+# 	target_include_directories(pmemstream PRIVATE src/valgrind)
+# endif()
