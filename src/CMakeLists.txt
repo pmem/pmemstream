@@ -9,15 +9,18 @@ add_check_whitespace(src
 	${CMAKE_CURRENT_SOURCE_DIR}/*.[chp]
 	${CMAKE_CURRENT_SOURCE_DIR}/include/*.h)
 
-set(SOURCES "XXX")
+set(SOURCES pmemstream.c
+	ravl.c)
 
-# XXX: enable with first sources
-# add_library(pmemstream SHARED ${SOURCES})
+add_library(pmemstream SHARED ${SOURCES})
 
 target_include_directories(pmemstream PRIVATE . include)
+target_include_directories(pmemstream PRIVATE ${LIBPMEM2_INCLUDE_DIRS})
 
 target_link_libraries(pmemstream PRIVATE
 	-Wl,--version-script=${PMEMSTREAM_ROOT_DIR}/src/libpmemstream.map)
+
+target_link_libraries(pmemstream PRIVATE ${LIBPMEM2_LIBRARIES})
 
 set_target_properties(pmemstream PROPERTIES
 	SOVERSION 1

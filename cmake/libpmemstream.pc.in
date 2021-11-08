@@ -7,6 +7,6 @@ Name: libpmemstream
 Description: libpmemstream - Logging data structure for Persistent Memory
 Version: ${version}
 URL: https://github.com/pmem/pmemstream
-Requires:
+Requires: @PKG_CONFIG_REQUIRES@
 Libs: -L${libdir} -lpmemstream
 Cflags: -I${includedir}
