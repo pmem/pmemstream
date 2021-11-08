@@ -49,14 +49,13 @@ endif()
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PMEMSTREAM_ROOT_DIR}/cmake)
 set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
-# set(LIBPMEMOBJ_REQUIRED_VERSION 1.9) XXX: enable for libpmemset
+set(LIBPMEM2_REQUIRED_VERSION 1.10)
 # Only pmreorder in ver. >= 1.9 guarantees reliable output
 set(PMREORDER_REQUIRED_VERSION 1.9)
 
-# XXX: setup these vars with first dependencies
-# set(PKG_CONFIG_REQUIRES)
-# set(DEB_DEPENDS)
-# set(RPM_DEPENDS)
+set(PKG_CONFIG_REQUIRES)
+set(DEB_DEPENDS)
+set(RPM_DEPENDS)
 
 set(TEST_DIR ${CMAKE_CURRENT_BINARY_DIR}/test CACHE STRING "working directory for tests")
 message(STATUS "TEST_DIR set to: \"${TEST_DIR}\"")
@@ -69,7 +68,7 @@ set(CMAKE_NO_SYSTEM_FROM_IMPORTED 1)
 ## CMake build options
 # ----------------------------------------------------------------- #
 # XXX: turn these ON, when appropriate sources added
-option(BUILD_EXAMPLES "build examples" OFF)
+option(BUILD_EXAMPLES "build examples" ON)
 option(BUILD_TESTS "build tests" OFF)
 option(BUILD_DOC "build documentation" OFF)
 
@@ -101,6 +100,16 @@ include(FindThreads)
 if(NOT WIN32)
 	find_package(PkgConfig QUIET)
 endif()
+
+if(PKG_CONFIG_FOUND)
+	pkg_check_modules(LIBPMEM2 REQUIRED libpmem2>=${LIBPMEM2_REQUIRED_VERSION})
+else()
+	find_package(LIBPMEM2 REQUIRED ${LIBPMEM2_REQUIRED_VERSION})
+endif()
+
+list(APPEND PKG_CONFIG_REQUIRES "libpmem2 >= ${LIBPMEM2_REQUIRED_VERSION}")
+list(APPEND RPM_DEPENDS "libpmem2 >= ${LIBPMEM2_REQUIRED_VERSION}")
+list(APPEND DEB_DEPENDS "libpmem2(>= ${LIBPMEM2_REQUIRED_VERSION})")
 
 # Configure the ccache as compiler launcher
 find_program(CCACHE_FOUND ccache)
@@ -159,26 +168,16 @@ add_common_flag("-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2" RELEASE)
 # 	message(WARNING "Valgrind not found. Valgrind tests will not be performed.")
 # endif()
 
-# XXX: pmdk/libpmemset
-# if(BUILD_TESTS OR BUILD_EXAMPLES)
-# 	# Find libpmem and libpmemobj (PMDK libraries)
-# 	if(PKG_CONFIG_FOUND)
-# 		pkg_check_modules(LIBPMEMOBJ REQUIRED libpmemobj>=${LIBPMEMOBJ_REQUIRED_VERSION})
-# 		pkg_check_modules(LIBPMEM REQUIRED libpmem>=${LIBPMEM_REQUIRED_VERSION})
-# 	else()
-# 		find_package(LIBPMEMOBJ REQUIRED ${LIBPMEMOBJ_REQUIRED_VERSION})
-# 		find_package(LIBPMEM REQUIRED ${LIBPMEM_REQUIRED_VERSION})
-# 	endif()
-#
-# 	# Some tests and examples require clang >= 8.0, because of the bug
-# 	# (https://bugs.llvm.org/show_bug.cgi?id=28280), which is fixed in clang v8.0.
-#
-# 	if("${CMAKE_C_COMPILER_ID}" MATCHES "Clang" AND "${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
-# 		if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "8.0")
-# 			set(CLANG_DESTRUCTOR_REFERENCE_BUG_PRESENT 1)
-# 		endif()
-# 	endif()
-# endif()
+if(BUILD_TESTS OR BUILD_EXAMPLES)
+	# Some tests and examples require clang >= 8.0, because of the bug
+	# (https://bugs.llvm.org/show_bug.cgi?id=28280), which is fixed in clang v8.0.
+
+	if("${CMAKE_C_COMPILER_ID}" MATCHES "Clang" AND "${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
+		if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS "8.0")
+			set(CLANG_DESTRUCTOR_REFERENCE_BUG_PRESENT 1)
+		endif()
+	endif()
+endif()
 
 add_custom_target(checkers ALL)
 add_custom_target(cppstyle) # XXX: change the name to 'cstyle'?
@@ -258,10 +257,9 @@ endif()
 # ----------------------------------------------------------------- #
 ## Configure make install/uninstall and packages
 # ----------------------------------------------------------------- #
-# XXX: define these with first dependencies
-# string(REPLACE ";" " " PKG_CONFIG_REQUIRES "${PKG_CONFIG_REQUIRES}")
-# string(REPLACE ";" ", " RPM_PACKAGE_REQUIRES "${RPM_DEPENDS}")
-# string(REPLACE ";" ", " DEB_PACKAGE_REQUIRES "${DEB_DEPENDS}")
+string(REPLACE ";" " " PKG_CONFIG_REQUIRES "${PKG_CONFIG_REQUIRES}")
+string(REPLACE ";" ", " RPM_PACKAGE_REQUIRES "${RPM_DEPENDS}")
+string(REPLACE ";" ", " DEB_PACKAGE_REQUIRES "${DEB_DEPENDS}")
 
 configure_file(${PMEMSTREAM_ROOT_DIR}/cmake/libpmemstream.pc.in
 		${CMAKE_CURRENT_BINARY_DIR}/libpmemstream.pc @ONLY)
