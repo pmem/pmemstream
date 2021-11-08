@@ -1,0 +1,60 @@
+name: Basic Tests
+# It runs default OSes for each PR, push event or a new tag,
+# checks basic builds with various compilers and executes all sets of tests.
+
+on:
+  push:
+  pull_request:
+  release:
+    types:
+      - created
+
+env:
+  REPO:           pmemstream
+  GITHUB_REPO:    pmem/pmemstream
+  # Use pmemkv containters.
+  CONTAINER_REG:  ghcr.io/pmem/pmemkv
+  HOST_WORKDIR:   ${{ github.workspace }}
+  TEST_TIMEOUT:   800
+  IMG_VER:        latest
+
+jobs:
+  linux:
+    name: Linux
+    runs-on: ubuntu-latest
+    env:
+      # use org's Private Access Token to log in to GitHub Container Registry
+      CONTAINER_REG_USER:   ${{ secrets.GH_CR_USER }}
+      CONTAINER_REG_PASS:   ${{ secrets.GH_CR_PAT }}
+      FORCE_IMAGE_ACTION:   ${{ secrets.FORCE_IMAGE_ACTION }}
+      WORKDIR:         utils/docker
+    strategy:
+      matrix:
+        CONFIG: [
+                  "TYPE=debug OS=ubuntu OS_VER=20.04 CHECK_CPP_STYLE=1 ",
+                  "TYPE=valgrind OS=ubuntu OS_VER=20.04",
+                 ]
+    steps:
+      - name: Get release version
+        if: github.event_name == 'release'
+        id: get_release_version
+        run: echo ::set-output name=VERSION::$(echo ${{ github.event.release.tag_name }} | awk -F '[.-]' '/^[0-9]+.[0-9]+[.0-9]*(-rc[0-9]+)?$/ {print $1 "." $2}')
+
+      - name: Set image version and force image action for release
+        if: github.event_name == 'release' && steps.get_release_version.outputs.VERSION != ''
+        run: |
+          echo "IMG_VER=${{ steps.get_release_version.outputs.VERSION }}" >> $GITHUB_ENV
+          echo "FORCE_IMAGE_ACTION=rebuild" >> $GITHUB_ENV
+
+      - name: Clone the git repo
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      # "pull" or "rebuild" can be passed to a secret FORCE_IMAGE_ACTION to override default action
+      - name: Pull the image or rebuild and push it
+        run: cd $WORKDIR && ${{ matrix.CONFIG }} ./pull-or-rebuild-image.sh
+
+      - name: Run the build
+        run: cd $WORKDIR && ${{ matrix.CONFIG }} ./build.sh
+
