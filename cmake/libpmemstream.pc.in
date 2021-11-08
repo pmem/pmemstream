@@ -1,0 +1,12 @@
+version=@SRCVERSION@
+prefix=@CMAKE_INSTALL_PREFIX@
+libdir=@CMAKE_INSTALL_PREFIX@/@CMAKE_INSTALL_LIBDIR@
+includedir=${prefix}/@CMAKE_INSTALL_INCLUDEDIR@
+
+Name: libpmemstream
+Description: libpmemstream - Logging data structure for Persistent Memory
+Version: ${version}
+URL: https://github.com/pmem/pmemstream
+Requires:
+Libs: -L${libdir} -lpmemstream
+Cflags: -I${includedir}

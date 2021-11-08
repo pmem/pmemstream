@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright 2021, Intel Corporation
+#
+# src/libpmemstream.map -- linker map file for libpmemstream
+#
+LIBPMEMSTREAM_1.0 {
+	global:
+		pmemstream_XXX;
+	local:
+		*;
+};
