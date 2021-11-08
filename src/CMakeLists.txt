@@ -9,10 +9,10 @@ add_check_whitespace(src
 	${CMAKE_CURRENT_SOURCE_DIR}/*.[chp]
 	${CMAKE_CURRENT_SOURCE_DIR}/include/*.h)
 
-set(SOURCES "XXX")
+set(SOURCES dummy.c)
 
 # XXX: enable with first sources
-# add_library(pmemstream SHARED ${SOURCES})
+add_library(pmemstream SHARED ${SOURCES})
 
 target_include_directories(pmemstream PRIVATE . include)
 
