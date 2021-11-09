@@ -5,7 +5,26 @@
 #
 LIBPMEMSTREAM_1.0 {
 	global:
-		pmemstream_XXX;
+		pmemstream_delete;
+		pmemstream_entry_data;
+		pmemstream_entry_iterator_delete;
+		pmemstream_entry_iterator_new;
+		pmemstream_entry_iterator_next;
+		pmemstream_entry_length;
+		pmemstream_from_map;
+		pmemstream_region_clear;
+		pmemstream_region_context_delete;
+		pmemstream_region_context_new;
+		pmemstream_region_iterator_delete;
+		pmemstream_region_iterator_new;
+		pmemstream_region_iterator_next;
+		pmemstream_region_size;
+		pmemstream_tx_abort;
+		pmemstream_tx_append;
+		pmemstream_tx_commit;
+		pmemstream_tx_new;
+		pmemstream_tx_region_allocate;
+		pmemstream_tx_region_free;
 	local:
 		*;
 };
