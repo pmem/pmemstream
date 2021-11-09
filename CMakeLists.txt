@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright 2018-2021, Intel Corporation
 
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.16)
 
 project(pmemstream C CXX)
 set(PMEMSTREAM_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
