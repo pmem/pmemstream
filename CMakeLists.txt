@@ -57,7 +57,7 @@ set(PKG_CONFIG_REQUIRES)
 set(DEB_DEPENDS)
 set(RPM_DEPENDS)
 
-set(TEST_DIR ${CMAKE_CURRENT_BINARY_DIR}/test CACHE STRING "working directory for tests")
+set(TEST_DIR ${CMAKE_CURRENT_BINARY_DIR}/tests CACHE STRING "working directory for tests")
 message(STATUS "TEST_DIR set to: \"${TEST_DIR}\"")
 
 # Do not treat include directories from the interfaces
@@ -69,7 +69,7 @@ set(CMAKE_NO_SYSTEM_FROM_IMPORTED 1)
 # ----------------------------------------------------------------- #
 # XXX: turn these ON, when appropriate sources added
 option(BUILD_EXAMPLES "build examples" ON)
-option(BUILD_TESTS "build tests" OFF)
+option(BUILD_TESTS "build tests" ON)
 option(BUILD_DOC "build documentation" OFF)
 
 option(USE_CCACHE "use ccache if it is available in the system" ON)
@@ -82,7 +82,8 @@ option(USE_ASAN "enable AddressSanitizer checks" OFF)
 option(USE_UBSAN "enable UndefinedBehaviorSanitizer checks" OFF)
 
 option(TESTS_USE_FORCED_PMEM "run tests with PMEM_IS_PMEM_FORCE=1 - it speeds up tests execution on emulated pmem" OFF)
-option(TESTS_USE_VALGRIND "enable tests with valgrind (fail build if Valgrind not found)" ON)
+# XXX: enable with valgrind support
+option(TESTS_USE_VALGRIND "enable tests with valgrind (fail build if Valgrind not found)" OFF)
 option(TESTS_PMREORDER "enable tests with pmreorder (if pmreorder found; it requires PMDK ver. >= 1.9)" OFF)
 option(TESTS_LONG "enable long running tests" OFF)
 
