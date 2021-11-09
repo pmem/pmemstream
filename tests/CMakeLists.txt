@@ -12,6 +12,11 @@ include(cmake/functions.cmake)
 # ----------------------------------------------------------------- #
 add_custom_target(tests)
 
+set(CXX_STANDARD 17 CACHE STRING "C++ language standard")
+
+set(CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_STANDARD ${CXX_STANDARD})
+
 # XXX: valgrind
 # # Find valgrind
 # if(PKG_CONFIG_FOUND)
