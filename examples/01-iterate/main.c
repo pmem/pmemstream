@@ -68,7 +68,7 @@ main(int argc, char *argv[])
 		struct pmemstream_entry entry;
 		struct pmemstream_entry_iterator *eiter;
 		pmemstream_entry_iterator_new(&eiter, stream, region);
-		uint64_t last_entry_data;
+		uint64_t last_entry_data = 0;
 		while (pmemstream_entry_iterator_next(eiter, NULL, &entry) ==
 		       0) {
 			struct data_entry *d = pmemstream_entry_data(stream, entry);
