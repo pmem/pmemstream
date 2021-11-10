@@ -304,7 +304,7 @@ region_compare(const void *lhs, const void *rhs)
 static void
 pmemstream_init_txs(struct pmemstream *stream)
 {
-	for (int i = 0; i < PMEMSTREAM_NLANES; ++i) {
+	for (size_t i = 0; i < PMEMSTREAM_NLANES; ++i) {
 		struct pmemstream_tx *tx = &stream->txs[i];
 		tx->lane = &stream->data->lanes[i];
 		tx->lane_id = i;
@@ -693,8 +693,6 @@ pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iter,
 			} break;
 		}
 	}
-
-	return -1;
 }
 
 void
