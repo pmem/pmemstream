@@ -693,8 +693,6 @@ pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iter,
 			} break;
 		}
 	}
-
-	return -1;
 }
 
 void
