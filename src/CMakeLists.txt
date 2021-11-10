@@ -23,7 +23,7 @@ target_link_libraries(pmemstream PRIVATE
 target_link_libraries(pmemstream PRIVATE ${LIBPMEM2_LIBRARIES})
 
 set_target_properties(pmemstream PROPERTIES
-	SOVERSION 1
+	SOVERSION 0
 	PUBLIC_HEADER "src/include/libpmemstream.h")
 
 target_compile_definitions(pmemstream PRIVATE SRCVERSION="${SRCVERSION}")
