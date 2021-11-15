@@ -14,17 +14,18 @@ set(SOURCES libpmemstream.c
 
 add_library(pmemstream SHARED ${SOURCES})
 
-target_include_directories(pmemstream PRIVATE . include)
-target_include_directories(pmemstream PRIVATE ${LIBPMEM2_INCLUDE_DIRS})
+target_include_directories(pmemstream PRIVATE
+	.
+	include
+	${LIBPMEM2_INCLUDE_DIRS})
 
 target_link_libraries(pmemstream PRIVATE
-	-Wl,--version-script=${PMEMSTREAM_ROOT_DIR}/src/libpmemstream.map)
-
-target_link_libraries(pmemstream PRIVATE ${LIBPMEM2_LIBRARIES})
+	-Wl,--version-script=${PMEMSTREAM_ROOT_DIR}/src/libpmemstream.map
+	${LIBPMEM2_LIBRARIES})
 
 set_target_properties(pmemstream PROPERTIES
 	SOVERSION 1
-	PUBLIC_HEADER "include/libpmemstream.h")
+	PUBLIC_HEADER "src/include/libpmemstream.h")
 
 target_compile_definitions(pmemstream PRIVATE SRCVERSION="${SRCVERSION}")
 

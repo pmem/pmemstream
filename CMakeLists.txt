@@ -67,9 +67,9 @@ set(CMAKE_NO_SYSTEM_FROM_IMPORTED 1)
 # ----------------------------------------------------------------- #
 ## CMake build options
 # ----------------------------------------------------------------- #
-# XXX: turn these ON, when appropriate sources added
 option(BUILD_EXAMPLES "build examples" ON)
 option(BUILD_TESTS "build tests" ON)
+# XXX: turn these ON, when docs added
 option(BUILD_DOC "build documentation" OFF)
 
 option(USE_CCACHE "use ccache if it is available in the system" ON)
@@ -107,6 +107,9 @@ if(PKG_CONFIG_FOUND)
 else()
 	find_package(LIBPMEM2 REQUIRED ${LIBPMEM2_REQUIRED_VERSION})
 endif()
+# XXX: should it be here? or it's only req. in 'src'?
+include_directories(${LIBPMEM2_INCLUDE_DIRS})
+link_directories(${LIBPMEM2_LIBRARY_DIRS})
 
 list(APPEND PKG_CONFIG_REQUIRES "libpmem2 >= ${LIBPMEM2_REQUIRED_VERSION}")
 list(APPEND RPM_DEPENDS "libpmem2 >= ${LIBPMEM2_REQUIRED_VERSION}")
@@ -137,6 +140,7 @@ add_common_flag(-Wsign-conversion)
 add_common_flag(-Wsign-compare)
 add_common_flag(-Wunreachable-code-return)
 add_common_flag(-Wunused-macros)
+add_common_flag(-Wno-maybe-uninitialized)
 add_common_flag(-fno-common)
 add_common_flag(-ggdb DEBUG)
 add_common_flag(-DDEBUG DEBUG)
