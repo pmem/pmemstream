@@ -189,7 +189,7 @@ endfunction()
 
 # Configures ctest's testcase with the name: ${test_name}_${testcase}_${tracer}.
 # It passes CMake params, including GLOBAL_TEST_ARGS and test specific args, like
-# cmake_script (to run the test), test_name, test case number, tracer, and dirs.  
+# cmake_script (to run the test), test_name, test case number, tracer, and dirs.
 # XXX: SRC_DIR is wrong, because we add tests with srcs like "api_c/testname.c"
 #	   and we get actually parent dir (e.g. "../tests" instead of "../tests/api_c").
 #	   We could solve this with per-dir CMake files (i.a. add CMake in api_c dir)
@@ -229,7 +229,7 @@ function(add_testcase test_name tracer testcase cmake_script)
 	endif()
 endfunction()
 
-# Skipped test cases execute nothing and contain skip message in the name. 
+# Skipped test cases execute nothing and contain skip message in the name.
 function(skip_test name message)
 	add_test(NAME ${name}_${message}
 		COMMAND ${CMAKE_COMMAND} -P ${TESTS_ROOT_DIR}/true.cmake)

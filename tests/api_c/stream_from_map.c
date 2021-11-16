@@ -11,11 +11,11 @@ void test_stream_from_map(char *path, size_t file_size, size_t blk_size)
 {
 	struct pmem2_map *map = map_open(path, file_size);
 	UT_ASSERTne(map, NULL);
-	
+
 	struct pmemstream *s = NULL;
 	pmemstream_from_map(&s, blk_size, map);
 	UT_ASSERTne(s, NULL);
-	
+
 	pmemstream_delete(&s);
 	pmem2_map_delete(&map);
 }
