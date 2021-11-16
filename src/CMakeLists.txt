@@ -9,8 +9,7 @@ add_check_whitespace(src
 	${CMAKE_CURRENT_SOURCE_DIR}/*.[chp]
 	${CMAKE_CURRENT_SOURCE_DIR}/include/*.h)
 
-set(SOURCES libpmemstream.c
-	ravl.c)
+set(SOURCES libpmemstream.c)
 
 add_library(pmemstream SHARED ${SOURCES})
 
