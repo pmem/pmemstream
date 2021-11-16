@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright 2018-2021, Intel Corporation
 
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.16)
 
 project(pmemstream C CXX)
 set(PMEMSTREAM_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
@@ -57,7 +57,7 @@ set(PKG_CONFIG_REQUIRES)
 set(DEB_DEPENDS)
 set(RPM_DEPENDS)
 
-set(TEST_DIR ${CMAKE_CURRENT_BINARY_DIR}/test CACHE STRING "working directory for tests")
+set(TEST_DIR ${CMAKE_CURRENT_BINARY_DIR}/tests CACHE STRING "working directory for tests")
 message(STATUS "TEST_DIR set to: \"${TEST_DIR}\"")
 
 # Do not treat include directories from the interfaces
@@ -67,9 +67,9 @@ set(CMAKE_NO_SYSTEM_FROM_IMPORTED 1)
 # ----------------------------------------------------------------- #
 ## CMake build options
 # ----------------------------------------------------------------- #
-# XXX: turn these ON, when appropriate sources added
 option(BUILD_EXAMPLES "build examples" ON)
-option(BUILD_TESTS "build tests" OFF)
+option(BUILD_TESTS "build tests" ON)
+# XXX: turn these ON, when docs added
 option(BUILD_DOC "build documentation" OFF)
 
 option(USE_CCACHE "use ccache if it is available in the system" ON)
@@ -82,7 +82,8 @@ option(USE_ASAN "enable AddressSanitizer checks" OFF)
 option(USE_UBSAN "enable UndefinedBehaviorSanitizer checks" OFF)
 
 option(TESTS_USE_FORCED_PMEM "run tests with PMEM_IS_PMEM_FORCE=1 - it speeds up tests execution on emulated pmem" OFF)
-option(TESTS_USE_VALGRIND "enable tests with valgrind (fail build if Valgrind not found)" ON)
+# XXX: enable with valgrind support
+option(TESTS_USE_VALGRIND "enable tests with valgrind (fail build if Valgrind not found)" OFF)
 option(TESTS_PMREORDER "enable tests with pmreorder (if pmreorder found; it requires PMDK ver. >= 1.9)" OFF)
 option(TESTS_LONG "enable long running tests" OFF)
 
@@ -101,11 +102,14 @@ if(NOT WIN32)
 	find_package(PkgConfig QUIET)
 endif()
 
+# all our components require libpmem2
 if(PKG_CONFIG_FOUND)
 	pkg_check_modules(LIBPMEM2 REQUIRED libpmem2>=${LIBPMEM2_REQUIRED_VERSION})
 else()
 	find_package(LIBPMEM2 REQUIRED ${LIBPMEM2_REQUIRED_VERSION})
 endif()
+include_directories(${LIBPMEM2_INCLUDE_DIRS})
+link_directories(${LIBPMEM2_LIBRARY_DIRS})
 
 list(APPEND PKG_CONFIG_REQUIRES "libpmem2 >= ${LIBPMEM2_REQUIRED_VERSION}")
 list(APPEND RPM_DEPENDS "libpmem2 >= ${LIBPMEM2_REQUIRED_VERSION}")
@@ -136,6 +140,7 @@ add_common_flag(-Wsign-conversion)
 add_common_flag(-Wsign-compare)
 add_common_flag(-Wunreachable-code-return)
 add_common_flag(-Wunused-macros)
+add_common_flag(-Wno-maybe-uninitialized)
 add_common_flag(-fno-common)
 add_common_flag(-ggdb DEBUG)
 add_common_flag(-DDEBUG DEBUG)
