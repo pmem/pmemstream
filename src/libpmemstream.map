@@ -12,19 +12,15 @@ LIBPMEMSTREAM_1.0 {
 		pmemstream_entry_iterator_next;
 		pmemstream_entry_length;
 		pmemstream_from_map;
-		pmemstream_region_clear;
 		pmemstream_region_context_delete;
 		pmemstream_region_context_new;
 		pmemstream_region_iterator_delete;
 		pmemstream_region_iterator_new;
 		pmemstream_region_iterator_next;
 		pmemstream_region_size;
-		pmemstream_tx_abort;
-		pmemstream_tx_append;
-		pmemstream_tx_commit;
-		pmemstream_tx_new;
-		pmemstream_tx_region_allocate;
-		pmemstream_tx_region_free;
+		pmemstream_append;
+		pmemstream_region_allocate;
+		pmemstream_region_free;
 	local:
 		*;
 };

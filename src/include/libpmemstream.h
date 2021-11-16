@@ -30,30 +30,11 @@ void pmemstream_delete(struct pmemstream **stream);
 
 // stream owns the region object - the user gets a reference, but it's not
 // necessary to hold on to it and explicitly delete it.
-int pmemstream_tx_region_allocate(struct pmemstream_tx *tx,
-	struct pmemstream *stream, size_t size,
-			       struct pmemstream_region *region);
+int pmemstream_region_allocate(struct pmemstream *stream, size_t size, struct pmemstream_region *region);
 
-int pmemstream_tx_region_free(struct pmemstream_tx *tx,
-	struct pmemstream_region region);
+int pmemstream_region_free(struct pmemstream *stream, struct pmemstream_region region);
 
-// clearing a region is less expensive than freeing it
-int pmemstream_region_clear(struct pmemstream *stream,
-			    struct pmemstream_region region);
-
-size_t pmemstream_region_size(struct pmemstream *stream,
-			      struct pmemstream_region region);
-
-// creates a new log transaction, this can be used to batch multiple
-// stream inserts
-int pmemstream_tx_new(struct pmemstream_tx **tx, struct pmemstream *stream);
-
-// commits the written log to stable media
-// synchronous transaction commit provide durable linearizability
-void pmemstream_tx_commit(struct pmemstream_tx **tx);
-
-// aborts a written log transaction, the consumed space will be reused
-void pmemstream_tx_abort(struct pmemstream_tx **tx);
+size_t pmemstream_region_size(struct pmemstream *stream, struct pmemstream_region region);
 
 int pmemstream_region_context_new(struct pmemstream_region_context **rcontext,
 				  struct pmemstream *stream,
@@ -64,7 +45,7 @@ pmemstream_region_context_delete(struct pmemstream_region_context **rcontext);
 
 // synchronously appends data buffer to the end of the transaction log space
 // fails if no space is available
-int pmemstream_tx_append(struct pmemstream_tx *tx,
+int pmemstream_append(struct pmemstream *stream,
 			 struct pmemstream_region_context *rcontext,
 			 const void *buf, size_t count,
 			 struct pmemstream_entry *entry);

@@ -50,12 +50,16 @@ struct data_entry {
 int
 main(int argc, char *argv[])
 {
-	if (argc != 2)
+	if (argc != 2) {
+		printf("Wrong number of arguments\n");
 		return -1;
+	}
 
 	struct pmem2_map *map = map_open(argv[1]);
-	if (map == NULL)
+	if (map == NULL) {
+		printf("Failed mapping file\n");
 		return -1;
+	}
 
 	struct pmemstream *stream;
 	pmemstream_from_map(&stream, 4096, map);
@@ -80,37 +84,31 @@ main(int argc, char *argv[])
 		(void) last_entry_data;
 		struct pmemstream_region_context *rcontext;
 		pmemstream_region_context_new(&rcontext, stream, region);
-		struct pmemstream_tx *tx;
-		pmemstream_tx_new(&tx, stream);
 		struct data_entry e;
 		e.data = last_entry_data + 1;
 		struct pmemstream_entry new_entry;
-		pmemstream_tx_append(tx, rcontext, &e, sizeof(e), &new_entry);
-		pmemstream_tx_commit(&tx);
+		pmemstream_append(stream, rcontext, &e, sizeof(e), &new_entry);
 		pmemstream_region_context_delete(&rcontext);
 	}
 
 	pmemstream_region_iterator_delete(&riter);
 
-	struct pmemstream_tx *tx;
-	pmemstream_tx_new(&tx, stream);
-
 	struct pmemstream_region new_region;
-	pmemstream_tx_region_allocate(tx, stream, 4096, &new_region);
+	int ret = pmemstream_region_allocate(stream, 4096, &new_region);
+	if (ret != -1) {
+		struct pmemstream_region_context *rcontext;
+		pmemstream_region_context_new(&rcontext, stream, new_region);
 
-	struct pmemstream_region_context *rcontext;
-	pmemstream_region_context_new(&rcontext, stream, new_region);
+		struct data_entry e;
+		e.data = 1;
+		struct pmemstream_entry new_entry;
+		pmemstream_append(stream, rcontext, &e, sizeof(e), &new_entry);
 
-	struct data_entry e;
-	e.data = 1;
-	struct pmemstream_entry new_entry;
-	pmemstream_tx_append(tx, rcontext, &e, sizeof(e), &new_entry);
-	pmemstream_tx_commit(&tx);
+		struct data_entry *new_data_entry = pmemstream_entry_data(stream, new_entry);
+		printf("new_data_entry: %lu\n", new_data_entry->data);
 
-	struct data_entry *new_data_entry = pmemstream_entry_data(stream, new_entry);
-	printf("new_data_entry: %lu\n", new_data_entry->data);
-
-	pmemstream_region_context_delete(&rcontext);
+		pmemstream_region_context_delete(&rcontext);
+	}
 
 	pmemstream_delete(&stream);
 
