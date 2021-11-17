@@ -20,9 +20,9 @@ set(CMAKE_CXX_STANDARD ${CXX_STANDARD})
 # XXX: valgrind required only for tests? or in top-level CMake?
 # # Find valgrind
 # if(PKG_CONFIG_FOUND)
-# 	pkg_check_modules(VALGRIND QUIET valgrind)
+#	pkg_check_modules(VALGRIND QUIET valgrind)
 # else()
-# 	find_package(VALGRIND QUIET)
+#	find_package(VALGRIND QUIET)
 # endif()
 
 if(NOT VALGRIND_FOUND AND TESTS_USE_VALGRIND)
