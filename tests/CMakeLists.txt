@@ -40,7 +40,8 @@ find_libunwind()
 # find_gdb()
 
 # Add checks when DEVELOPER_MODE is ON
-add_cppstyle(tests ${TESTS_ROOT_DIR}/*.[chp])
+add_cppstyle(tests ${TESTS_ROOT_DIR}/*/*.[ch]
+		   ${TESTS_ROOT_DIR}/*/*.[ch]pp)
 add_check_whitespace(tests ${TESTS_ROOT_DIR}/*.*
 		${CMAKE_CURRENT_SOURCE_DIR}/*/*.*)
 
