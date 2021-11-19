@@ -69,10 +69,9 @@ if [[ -z "${COMMAND}" ]]; then
 		builds=(tests_package)
 		COMMAND="./run-build.sh ${builds[@]}";
 		;;
-#XXX: Add coverity
-#	coverity)
-#		COMMAND="./run-coverity.sh";
-#		;;
+	coverity)
+		COMMAND="./run-coverity.sh";
+		;;
 #XXX: Add docs
 #	doc)
 #		COMMAND="./run-doc-update.sh";
@@ -120,6 +119,8 @@ docker run --privileged=true --name=${CONTAINER_NAME} -i \
 	--env CI_BRANCH=${CI_BRANCH} \
 	--env CI_EVENT_TYPE=${CI_EVENT_TYPE} \
 	--env CI_REPO_SLUG=${CI_REPO_SLUG} \
+	--env COVERITY_SCAN_TOKEN=${COVERITY_SCAN_TOKEN} \
+	--env COVERITY_SCAN_NOTIFICATION_EMAIL=${COVERITY_SCAN_NOTIFICATION_EMAIL} \
 	--env CHECK_CPP_STYLE=${CHECK_CPP_STYLE:-OFF} \
 	--env DEFAULT_TEST_DIR=/mnt/pmem \
 	--env TESTS_ASAN=${TESTS_ASAN:-OFF} \

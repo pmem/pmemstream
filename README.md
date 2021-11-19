@@ -1,6 +1,7 @@
 # pmemstream
 
 [![pmemstream version](https://img.shields.io/github/tag/pmem/pmemstream.svg)](https://github.com/pmem/pmemstream/releases/latest)
+[![Coverity Scan Build Status](https://scan.coverity.com/projects/24120/badge.svg)](https://scan.coverity.com/projects/pmem-pmemstream)
 
 `pmemstream` is a logging data structure optimized for persistent memory.
 
