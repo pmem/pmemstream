@@ -33,6 +33,7 @@ jobs:
                   # XXX: Add .clang-format before enabling CHECK_CPP_STYLE in CI
                   #"TYPE=debug OS=ubuntu OS_VER=20.04 CHECK_CPP_STYLE=1 ",
                   "TYPE=debug OS=ubuntu OS_VER=20.04",
+                  "TYPE=debug OS=ubuntu OS_VER=20.04 COVERAGE=1",
                   "TYPE=valgrind OS=ubuntu OS_VER=20.04",
                   "TYPE=package OS=ubuntu OS_VER=20.04",
                  ]

@@ -84,10 +84,9 @@ if [[ -z "${COMMAND}" ]]; then
 fi
 echo "COMMAND to execute within Docker container: ${COMMAND}"
 
-#XXX: Add coverage
-#if [ "${COVERAGE}" == "1" ]; then
-#	DOCKER_OPTS="${DOCKER_OPTS} $(bash <(curl -s https://codecov.io/env))";
-#fi
+if [ "${COVERAGE}" == "1" ]; then
+	DOCKER_OPTS="${DOCKER_OPTS} $(bash <(curl -s https://codecov.io/env))";
+fi
 
 if [ -n "${DNS_SERVER}" ]; then DOCKER_OPTS="${DOCKER_OPTS} --dns=${DNS_SERVER}"; fi
 
@@ -122,6 +121,7 @@ docker run --privileged=true --name=${CONTAINER_NAME} -i \
 	--env COVERITY_SCAN_TOKEN=${COVERITY_SCAN_TOKEN} \
 	--env COVERITY_SCAN_NOTIFICATION_EMAIL=${COVERITY_SCAN_NOTIFICATION_EMAIL} \
 	--env CHECK_CPP_STYLE=${CHECK_CPP_STYLE:-OFF} \
+	--env COVERAGE=${COVERAGE} \
 	--env DEFAULT_TEST_DIR=/mnt/pmem \
 	--env TESTS_ASAN=${TESTS_ASAN:-OFF} \
 	--env TESTS_UBSAN=${TESTS_UBSAN:-OFF} \

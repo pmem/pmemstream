@@ -48,9 +48,9 @@ function tests_clang_debug_cpp17_no_valgrind() {
 
 	make -j$(nproc)
 	ctest --output-on-failure --timeout ${TEST_TIMEOUT}
-#	if [ "${COVERAGE}" == "1" ]; then
-#		upload_codecov tests_clang_debug_cpp17
-#	fi
+	if [ "${COVERAGE}" == "1" ]; then
+		upload_codecov tests_clang_debug_cpp17
+	fi
 
 	workspace_cleanup
 	printf "$(tput setaf 1)$(tput setab 7)BUILD ${FUNCNAME[0]} END$(tput sgr 0)\n\n"
@@ -82,9 +82,9 @@ function tests_clang_release_cpp17_no_valgrind() {
 
 	make -j$(nproc)
 	ctest --output-on-failure --timeout ${TEST_TIMEOUT}
-#	if [ "${COVERAGE}" == "1" ]; then
-#		upload_codecov tests_clang_debug_cpp17
-#	fi
+	if [ "${COVERAGE}" == "1" ]; then
+		upload_codecov tests_clang_debug_cpp17
+	fi
 
 	workspace_cleanup
 	printf "$(tput setaf 1)$(tput setab 7)BUILD ${FUNCNAME[0]} END$(tput sgr 0)\n\n"
@@ -125,9 +125,9 @@ function tests_gcc_debug_cpp17_no_valgrind() {
 	printf "\n$(tput setaf 1)$(tput setab 7)BUILD ${FUNCNAME[0]} START$(tput sgr 0)\n"
 	build_gcc_debug_cpp17
 	ctest -E "_memcheck|_drd|_helgrind|_pmemcheck" --timeout ${TEST_TIMEOUT} --output-on-failure
-#	if [ "${COVERAGE}" == "1" ]; then
-#		upload_codecov tests_gcc_debug
-#	fi
+	if [ "${COVERAGE}" == "1" ]; then
+		upload_codecov tests_gcc_debug
+	fi
 	workspace_cleanup
 	printf "$(tput setaf 1)$(tput setab 7)BUILD ${FUNCNAME[0]} END$(tput sgr 0)\n\n"
 }
@@ -176,9 +176,9 @@ function tests_gcc_release_cpp17_no_valgrind() {
 	printf "\n$(tput setaf 1)$(tput setab 7)BUILD ${FUNCNAME[0]} START$(tput sgr 0)\n"
 	build_gcc_release_cpp17
 	ctest -E "_memcheck|_drd|_helgrind|_pmemcheck" --timeout ${TEST_TIMEOUT} --output-on-failure
-#	if [ "${COVERAGE}" == "1" ]; then
-#		upload_codecov tests_gcc_debug
-#	fi
+	if [ "${COVERAGE}" == "1" ]; then
+		upload_codecov tests_gcc_debug
+	fi
 	workspace_cleanup
 	printf "$(tput setaf 1)$(tput setab 7)BUILD ${FUNCNAME[0]} END$(tput sgr 0)\n\n"
 }

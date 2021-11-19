@@ -32,7 +32,7 @@ function upload_codecov() {
 	printf "\n$(tput setaf 1)$(tput setab 7)COVERAGE ${FUNCNAME[0]} START$(tput sgr 0)\n"
 
 	# set proper gcov command
-	clang_used=$(cmake -LA -N . | grep CMAKE_CXX_COMPILER | grep clang | wc -c)
+	clang_used=$(cmake -LA -N . | grep -e "CMAKE_C.*_COMPILER" | grep clang | wc -c)
 	if [[ ${clang_used} -gt 0 ]]; then
 		gcovexe="llvm-cov gcov"
 	else
