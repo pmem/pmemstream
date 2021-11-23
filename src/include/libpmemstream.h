@@ -9,6 +9,10 @@
 #include <stdint.h>
 #include <sys/types.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct pmemstream;
 struct pmemstream_tx;
 struct pmemstream_entry_iterator;
@@ -82,4 +86,7 @@ int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iter,
 void
 pmemstream_entry_iterator_delete(struct pmemstream_entry_iterator **iterator);
 
+#ifdef __cplusplus
+} /* end extern "C" */
+#endif
 #endif
