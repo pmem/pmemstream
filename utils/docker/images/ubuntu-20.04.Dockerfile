@@ -14,6 +14,16 @@ USER root
 
 RUN dpkg -i /opt/pmdk-pkg/*.deb
 
+ENV DOC_DEPS "\
+	hub \
+	pandoc"
+
+# Install all required packages
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+	${DOC_DEPS} \
+&& rm -rf /var/lib/apt/lists/*
+
 # Download scripts required in run-*.sh
 COPY download-scripts.sh download-scripts.sh
 COPY 0001-fix-generating-gcov-files-and-turn-off-verbose-log.patch 0001-fix-generating-gcov-files-and-turn-off-verbose-log.patch
