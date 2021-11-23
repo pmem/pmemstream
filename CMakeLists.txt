@@ -129,7 +129,7 @@ if(USE_UBSAN)
 endif()
 if(COVERAGE)
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -coverage")
-	# XXX: cxx for tests only?
+	# XXX: add also cxx flag in tests dir?
 	# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -coverage")
 endif()
 

@@ -32,7 +32,7 @@ function upload_codecov() {
 	printf "\n$(tput setaf 1)$(tput setab 7)COVERAGE ${FUNCNAME[0]} START$(tput sgr 0)\n"
 
 	# set proper gcov command
-	clang_used=$(cmake -LA -N . | grep CMAKE_CXX_COMPILER | grep clang | wc -c)
+	clang_used=$(cmake -LA -N . | grep -e "CMAKE_C.*_COMPILER" | grep clang | wc -c)
 	if [[ ${clang_used} -gt 0 ]]; then
 		gcovexe="llvm-cov gcov"
 	else
@@ -40,8 +40,8 @@ function upload_codecov() {
 	fi
 
 	# run gcov exe, using their bash (remove parsed coverage files, set flag and exit 1 if not successful)
-	# we rely on parsed report on codecov.io; the output is too long, hence it's disabled using -X flag
-	/opt/scripts/codecov -c -F ${1} -Z -x "${gcovexe}" -X "gcovout"
+	# we rely on parsed report on codecov.io
+	/opt/scripts/codecov -c -F ${1} -Z -x "${gcovexe}" "gcovout"
 
 	echo "Check for any leftover gcov files"
 	leftover_files=$(find . -name "*.gcov")

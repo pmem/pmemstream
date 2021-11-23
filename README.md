@@ -1,6 +1,9 @@
 # pmemstream
 
+[![Basic Tests](https://github.com/pmem/pmemstream/actions/workflows/basic.yml/badge.svg)](https://github.com/pmem/pmemstream/actions/workflows/basic.yml)
 [![pmemstream version](https://img.shields.io/github/tag/pmem/pmemstream.svg)](https://github.com/pmem/pmemstream/releases/latest)
+[![Coverity Scan Build Status](https://scan.coverity.com/projects/24120/badge.svg)](https://scan.coverity.com/projects/pmem-pmemstream)
+[![Coverage Status](https://codecov.io/github/pmem/pmemstream/coverage.svg?branch=master)](https://app.codecov.io/gh/pmem/pmemstream/branch/master)
 
 `pmemstream` is a logging data structure optimized for persistent memory.
 

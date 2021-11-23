@@ -13,3 +13,8 @@ MAINTAINER igor.chorazewicz@intel.com
 USER root
 
 RUN dpkg -i /opt/pmdk-pkg/*.deb
+
+# Download scripts required in run-*.sh
+COPY download-scripts.sh download-scripts.sh
+COPY 0001-fix-generating-gcov-files-and-turn-off-verbose-log.patch 0001-fix-generating-gcov-files-and-turn-off-verbose-log.patch
+RUN ./download-scripts.sh
