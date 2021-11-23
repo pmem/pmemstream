@@ -12,10 +12,8 @@
 2. [Contact us](#contact-us)
 
 ## Installation
-
-```
-TBD
-```
+[Installation guide](INSTALL.md) provides detailed instructions how to build and install
+`pmemstream` from sources, build rpm and deb packages, and more.
 
 ## Contact us
 For more information about **pmemstream**, contact Igor Chorążewicz (igor.chorazewicz@intel.com),
