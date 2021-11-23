@@ -63,3 +63,6 @@ endif()
 # ----------------------------------------------------------------- #
 build_test(stream_from_map api_c/stream_from_map.c)
 add_test_generic(NAME stream_from_map TRACERS none)
+
+build_test(cpp_linkage api_c/stream_from_map.cpp)
+add_test_generic(NAME cpp_linkage TRACERS none)
