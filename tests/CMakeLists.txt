@@ -39,6 +39,10 @@ find_libunwind()
 # find_pmempool()
 # find_gdb()
 
+if(TESTS_RAPIDCHECK)
+	find_package(rapidcheck REQUIRED)
+endif()
+
 # Add checks when DEVELOPER_MODE is ON
 add_cppstyle(tests ${TESTS_ROOT_DIR}/*/*.[ch]
 		   ${TESTS_ROOT_DIR}/*/*.[ch]pp)
@@ -69,6 +73,7 @@ add_test_generic(NAME stream_from_map TRACERS none)
 build_test(cpp_linkage api_c/stream_from_map.cpp)
 add_test_generic(NAME cpp_linkage TRACERS none)
 
-build_test(util_popcount unittest/popcount.cpp)
-add_test_generic(NAME util_popcount TRACERS none)
-target_link_libraries(util_popcount rapidcheck)
+if(TESTS_RAPIDCHECK)
+	build_test_ext(NAME util_popcount SRC_FILES unittest/popcount.cpp LIBS rapidcheck)
+	add_test_generic(NAME util_popcount TRACERS none)
+endif()
