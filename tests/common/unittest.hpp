@@ -54,4 +54,30 @@ static inline int run_test(std::function<void()> test)
 	return 0;
 }
 
+/* Helper structure for verifying return values from function.
+ * Usage:
+ *
+ * {
+ *     return_check check;
+ *     check += f();
+ *     check += g();
+ * } // if f or g returned false, return_check will fire an assert in its dtor
+ */
+struct return_check {
+	~return_check()
+	{
+		UT_ASSERT(status);
+	}
+
+	return_check &operator+=(bool rhs)
+	{
+		if (!rhs)
+			status = false;
+
+		return *this;
+	}
+
+	bool status = true;
+};
+
 #endif /* PMEMSTREAM_UNITTEST_HPP */
