@@ -58,4 +58,13 @@ static inline int run_test(std::function<void()> test)
 	return 0;
 }
 
+static inline int run_rc_test(std::vector<bool> results)
+{
+	return run_test([&]{
+		for (auto r : results) {
+			UT_ASSERT(r);
+		}
+	});
+}
+
 #endif /* PMEMSTREAM_UNITTEST_HPP */
