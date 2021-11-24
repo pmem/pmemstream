@@ -68,3 +68,7 @@ add_test_generic(NAME stream_from_map TRACERS none)
 # XXX: remove or re-write this test, when real TC comes up
 build_test(cpp_linkage api_c/stream_from_map.cpp)
 add_test_generic(NAME cpp_linkage TRACERS none)
+
+build_test(util_popcount unittest/popcount.cpp)
+add_test_generic(NAME util_popcount TRACERS none)
+target_link_libraries(util_popcount rapidcheck)
