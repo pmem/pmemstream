@@ -85,6 +85,7 @@ option(TESTS_USE_FORCED_PMEM "run tests with PMEM_IS_PMEM_FORCE=1 - it speeds up
 option(TESTS_USE_VALGRIND "enable tests with valgrind (fail build if Valgrind not found)" OFF)
 option(TESTS_PMREORDER "enable tests with pmreorder (if pmreorder found; it requires PMDK ver. >= 1.9)" OFF)
 option(TESTS_LONG "enable long running tests" OFF)
+option(TESTS_RAPIDCHECK "enable rapidcheck tests" ON)
 
 # ----------------------------------------------------------------- #
 ## Setup environment, find packages, set compiler's flags,
@@ -168,7 +169,7 @@ elseif(NOT VALGRIND_FOUND AND TESTS_USE_VALGRIND)
 	message(FATAL_ERROR "Valgrind not found, but flag TESTS_USE_VALGRIND was set.")
 elseif(NOT VALGRIND_FOUND)
 	message(WARNING "Valgrind not found. Valgrind tests will not be performed.")
- endif()
+endif()
 
 add_custom_target(checkers ALL)
 add_custom_target(cppstyle) # XXX: change the name to 'cstyle'?
