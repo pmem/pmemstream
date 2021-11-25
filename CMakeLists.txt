@@ -69,8 +69,7 @@ set(CMAKE_NO_SYSTEM_FROM_IMPORTED 1)
 # ----------------------------------------------------------------- #
 option(BUILD_EXAMPLES "build examples" ON)
 option(BUILD_TESTS "build tests" ON)
-# XXX: turn these ON, when docs added
-option(BUILD_DOC "build documentation" OFF)
+option(BUILD_DOC "build documentation" ON)
 
 option(USE_CCACHE "use ccache if it is available in the system" ON)
 option(COVERAGE "enable collecting of coverage data" OFF)
