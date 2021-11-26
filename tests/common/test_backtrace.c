@@ -53,8 +53,7 @@ void test_dump_backtrace(void)
 	while (ret > 0) {
 		ret = unw_get_proc_info(&cursor, &pip);
 		if (ret) {
-			fprintf(stderr, "[%u] unw_get_proc_info: %s [%d]\n", i,
-				unw_strerror(ret), ret);
+			fprintf(stderr, "[%u] unw_get_proc_info: %s [%d]\n", i, unw_strerror(ret), ret);
 			break;
 		}
 
@@ -62,8 +61,7 @@ void test_dump_backtrace(void)
 		ret = unw_get_proc_name(&cursor, procname, PROCNAMELEN, &off);
 		if (ret && ret != -UNW_ENOMEM) {
 			if (ret != -UNW_EUNSPEC) {
-				fprintf(stderr, "[%u] unw_get_proc_name: %s [%d]\n", i,
-					unw_strerror(ret), ret);
+				fprintf(stderr, "[%u] unw_get_proc_name: %s [%d]\n", i, unw_strerror(ret), ret);
 			}
 
 			strcpy(procname, "?");
@@ -76,8 +74,7 @@ void test_dump_backtrace(void)
 		if (dladdr(ptr, &dlinfo) && dlinfo.dli_fname && *dlinfo.dli_fname)
 			fname = dlinfo.dli_fname;
 
-		printf("%u: %s (%s%s+0x%lx) [%p]\n", i++, fname, procname,
-		       ret == -UNW_ENOMEM ? "..." : "", off, ptr);
+		printf("%u: %s (%s%s+0x%lx) [%p]\n", i++, fname, procname, ret == -UNW_ENOMEM ? "..." : "", off, ptr);
 
 		ret = unw_step(&cursor);
 		if (ret < 0)

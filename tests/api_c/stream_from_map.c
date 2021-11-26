@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
 	START();
 	char *path = argv[1];
 
-	test_stream_from_map(path, 4096*1024, 4096);
+	test_stream_from_map(path, 4096 * 1024, 4096);
 	test_stream_from_map(path, 10240, 64);
 
 	return 0;
