@@ -72,10 +72,9 @@ if [[ -z "${COMMAND}" ]]; then
 	coverity)
 		COMMAND="./run-coverity.sh";
 		;;
-#XXX: Add docs
-#	doc)
-#		COMMAND="./run-doc-update.sh";
-#		;;
+	doc)
+		COMMAND="./run-doc-update.sh";
+		;;
 	*)
 		echo "ERROR: wrong build TYPE"
 		exit 1
