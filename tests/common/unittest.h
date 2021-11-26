@@ -46,53 +46,51 @@ static inline void UT_FATAL(const char *format, ...)
 
 // XXX: use pmemstream_errormsg()
 /* assert a condition is true at runtime */
-#define UT_ASSERT(cnd)                                                                   \
-	((void)((cnd) ||                                                                 \
-		(UT_FATAL("%s:%d %s - assertion failure: %s, errormsg: %s", __FILE__,    \
-			  __LINE__, __func__, #cnd, pmem2_errormsg()),                  \
+#define UT_ASSERT(cnd)                                                                                                 \
+	((void)((cnd) ||                                                                                               \
+		(UT_FATAL("%s:%d %s - assertion failure: %s, errormsg: %s", __FILE__, __LINE__, __func__, #cnd,        \
+			  pmem2_errormsg()),                                                                           \
 		 0)))
 
 // XXX: use pmemstream_errormsg()
 /* assertion with extra info printed if assertion fails at runtime */
-#define UT_ASSERTinfo(cnd, info)                                                         \
-	((void)((cnd) ||                                                                 \
-		(UT_FATAL("%s:%d %s - assertion failure: %s (%s = %s), errormsg: %s",    \
-			  __FILE__, __LINE__, __func__, #cnd, #info, info,               \
-			  pmem2_errormsg),                                            \
+#define UT_ASSERTinfo(cnd, info)                                                                                       \
+	((void)((cnd) ||                                                                                               \
+		(UT_FATAL("%s:%d %s - assertion failure: %s (%s = %s), errormsg: %s", __FILE__, __LINE__, __func__,    \
+			  #cnd, #info, info, pmem2_errormsg),                                                          \
 		 0)))
 
 // XXX: use pmemstream_errormsg()
 /* assert two integer values are equal at runtime */
-#define UT_ASSERTeq(lhs, rhs)                                                            \
-	((void)(((lhs) == (rhs)) ||                                                      \
-		(UT_FATAL("%s:%d %s - assertion failure: %s (0x%llx) == %s "             \
-			  "(0x%llx), errormsg: %s",                                      \
-			  __FILE__, __LINE__, __func__, #lhs, (unsigned long long)(lhs), \
-			  #rhs, (unsigned long long)(rhs), pmem2_errormsg()),           \
+#define UT_ASSERTeq(lhs, rhs)                                                                                          \
+	((void)(((lhs) == (rhs)) ||                                                                                    \
+		(UT_FATAL("%s:%d %s - assertion failure: %s (0x%llx) == %s "                                           \
+			  "(0x%llx), errormsg: %s",                                                                    \
+			  __FILE__, __LINE__, __func__, #lhs, (unsigned long long)(lhs), #rhs,                         \
+			  (unsigned long long)(rhs), pmem2_errormsg()),                                                \
 		 0)))
 
 // XXX: use pmemstream_errormsg()
 /* assert two integer values are not equal at runtime */
-#define UT_ASSERTne(lhs, rhs)                                                            \
-	((void)(((lhs) != (rhs)) ||                                                      \
-		(UT_FATAL("%s:%d %s - assertion failure: %s (0x%llx) != %s "             \
-			  "(0x%llx), errormsg: %s",                                      \
-			  __FILE__, __LINE__, __func__, #lhs, (unsigned long long)(lhs), \
-			  #rhs, (unsigned long long)(rhs), pmem2_errormsg()),           \
+#define UT_ASSERTne(lhs, rhs)                                                                                          \
+	((void)(((lhs) != (rhs)) ||                                                                                    \
+		(UT_FATAL("%s:%d %s - assertion failure: %s (0x%llx) != %s "                                           \
+			  "(0x%llx), errormsg: %s",                                                                    \
+			  __FILE__, __LINE__, __func__, #lhs, (unsigned long long)(lhs), #rhs,                         \
+			  (unsigned long long)(rhs), pmem2_errormsg()),                                                \
 		 0)))
 
 /* Creates a pmem2_map from a file path, with given size.
  * XXX: add granularity (and FILE_MODE?) as a param
  */
-static struct pmem2_map *
-map_open(const char *file, size_t size)
+static struct pmem2_map *map_open(const char *file, size_t size)
 {
 	const mode_t FILE_MODE = 0644;
 	struct pmem2_source *source;
 	struct pmem2_config *config;
 	struct pmem2_map *map = NULL;
 
-	int fd = open(file, O_CREAT|O_RDWR|O_TRUNC, FILE_MODE);
+	int fd = open(file, O_CREAT | O_RDWR | O_TRUNC, FILE_MODE);
 	if (fd < 0) {
 		UT_FATAL("File creation error (errno: %d)!", errno);
 		return NULL;
@@ -109,8 +107,7 @@ map_open(const char *file, size_t size)
 	if (pmem2_config_new(&config) != 0)
 		goto err_config;
 
-	pmem2_config_set_required_store_granularity(config,
-						    PMEM2_GRANULARITY_PAGE);
+	pmem2_config_set_required_store_granularity(config, PMEM2_GRANULARITY_PAGE);
 
 	if (pmem2_map_new(&map, config, source) != 0)
 		goto err_map;

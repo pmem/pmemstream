@@ -15,9 +15,26 @@ Details such as OS and PMDK version are always appreciated.
 
 # Code style
 
+* See `.clang-format` file in the repository for details
+* Indent with tabs (width: 8)
+* Max 120 chars per line
+* Space before '*' and '&' (rather than after)
+
+If you want to check and format your source code properly you can use CMake's `DEVELOPER_MODE`
+and `CHECK_CPP_STYLE` options. When enabled additional checks are switched on
+(cppstyle, whitespaces and headers).
+
+```sh
+cmake .. -DDEVELOPER_MODE=ON -DCHECK_CPP_STYLE=ON
 ```
-TBD
+
+If you just want to format your code you can make adequate target:
+```sh
+make cppformat
 ```
+
+**NOTE**: We're using specific clang-format - version exactly **9.0** is required.
+
 
 # Submitting Pull Requests
 

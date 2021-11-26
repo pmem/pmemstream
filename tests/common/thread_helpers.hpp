@@ -25,15 +25,14 @@ void parallel_exec(size_t threads_number, Function f)
 }
 
 class latch {
-public:
+ public:
 	latch(size_t desired) : counter(desired)
 	{
 	}
 
 	/* Returns true for the last thread arriving at the latch, false for all
 	 * other threads. */
-	bool
-	wait(std::unique_lock<std::mutex> &lock)
+	bool wait(std::unique_lock<std::mutex> &lock)
 	{
 		counter--;
 		if (counter > 0) {
@@ -50,7 +49,7 @@ public:
 		}
 	}
 
-private:
+ private:
 	std::condition_variable cv;
 	size_t counter = 0;
 };
@@ -60,12 +59,10 @@ private:
  * 'syncthreads' method (multi-use synchronization barrier) for f()
  */
 template <typename Function>
-void
-parallel_xexec(size_t threads_number, Function f)
+void parallel_xexec(size_t threads_number, Function f)
 {
 	std::mutex m;
-	std::shared_ptr<latch> current_latch =
-		std::shared_ptr<latch>(new latch(threads_number));
+	std::shared_ptr<latch> current_latch = std::shared_ptr<latch>(new latch(threads_number));
 
 	/* Implements multi-use barrier (latch). Once all threads arrive at the
 	 * latch, a new latch is allocated and used by all subsequent calls to
@@ -74,8 +71,7 @@ parallel_xexec(size_t threads_number, Function f)
 		std::unique_lock<std::mutex> lock(m);
 		auto l = current_latch;
 		if (l->wait(lock))
-			current_latch =
-				std::shared_ptr<latch>(new latch(threads_number));
+			current_latch = std::shared_ptr<latch>(new latch(threads_number));
 	};
 
 	parallel_exec(threads_number, [&](size_t tid) { f(tid, syncthreads); });
@@ -86,15 +82,13 @@ parallel_xexec(size_t threads_number, Function f)
  * finish executing f before calling join().
  */
 template <typename Function>
-void
-parallel_exec_with_sync(size_t threads_number, Function f)
+void parallel_exec_with_sync(size_t threads_number, Function f)
 {
-	parallel_xexec(threads_number,
-		       [&](size_t tid, std::function<void(void)> syncthreads) {
-			       f(tid);
+	parallel_xexec(threads_number, [&](size_t tid, std::function<void(void)> syncthreads) {
+		f(tid);
 
-			       syncthreads();
-		       });
+		syncthreads();
+	});
 }
 
 #endif /* PMEMSTREAM_THREAD_HELPERS_HPP */

@@ -11,10 +11,9 @@
 
 #define ALIGN_UP(size, align) (((size) + (align)-1) & ~((align)-1))
 #define ALIGN_DOWN(size, align) ((size) & ~((align)-1))
-#define MEMBER_SIZE(type, member) sizeof(((struct type*)NULL)->member)
+#define MEMBER_SIZE(type, member) sizeof(((struct type *)NULL)->member)
 
-static unsigned char
-util_popcount64(uint64_t value)
+static unsigned char util_popcount64(uint64_t value)
 {
 	return (unsigned char)__builtin_popcountll(value);
 }
@@ -48,30 +47,26 @@ struct pmemstream_span_runtime {
 
 typedef uint64_t pmemstream_span_bytes;
 
-static void
-pmemstream_span_create_free(pmemstream_span_bytes *span, size_t data_size)
+static void pmemstream_span_create_free(pmemstream_span_bytes *span, size_t data_size)
 {
 	assert((data_size & PMEMSTREAM_SPAN_TYPE_MASK) == 0);
 	span[0] = data_size | PMEMSTREAM_SPAN_EMPTY;
 }
 
-static void
-pmemstream_span_create_entry(pmemstream_span_bytes *span, size_t data_size, size_t popcount)
+static void pmemstream_span_create_entry(pmemstream_span_bytes *span, size_t data_size, size_t popcount)
 {
 	assert((data_size & PMEMSTREAM_SPAN_TYPE_MASK) == 0);
 	span[0] = data_size | PMEMSTREAM_SPAN_ENTRY;
 	span[1] = popcount;
 }
 
-static void
-pmemstream_span_create_region(pmemstream_span_bytes *span, size_t size)
+static void pmemstream_span_create_region(pmemstream_span_bytes *span, size_t size)
 {
 	assert((size & PMEMSTREAM_SPAN_TYPE_MASK) == 0);
 	span[0] = size | PMEMSTREAM_SPAN_REGION;
 }
 
-static struct pmemstream_span_runtime
-pmemstream_span_get_runtime(pmemstream_span_bytes *span)
+static struct pmemstream_span_runtime pmemstream_span_get_runtime(pmemstream_span_bytes *span)
 {
 	struct pmemstream_span_runtime sr;
 	sr.type = span[0] & PMEMSTREAM_SPAN_TYPE_MASK;
@@ -146,8 +141,7 @@ struct pmemstream_region_context {
 	size_t offset;
 };
 
-static int
-pmemstream_is_initialized(struct pmemstream *stream)
+static int pmemstream_is_initialized(struct pmemstream *stream)
 {
 	if (strcmp(stream->data->header.signature, PMEMSTREAM_SIGNATURE) != 0) {
 		return -1;
@@ -162,8 +156,7 @@ pmemstream_is_initialized(struct pmemstream *stream)
 	return 0;
 }
 
-static void
-pmemstream_init(struct pmemstream *stream)
+static void pmemstream_init(struct pmemstream *stream)
 {
 	memset(stream->data->header.signature, 0, PMEMSTREAM_SIGNATURE_LEN);
 
@@ -178,28 +171,24 @@ pmemstream_init(struct pmemstream *stream)
 	stream->memcpy(stream->data->header.signature, PMEMSTREAM_SIGNATURE, PMEMSTREAM_SIGNATURE_LEN, 0);
 }
 
-static pmemstream_span_bytes*
-pmemstream_get_span_for_offset(struct pmemstream *stream, size_t offset)
+static pmemstream_span_bytes *pmemstream_get_span_for_offset(struct pmemstream *stream, size_t offset)
 {
 	return (pmemstream_span_bytes *)((uint8_t *)stream->data->spans + offset);
 }
 
-static pmemstream_span_bytes*
-pmemstream_get_span_for_offset_in_region(struct pmemstream_span_runtime region_sr, size_t offset)
+static pmemstream_span_bytes *pmemstream_get_span_for_offset_in_region(struct pmemstream_span_runtime region_sr,
+								       size_t offset)
 {
 	assert(region_sr.type == PMEMSTREAM_SPAN_REGION);
 	return (pmemstream_span_bytes *)((uint8_t *)region_sr.data + offset);
 }
 
-static uint64_t
-pmemstream_get_offset_for_span(struct pmemstream *stream, pmemstream_span_bytes *span)
+static uint64_t pmemstream_get_offset_for_span(struct pmemstream *stream, pmemstream_span_bytes *span)
 {
 	return (uint64_t)((uint64_t)span - (uint64_t)stream->data->spans);
 }
 
-int
-pmemstream_from_map(struct pmemstream **stream, size_t block_size,
-		    struct pmem2_map *map)
+int pmemstream_from_map(struct pmemstream **stream, size_t block_size, struct pmem2_map *map)
 {
 	struct pmemstream *s = malloc(sizeof(struct pmemstream));
 	s->data = pmem2_map_get_address(map);
@@ -222,8 +211,7 @@ pmemstream_from_map(struct pmemstream **stream, size_t block_size,
 	return 0;
 }
 
-void
-pmemstream_delete(struct pmemstream **stream)
+void pmemstream_delete(struct pmemstream **stream)
 {
 	struct pmemstream *s = *stream;
 	free(s);
@@ -232,8 +220,7 @@ pmemstream_delete(struct pmemstream **stream)
 
 // stream owns the region object - the user gets a reference, but it's not
 // necessary to hold on to it and explicitly delete it.
-int
-pmemstream_region_allocate(struct pmemstream *stream, size_t size, struct pmemstream_region *region)
+int pmemstream_region_allocate(struct pmemstream *stream, size_t size, struct pmemstream_region *region)
 {
 	pmemstream_span_bytes *span = pmemstream_get_span_for_offset(stream, 0);
 	struct pmemstream_span_runtime sr = pmemstream_span_get_runtime(span);
@@ -252,8 +239,7 @@ pmemstream_region_allocate(struct pmemstream *stream, size_t size, struct pmemst
 	return 0;
 }
 
-int
-pmemstream_region_free(struct pmemstream *stream, struct pmemstream_region region)
+int pmemstream_region_free(struct pmemstream *stream, struct pmemstream_region region)
 {
 	pmemstream_span_bytes *span = pmemstream_get_span_for_offset(stream, region.offset);
 	struct pmemstream_span_runtime sr = pmemstream_span_get_runtime(span);
@@ -268,10 +254,8 @@ pmemstream_region_free(struct pmemstream *stream, struct pmemstream_region regio
 	return 0;
 }
 
-int
-pmemstream_region_context_new(struct pmemstream_region_context **rcontext,
-			      struct pmemstream *stream,
-			      struct pmemstream_region region)
+int pmemstream_region_context_new(struct pmemstream_region_context **rcontext, struct pmemstream *stream,
+				  struct pmemstream_region region)
 {
 	// todo: the only reason context exists is to store the offset of the
 	// place where we can append inside of the region.
@@ -298,22 +282,20 @@ pmemstream_region_context_new(struct pmemstream_region_context **rcontext,
 	return 0;
 }
 
-void
-pmemstream_region_context_delete(struct pmemstream_region_context **rcontext)
+void pmemstream_region_context_delete(struct pmemstream_region_context **rcontext)
 {
 	struct pmemstream_region_context *c = *rcontext;
 	free(c);
 }
 
-static uint64_t
-pmemstream_popcount(const uint64_t *data, size_t size)
+static uint64_t pmemstream_popcount(const uint64_t *data, size_t size)
 {
 	uint64_t count = 0;
 	size_t i = 0;
-	const uint8_t *d = (const uint8_t*)&data[0];
+	const uint8_t *d = (const uint8_t *)&data[0];
 
 	for (; i < ALIGN_DOWN(size, sizeof(uint64_t)); i += sizeof(uint64_t)) {
-		count += util_popcount64(*(const uint64_t*)(d + i));
+		count += util_popcount64(*(const uint64_t *)(d + i));
 	}
 	for (; i < size; i++) {
 		count += util_popcount64(d[i]);
@@ -323,9 +305,8 @@ pmemstream_popcount(const uint64_t *data, size_t size)
 }
 
 // synchronously appends data buffer to the end of the region
-int
-pmemstream_append(struct pmemstream *stream, struct pmemstream_region_context *rcontext, const void *buf, size_t count,
-	struct pmemstream_entry *entry)
+int pmemstream_append(struct pmemstream *stream, struct pmemstream_region_context *rcontext, const void *buf,
+		      size_t count, struct pmemstream_entry *entry)
 {
 	size_t entry_total_size = count + MEMBER_SIZE(pmemstream_span_runtime, entry);
 	pmemstream_span_bytes *region_span = pmemstream_get_span_for_offset(stream, rcontext->region.offset);
@@ -353,8 +334,7 @@ pmemstream_append(struct pmemstream *stream, struct pmemstream_region_context *r
 }
 
 // returns pointer to the data of the entry
-void *
-pmemstream_entry_data(struct pmemstream *stream, struct pmemstream_entry entry)
+void *pmemstream_entry_data(struct pmemstream *stream, struct pmemstream_entry entry)
 {
 	pmemstream_span_bytes *entry_span = pmemstream_get_span_for_offset(stream, entry.offset);
 	struct pmemstream_span_runtime entry_sr = pmemstream_span_get_runtime(entry_span);
@@ -364,8 +344,7 @@ pmemstream_entry_data(struct pmemstream *stream, struct pmemstream_entry entry)
 }
 
 // returns the size of the entry
-size_t
-pmemstream_entry_length(struct pmemstream *stream, struct pmemstream_entry entry)
+size_t pmemstream_entry_length(struct pmemstream *stream, struct pmemstream_entry entry)
 {
 	pmemstream_span_bytes *entry_span = pmemstream_get_span_for_offset(stream, entry.offset);
 	struct pmemstream_span_runtime entry_sr = pmemstream_span_get_runtime(entry_span);
@@ -374,8 +353,7 @@ pmemstream_entry_length(struct pmemstream *stream, struct pmemstream_entry entry
 	return entry_sr.entry.size;
 }
 
-int
-pmemstream_region_iterator_new(struct pmemstream_region_iterator **iterator, struct pmemstream *stream)
+int pmemstream_region_iterator_new(struct pmemstream_region_iterator **iterator, struct pmemstream *stream)
 {
 	struct pmemstream_region_iterator *iter = malloc(sizeof(*iter));
 	iter->stream = stream;
@@ -386,8 +364,7 @@ pmemstream_region_iterator_new(struct pmemstream_region_iterator **iterator, str
 	return 0;
 }
 
-int
-pmemstream_region_iterator_next(struct pmemstream_region_iterator *it, struct pmemstream_region *region)
+int pmemstream_region_iterator_next(struct pmemstream_region_iterator *it, struct pmemstream_region *region)
 {
 	pmemstream_span_bytes *region_span;
 	struct pmemstream_span_runtime region_sr;
@@ -409,8 +386,7 @@ pmemstream_region_iterator_next(struct pmemstream_region_iterator *it, struct pm
 	return -1;
 }
 
-void
-pmemstream_region_iterator_delete(struct pmemstream_region_iterator **iterator)
+void pmemstream_region_iterator_delete(struct pmemstream_region_iterator **iterator)
 {
 	struct pmemstream_region_iterator *iter = *iterator;
 
@@ -418,10 +394,8 @@ pmemstream_region_iterator_delete(struct pmemstream_region_iterator **iterator)
 	*iterator = NULL;
 }
 
-int
-pmemstream_entry_iterator_new(struct pmemstream_entry_iterator **iterator,
-			      struct pmemstream *stream,
-			      struct pmemstream_region region)
+int pmemstream_entry_iterator_new(struct pmemstream_entry_iterator **iterator, struct pmemstream *stream,
+				  struct pmemstream_region region)
 {
 	struct pmemstream_entry_iterator *iter = malloc(sizeof(*iter));
 	iter->offset = 0;
@@ -435,16 +409,15 @@ pmemstream_entry_iterator_new(struct pmemstream_entry_iterator **iterator,
 	return 0;
 }
 
-int
-pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iter,
-			       struct pmemstream_region *region,
-			       struct pmemstream_entry *entry)
+int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iter, struct pmemstream_region *region,
+				   struct pmemstream_entry *entry)
 {
 	for (;;) {
 		if (iter->offset >= iter->region_sr.region.size) {
 			return -1;
 		}
-		pmemstream_span_bytes *entry_span = pmemstream_get_span_for_offset_in_region(iter->region_sr, iter->offset);
+		pmemstream_span_bytes *entry_span =
+			pmemstream_get_span_for_offset_in_region(iter->region_sr, iter->offset);
 		struct pmemstream_span_runtime rt = pmemstream_span_get_runtime(entry_span);
 		iter->offset += rt.total_size;
 
@@ -458,7 +431,7 @@ pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iter,
 			case PMEMSTREAM_SPAN_ENTRY: {
 				// TODO: verify checksum / popcount?
 				if (entry) {
-					entry->offset = pmemstream_get_offset_for_span(iter->stream,entry_span);
+					entry->offset = pmemstream_get_offset_for_span(iter->stream, entry_span);
 				}
 				if (region) {
 					*region = iter->region;
@@ -469,8 +442,7 @@ pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iter,
 	}
 }
 
-void
-pmemstream_entry_iterator_delete(struct pmemstream_entry_iterator **iterator)
+void pmemstream_entry_iterator_delete(struct pmemstream_entry_iterator **iterator)
 {
 	struct pmemstream_entry_iterator *iter = *iterator;
 

@@ -23,7 +23,7 @@ In order to build libpmemstream, you need to have installed:
 * Used only for **development**:
 	* [**pandoc**](https://pandoc.org/) - markup converter to generate man pages
 	* [**perl**](https://www.perl.org/) - for whitespace checker script
-	* [**clang format**](https://clang.llvm.org/docs/ClangFormat.html) - to format and check coding style
+	* [**clang format**](https://clang.llvm.org/docs/ClangFormat.html) - to format and check coding style, version 9.0 is required
 
 Required packages (or their names) for some OSes may differ. Some examples or scripts in
 this repository may require additional dependencies, but should not interrupt the build.

@@ -10,8 +10,7 @@
 #include <string.h>
 #include <unistd.h>
 
-static struct pmem2_map *
-map_open(const char *file)
+static struct pmem2_map *map_open(const char *file)
 {
 	struct pmem2_source *source;
 	struct pmem2_config *config;
@@ -27,8 +26,7 @@ map_open(const char *file)
 	if (pmem2_config_new(&config) != 0)
 		goto err_config;
 
-	pmem2_config_set_required_store_granularity(config,
-						    PMEM2_GRANULARITY_PAGE);
+	pmem2_config_set_required_store_granularity(config, PMEM2_GRANULARITY_PAGE);
 
 	if (pmem2_map_new(&map, config, source) != 0)
 		goto err_map;
@@ -54,8 +52,7 @@ struct data_entry {
  * It accepts a path to already existing, zeroed out file.
  * (File can be created e.g. by dd: dd if=/dev/zero of=file bs=1024 count=1024)
  */
-int
-main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
 	if (argc != 2) {
 		printf("Usage: %s file\n", argv[0]);

@@ -13,6 +13,8 @@ sub check {
 	my $original;
 	my $formatted;
 
+	print "$mode file:  $file \n";
+
 	$formatted = `$clangfmt -style=file "$file"`;
 
 	if ($mode eq 'check') {
