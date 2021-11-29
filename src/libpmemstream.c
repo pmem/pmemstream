@@ -2,6 +2,7 @@
 /* Copyright 2021, Intel Corporation */
 
 #include "libpmemstream.h"
+#include "common/util.h"
 
 #include <assert.h>
 #include <libpmem2.h>
@@ -9,14 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define ALIGN_UP(size, align) (((size) + (align)-1) & ~((align)-1))
-#define ALIGN_DOWN(size, align) ((size) & ~((align)-1))
 #define MEMBER_SIZE(type, member) sizeof(((struct type *)NULL)->member)
-
-static unsigned char util_popcount64(uint64_t value)
-{
-	return (unsigned char)__builtin_popcountll(value);
-}
 
 enum pmemstream_span_type {
 	PMEMSTREAM_SPAN_EMPTY = 00ULL << 62,
@@ -288,22 +282,6 @@ void pmemstream_region_context_delete(struct pmemstream_region_context **rcontex
 	free(c);
 }
 
-static uint64_t pmemstream_popcount(const uint64_t *data, size_t size)
-{
-	uint64_t count = 0;
-	size_t i = 0;
-	const uint8_t *d = (const uint8_t *)&data[0];
-
-	for (; i < ALIGN_DOWN(size, sizeof(uint64_t)); i += sizeof(uint64_t)) {
-		count += util_popcount64(*(const uint64_t *)(d + i));
-	}
-	for (; i < size; i++) {
-		count += util_popcount64(d[i]);
-	}
-
-	return count;
-}
-
 // synchronously appends data buffer to the end of the region
 int pmemstream_append(struct pmemstream *stream, struct pmemstream_region_context *rcontext, const void *buf,
 		      size_t count, struct pmemstream_entry *entry)
@@ -322,7 +300,7 @@ int pmemstream_append(struct pmemstream *stream, struct pmemstream_region_contex
 		entry->offset = pmemstream_get_offset_for_span(stream, entry_span);
 	}
 
-	pmemstream_span_create_entry(entry_span, count, pmemstream_popcount(buf, count));
+	pmemstream_span_create_entry(entry_span, count, util_popcount_memory(buf, count));
 	// TODO: for popcount, we also need to make sure that the memory is zeroed - maybe it can be done by bg thread?
 
 	struct pmemstream_span_runtime entry_rt = pmemstream_span_get_runtime(entry_span);

@@ -3,11 +3,13 @@
 
 add_cppstyle(src
 	${CMAKE_CURRENT_SOURCE_DIR}/*.[chp]
-	${CMAKE_CURRENT_SOURCE_DIR}/include/*.h)
+	${CMAKE_CURRENT_SOURCE_DIR}/include/*.h
+	${CMAKE_CURRENT_SOURCE_DIR}/common/*.[chp])
 
 add_check_whitespace(src
 	${CMAKE_CURRENT_SOURCE_DIR}/*.[chp]
-	${CMAKE_CURRENT_SOURCE_DIR}/include/*.h)
+	${CMAKE_CURRENT_SOURCE_DIR}/include/*.h
+	${CMAKE_CURRENT_SOURCE_DIR}/common/*.[chp])
 
 set(SOURCES libpmemstream.c)
 
