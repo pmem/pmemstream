@@ -24,6 +24,10 @@ RUN apt-get update \
 	${DOC_DEPS} \
 && rm -rf /var/lib/apt/lists/*
 
+# Install rapidcheck
+COPY install-rapidcheck.sh install-rapidcheck.sh
+RUN ./install-rapidcheck.sh
+
 # Download scripts required in run-*.sh
 COPY download-scripts.sh download-scripts.sh
 COPY 0001-fix-generating-gcov-files-and-turn-off-verbose-log.patch 0001-fix-generating-gcov-files-and-turn-off-verbose-log.patch
