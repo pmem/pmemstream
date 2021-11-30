@@ -100,24 +100,14 @@ int main(int argc, char *argv[])
 		}
 		pmemstream_entry_iterator_delete(&eiter);
 
-		/* Create region context and use it to append new value at the end. */
-		struct pmemstream_region_context *rcontext;
-		ret = pmemstream_region_context_new(&rcontext, stream, region);
-		if (ret == -1) {
-			fprintf(stderr, "pmemstream_region_context_new failed\n");
-			return ret;
-		}
-
 		struct data_entry e;
 		e.data = last_entry_data + 1;
 		struct pmemstream_entry new_entry;
-		ret = pmemstream_append(stream, rcontext, &e, sizeof(e), &new_entry);
+		ret = pmemstream_append(stream, &region, &entry, &e, sizeof(e), &new_entry);
 		if (ret == -1) {
 			fprintf(stderr, "pmemstream_append failed\n");
 			return ret;
 		}
-
-		pmemstream_region_context_delete(&rcontext);
 	}
 
 	pmemstream_region_iterator_delete(&riter);
@@ -126,17 +116,23 @@ int main(int argc, char *argv[])
 	struct pmemstream_region new_region;
 	ret = pmemstream_region_allocate(stream, 4096, &new_region);
 	if (ret != -1) {
-		struct pmemstream_region_context *rcontext;
-		ret = pmemstream_region_context_new(&rcontext, stream, new_region);
+		struct data_entry e;
+		e.data = 1;
+		struct pmemstream_entry entry;
+		struct pmemstream_entry new_entry;
+
+		struct pmemstream_entry_iterator *eiter;
+		ret = pmemstream_entry_iterator_new(&eiter, stream, new_region);
 		if (ret == -1) {
-			fprintf(stderr, "pmemstream_region_context_new failed\n");
+			fprintf(stderr, "pmemstream_entry_iterator_new failed\n");
 			return ret;
 		}
 
-		struct data_entry e;
-		e.data = 1;
-		struct pmemstream_entry new_entry;
-		ret = pmemstream_append(stream, rcontext, &e, sizeof(e), &new_entry);
+		/* Find out offset for the first entry in region */
+		pmemstream_entry_iterator_next(eiter, NULL, &entry);
+		pmemstream_entry_iterator_delete(&eiter);
+
+		ret = pmemstream_append(stream, &new_region, &entry, &e, sizeof(e), &new_entry);
 		if (ret == -1) {
 			fprintf(stderr, "pmemstream_append failed\n");
 			return ret;
@@ -145,7 +141,15 @@ int main(int argc, char *argv[])
 		struct data_entry *new_data_entry = pmemstream_entry_data(stream, new_entry);
 		printf("new_data_entry: %lu\n", new_data_entry->data);
 
-		pmemstream_region_context_delete(&rcontext);
+		e.data++;
+		ret = pmemstream_append(stream, &new_region, &entry, &e, sizeof(e), &new_entry);
+		if (ret == -1) {
+			fprintf(stderr, "pmemstream_append failed\n");
+			return ret;
+		}
+
+		new_data_entry = pmemstream_entry_data(stream, new_entry);
+		printf("new_data_entry: %lu\n", new_data_entry->data);
 	}
 
 	pmemstream_delete(&stream);
