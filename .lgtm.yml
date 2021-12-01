@@ -1,0 +1,26 @@
+# lgtm.com delivers security scans
+# We need to setup a tailor-made extraction configuration, because we require e.g. libpmem2 >= 1.10,
+# cmake >= 3.16, and they are not available in Ubuntu 19.10 (which is currently used in lgtm builds).
+extraction:
+  cpp:
+    prepare:
+      packages:
+        - libdaxctl-dev
+        - libndctl-dev
+        - pandoc
+    after_prepare:
+      - wget -O install-cmake.sh https://cmake.org/files/v3.16/cmake-3.16.9-Linux-x86_64.sh
+      - chmod +x ./install-cmake.sh
+      - mkdir $LGTM_WORKSPACE/installed/
+      - ./install-cmake.sh --skip-license --prefix=$LGTM_WORKSPACE/installed/
+      - export PATH=$LGTM_WORKSPACE/installed/bin:$PATH
+      - git clone https://github.com/pmem/pmdk
+      - cd pmdk
+      - make install -j$(nproc) prefix=$LGTM_WORKSPACE/installed/
+      - export PKG_CONFIG_PATH=$LGTM_WORKSPACE/installed/lib/pkgconfig:$PKG_CONFIG_PATH
+    index:
+      build_command:
+        - mkdir build
+        - cd build
+        - cmake .. -DTESTS_RAPIDCHECK=OFF
+        - make -j$(nproc)
