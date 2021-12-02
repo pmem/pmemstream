@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /* Copyright 2015-2021, Intel Corporation */
 
-#ifndef TEST_BACKTRACE_H
-#define TEST_BACKTRACE_H
+#ifndef LIBPMEMSTREAM_TEST_BACKTRACE_H
+#define LIBPMEMSTREAM_TEST_BACKTRACE_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -15,4 +15,4 @@ void test_register_sighandlers(void);
 #ifdef __cplusplus
 }
 #endif
-#endif /* TEST_BACKTRACE_H */
+#endif /* LIBPMEMSTREAM_TEST_BACKTRACE_H */

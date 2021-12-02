@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /* Copyright 2021, Intel Corporation */
 
+/* Public C API header */
+
 #ifndef LIBPMEMSTREAM_H
-#define LIBPMEMSTREAM_H 1
+#define LIBPMEMSTREAM_H
 
 #include <libpmem2.h>
 #include <stddef.h>
@@ -76,4 +78,4 @@ void pmemstream_entry_iterator_delete(struct pmemstream_entry_iterator **iterato
 #ifdef __cplusplus
 } /* end extern "C" */
 #endif
-#endif
+#endif /* LIBPMEMSTREAM_H */

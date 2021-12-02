@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /* Copyright 2021, Intel Corporation */
 
-#ifndef PMEMSTREAM_UTIL
-#define PMEMSTREAM_UTIL
+/* Common, internal utils */
+
+#ifndef LIBPMEMSTREAM_UTIL_H
+#define LIBPMEMSTREAM_UTIL_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -30,4 +32,4 @@ static inline size_t util_popcount_memory(const uint8_t *data, size_t size)
 	return count;
 }
 
-#endif /* PMEMSTREAM_UTIL */
+#endif /* LIBPMEMSTREAM_UTIL_H */
