@@ -1,11 +1,14 @@
 # Content
 
-This directory contains tests for pmemstream and their helpers.
-Directories contains:
+This directory contains tests for pmemstream and their helpers. Some of the tests are written
+in C and some in C++. The latter ones are, in many cases, just easier to implement. On the other
+hand C tests are checking usage in C applications, which are default for C API.
 
-- **api_c** - unit tests for C API,
-- **cmake** - cmake and ctest helpers, including suppressions' files and CMake executions scripts,
-- **common** - shared functions and libraries for all tests.
+Directories contains:
+- **api_c** - plain tests for C API,
+- **cmake** - CMake and ctest helpers, including suppressions' files and CMake executions scripts,
+- **common** - shared functions and libraries for all tests,
+- **unittest** - unit tests for various (e.g. internal) functionalities.
 
 # Tests execution
 

@@ -10,6 +10,6 @@ labels: "Type: Question"
 <!-- fill this out -->
 
 <!--
-For questions and other non-bugs, you could use http://groups.google.com/group/pmem
+For questions and other non-bugs, you could use https://groups.google.com/g/pmem
 You could also chat with members of the PMDK/pmemstream team real-time on the #pmem Slack channel (see Readme)
 -->
