@@ -7,6 +7,10 @@
 
 `pmemstream` is a logging data structure optimized for persistent memory.
 
+*This is experimental pre-release software and should not be used in production systems.
+APIs and file formats may change at any time without preserving backwards compatibility.
+All known issues and limitations are logged as GitHub issues.*
+
 ## Table of contents
 1. [Installation](#installation)
 2. [Contact us](#contact-us)
