@@ -20,10 +20,11 @@ In order to build libpmemstream, you need to have installed:
 	* C++ compiler (e.g. `g++`)
 	* [**valgrind**](https://github.com/pmem/valgrind) - tool for profiling and memory leak detection. *pmem* forked version with *pmemcheck*
 		tool is recommended, but upstream/original [valgrind](https://valgrind.org/) is also compatible (package valgrind-devel is required).
+	* [**rapidcheck**](https://github.com/emil-e/rapidcheck) - some tests require this property based testing framework
 * Used only for **development**:
 	* [**pandoc**](https://pandoc.org/) - markup converter to generate man pages
 	* [**perl**](https://www.perl.org/) - for whitespace checker script
-	* [**clang format**](https://clang.llvm.org/docs/ClangFormat.html) - to format and check coding style, version 9.0 is required
+	* [**clang format**](https://clang.llvm.org/docs/ClangFormat.html) - to format and check coding style, version **9.0** is required
 
 Required packages (or their names) for some OSes may differ. Some examples or scripts in
 this repository may require additional dependencies, but should not interrupt the build.
