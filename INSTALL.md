@@ -14,7 +14,7 @@ In order to build libpmemstream, you need to have installed:
 
 * **Linux 64-bit** (OSX and Windows are not yet supported), with at least:
     * C compiler (e.g. `gcc`)
-    * [CMake](http://www.cmake.org) >= 3.16
+    * [CMake](https://cmake.org/) >= 3.16
 * **libpmem2**, which is part of [PMDK](https://github.com/pmem/pmdk) - Persistent Memory Development Kit 1.10
 * Used only for **testing**:
 	* C++ compiler (e.g. `g++`)

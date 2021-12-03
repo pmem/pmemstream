@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /* Copyright 2020-2021, Intel Corporation */
-#ifndef PMEMSTREAM_THREAD_HELPERS_HPP
-#define PMEMSTREAM_THREAD_HELPERS_HPP
+
+#ifndef LIBPMEMSTREAM_THREAD_HELPERS_HPP
+#define LIBPMEMSTREAM_THREAD_HELPERS_HPP
 
 #include <condition_variable>
 #include <functional>
@@ -91,4 +92,4 @@ void parallel_exec_with_sync(size_t threads_number, Function f)
 	});
 }
 
-#endif /* PMEMSTREAM_THREAD_HELPERS_HPP */
+#endif /* LIBPMEMSTREAM_THREAD_HELPERS_HPP */

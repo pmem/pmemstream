@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /* Copyright 2021, Intel Corporation */
 
+/* Implementation of public C API */
+
 #include "libpmemstream.h"
 #include "common/util.h"
 

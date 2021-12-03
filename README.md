@@ -4,8 +4,13 @@
 [![pmemstream version](https://img.shields.io/github/tag/pmem/pmemstream.svg)](https://github.com/pmem/pmemstream/releases/latest)
 [![Coverity Scan Build Status](https://scan.coverity.com/projects/24120/badge.svg)](https://scan.coverity.com/projects/pmem-pmemstream)
 [![Coverage Status](https://codecov.io/github/pmem/pmemstream/coverage.svg?branch=master)](https://app.codecov.io/gh/pmem/pmemstream/branch/master)
+[![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/pmem/pmemstream.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/pmem/pmemstream/context:cpp)
 
 `pmemstream` is a logging data structure optimized for persistent memory.
+
+*This is experimental pre-release software and should not be used in production systems.
+APIs and file formats may change at any time without preserving backwards compatibility.
+All known issues and limitations are logged as GitHub issues.*
 
 ## Table of contents
 1. [Installation](#installation)
@@ -18,4 +23,5 @@
 ## Contact us
 For more information about **pmemstream**, contact Igor Chorążewicz (igor.chorazewicz@intel.com),
 Piotr Balcer (piotr.balcer@intel.com) or post on our **#pmem** Slack channel using
-[this invite link](https://join.slack.com/t/pmem-io/shared_invite/enQtNzU4MzQ2Mzk3MDQwLWQ1YThmODVmMGFkZWI0YTdhODg4ODVhODdhYjg3NmE4N2ViZGI5NTRmZTBiNDYyOGJjYTIyNmZjYzQxODcwNDg) or [Google group](https://groups.google.com/group/pmem).
+[this invite link](https://join.slack.com/t/pmem-io/shared_invite/enQtNzU4MzQ2Mzk3MDQwLWQ1YThmODVmMGFkZWI0YTdhODg4ODVhODdhYjg3NmE4N2ViZGI5NTRmZTBiNDYyOGJjYTIyNmZjYzQxODcwNDg)
+or [Google group](https://groups.google.com/g/pmem).

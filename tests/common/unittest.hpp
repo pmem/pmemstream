@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /* Copyright 2018-2021, Intel Corporation */
 
-#ifndef PMEMSTREAM_UNITTEST_HPP
-#define PMEMSTREAM_UNITTEST_HPP
+#ifndef LIBPMEMSTREAM_UNITTEST_HPP
+#define LIBPMEMSTREAM_UNITTEST_HPP
 
 #include "unittest.h"
 
@@ -80,4 +80,4 @@ struct return_check {
 	bool status = true;
 };
 
-#endif /* PMEMSTREAM_UNITTEST_HPP */
+#endif /* LIBPMEMSTREAM_UNITTEST_HPP */

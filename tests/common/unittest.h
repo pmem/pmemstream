@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /* Copyright 2020-2021, Intel Corporation */
 
-#ifndef PMEMSTREAM_UNITTEST_H
-#define PMEMSTREAM_UNITTEST_H
+#ifndef LIBPMEMSTREAM_UNITTEST_H
+#define LIBPMEMSTREAM_UNITTEST_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -83,7 +83,7 @@ static inline void UT_FATAL(const char *format, ...)
 /* Creates a pmem2_map from a file path, with given size.
  * XXX: add granularity (and FILE_MODE?) as a param
  */
-static struct pmem2_map *map_open(const char *file, size_t size)
+static inline struct pmem2_map *map_open(const char *file, size_t size)
 {
 	const mode_t FILE_MODE = 0644;
 	struct pmem2_source *source;
@@ -127,4 +127,4 @@ err_fd:
 }
 #endif
 
-#endif /* PMEMSTREAM_UNITTEST_H */
+#endif /* LIBPMEMSTREAM_UNITTEST_H */

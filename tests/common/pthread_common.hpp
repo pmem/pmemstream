@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /* Copyright 2018-2021, Intel Corporation */
-#ifndef PMEMSTREAM_PTHREAD_COMMON_HPP
-#define PMEMSTREAM_PTHREAD_COMMON_HPP
+
+#ifndef LIBPMEMSTREAM_PTHREAD_COMMON_HPP
+#define LIBPMEMSTREAM_PTHREAD_COMMON_HPP
 
 #include "unittest.hpp"
 #include <pthread.h>
@@ -18,4 +19,4 @@ void ut_pthread_join(pthread_t *thread, void **value)
 		UT_FATAL("pthread_join failed");
 }
 
-#endif /* PMEMSTREAM_PTHREAD_COMMON_HPP */
+#endif /* LIBPMEMSTREAM_PTHREAD_COMMON_HPP */
