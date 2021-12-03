@@ -1,5 +1,11 @@
-XXX XXX XX XXXX XYZ <XYZ@intel.com>
+Fri Dec 03 2021 Igor Chorążewicz <igor.chorazewicz@intel.com>
 
-	* Version 0.X
+	* Version 0.1.0
 
-	This is going to be the first official release of pmemstream project.
+	This is the first official release of pmemstream project.
+
+	It contains:
+	- initial implementation
+	- working build system
+	- test framework
+	- basic example
