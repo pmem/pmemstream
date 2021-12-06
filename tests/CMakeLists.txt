@@ -37,7 +37,7 @@ endif()
 
 find_libunwind()
 # find_pmreorder()
-# find_gdb()
+find_gdb()
 
 if(TESTS_RAPIDCHECK)
 	find_package(rapidcheck REQUIRED)
@@ -54,13 +54,27 @@ if(LIBUNWIND_FOUND)
 	target_compile_definitions(test_backtrace PUBLIC USE_LIBUNWIND=1)
 endif()
 
+# Set variable to know if debug tests can be run
+if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+	set(DEBUG_BUILD 1)
+endif()
+
 # XXX: add libpmemset dependency and fix 'check_is_pmem.cpp'
 #		or use libpmem library? (fix findLIBPMEM2)
 # add_executable(check_is_pmem common/check_is_pmem.cpp)
 # target_link_libraries(check_is_pmem ${LIBPMEM_LIBRARIES})
 
+# Produce general warnings, e.g. when a command/tool is missing
+if(NOT DEBUG_BUILD)
+	message(WARNING "This is a non-debug build - some tests may be skipped.")
+endif()
+
+if(NOT GDB)
+	message(WARNING "GDB was not found - skipping some tests. To fix, make sure `gdb` command is OS-wide accessible.")
+endif()
+
 if(COVERAGE AND TESTS_USE_VALGRIND)
-	message(STATUS "This is the Coverage build, skipping Valgrind tests")
+	message(STATUS "This is the Coverage build - skipping Valgrind tests")
 endif()
 
 # ----------------------------------------------------------------- #
@@ -79,4 +93,9 @@ if(TESTS_RAPIDCHECK)
 
 	build_test_ext(NAME append SRC_FILES unittest/append.cpp LIBS rapidcheck)
 	add_test_generic(NAME append TRACERS none SCRIPT cmake/run_default.cmake)
+endif()
+
+if(GDB AND DEBUG_BUILD)
+	build_test(append_break integrity/append_break.cpp)
+	add_test_generic(NAME append_break SCRIPT integrity/append_break.cmake TRACERS none)
 endif()
