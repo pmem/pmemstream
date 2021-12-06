@@ -36,7 +36,6 @@ endif()
 # find_pmemcheck()
 find_libunwind()
 # find_pmreorder()
-# find_pmempool()
 # find_gdb()
 
 if(TESTS_RAPIDCHECK)

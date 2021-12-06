@@ -74,7 +74,7 @@ option(BUILD_DOC "build documentation" ON)
 option(USE_CCACHE "use ccache if it is available in the system" ON)
 option(COVERAGE "enable collecting of coverage data" OFF)
 option(DEVELOPER_MODE "enable developer checks" OFF)
-option(CHECK_CPP_STYLE "check code style of C++ sources" OFF) # XXX: change the name to 'C_STYLE'?
+option(CHECK_CPP_STYLE "check code style of C++ sources" OFF)
 option(TRACE_TESTS "more verbose test outputs" OFF)
 option(USE_LIBUNWIND "use libunwind for more reliable stack traces from tests (it's disabled when running on Valgrind)" ON)
 option(USE_ASAN "enable AddressSanitizer checks" OFF)
@@ -172,7 +172,7 @@ elseif(NOT VALGRIND_FOUND)
 endif()
 
 add_custom_target(checkers ALL)
-add_custom_target(cppstyle) # XXX: change the name to 'cstyle'?
+add_custom_target(cppstyle)
 add_custom_target(cppformat)
 add_custom_target(check-whitespace)
 add_custom_target(check-license
@@ -201,9 +201,9 @@ endif()
 if(DEVELOPER_MODE)
 	# treat compiler warnings as errors
 	if(WIN32)
-		add_c_flag(-WX)
+		add_common_flag(-WX)
 	else()
-		add_c_flag(-Werror)
+		add_common_flag(-Werror)
 
 		# check for required programs for whitespace and license checks and add dependencies to ALL
 		include(FindPerl)
@@ -272,12 +272,6 @@ configure_file(
 
 add_custom_target(uninstall
 	COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake)
-
-# XXX: do we need to check for anything?
-# Run checks for known issues, it's required to enable/disable some tests and examples.
-# It has to be executed (included) here, when environment is fully set up,
-# all packages are found and all paths/variables are set.
-# include(${PMEMSTREAM_ROOT_DIR}/cmake/check_compiling_issues.cmake)
 
 if(NOT "${CPACK_GENERATOR}" STREQUAL "")
 	include(${PMEMSTREAM_ROOT_DIR}/cmake/packages.cmake)

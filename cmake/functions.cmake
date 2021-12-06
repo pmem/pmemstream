@@ -79,6 +79,7 @@ macro(add_common_flag flag)
 endmacro()
 
 # Add sanitizer flag, if it is supported, for C compiler
+# XXX: perhaps we should also extend it for CXX compiler
 macro(add_sanitizer_flag flag)
 	set(SAVED_CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES})
 	set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES} -fsanitize=${flag}")
