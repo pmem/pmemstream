@@ -81,8 +81,7 @@ option(USE_ASAN "enable AddressSanitizer checks" OFF)
 option(USE_UBSAN "enable UndefinedBehaviorSanitizer checks" OFF)
 
 option(TESTS_USE_FORCED_PMEM "run tests with PMEM_IS_PMEM_FORCE=1 - it speeds up tests execution on emulated pmem" OFF)
-# XXX: enable with valgrind support
-option(TESTS_USE_VALGRIND "enable tests with valgrind (fail build if Valgrind not found)" OFF)
+option(TESTS_USE_VALGRIND "enable tests with valgrind (fail build if Valgrind not found)" ON)
 option(TESTS_PMREORDER "enable tests with pmreorder (if pmreorder found; it requires PMDK ver. >= 1.9)" OFF)
 option(TESTS_LONG "enable long running tests" OFF)
 option(TESTS_RAPIDCHECK "enable rapidcheck tests" ON)

@@ -67,7 +67,7 @@ endif()
 ## Common tests
 # ----------------------------------------------------------------- #
 build_test(stream_from_map api_c/stream_from_map.c)
-add_test_generic(NAME stream_from_map TRACERS none)
+add_test_generic(NAME stream_from_map TRACERS none memcheck pmemcheck drd helgrind)
 
 # XXX: remove or re-write this test, when real TC comes up
 build_test(cpp_linkage api_c/stream_from_map.cpp)
