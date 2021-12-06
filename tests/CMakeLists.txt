@@ -37,7 +37,7 @@ endif()
 
 find_libunwind()
 # find_pmreorder()
-# find_gdb()
+find_gdb()
 
 if(TESTS_RAPIDCHECK)
 	find_package(rapidcheck REQUIRED)
@@ -59,6 +59,11 @@ endif()
 # add_executable(check_is_pmem common/check_is_pmem.cpp)
 # target_link_libraries(check_is_pmem ${LIBPMEM_LIBRARIES})
 
+# Produce general warnings, e.g. when a command/tool is missing
+if(NOT GDB)
+	message(WARNING "GDB was not found - skipping some tests. To fix, make sure `gdb` command is OS-wide accessible.")
+endif()
+
 if(COVERAGE AND TESTS_USE_VALGRIND)
 	message(STATUS "This is the Coverage build, skipping Valgrind tests")
 endif()
@@ -79,4 +84,9 @@ if(TESTS_RAPIDCHECK)
 
 	build_test_ext(NAME append SRC_FILES unittest/append.cpp LIBS rapidcheck)
 	add_test_generic(NAME append TRACERS none SCRIPT cmake/run_default.cmake)
+endif()
+
+if(GDB)
+	build_test(append_break integrity/append_break.cpp)
+	add_test_generic(NAME append_break SCRIPT integrity/append_break.cmake TRACERS none)
 endif()

@@ -30,7 +30,8 @@ static void pmemstream_span_create_entry(struct pmemstream *stream, pmemstream_s
 
 	const size_t metadata_size = MEMBER_SIZE(pmemstream_span_runtime, entry);
 	// XXX - use variadic mempcy to store data and metadata at once
-	stream->memcpy(((uint8_t *)span) + metadata_size, data, data_size, PMEM2_F_MEM_NODRAIN);
+	void *dest = ((uint8_t *)span) + metadata_size;
+	stream->memcpy(dest, data, data_size, PMEM2_F_MEM_NODRAIN);
 	stream->persist(span, metadata_size);
 }
 
