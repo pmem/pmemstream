@@ -54,7 +54,7 @@ jobs:
 
       # "pull" or "rebuild" can be passed to a secret FORCE_IMAGE_ACTION to override default action
       - name: Pull the image or rebuild and push it
-        run: cd $WORKDIR && ${{ matrix.CONFIG }} ./pull-or-rebuild-image.sh
+        run: cd $WORKDIR && ${{ matrix.CONFIG }} ./pull-or-rebuild-image.sh $FORCE_IMAGE_ACTION
 
       - name: Run the build
         run: cd $WORKDIR && ${{ matrix.CONFIG }} ./build.sh

@@ -16,7 +16,7 @@ Remember this is just a minimal template. You can extend it with data you think 
 ## Environment Information
 
 - pmemstream version(s):                                             <!-- fill this out -->
-- PMDK (libpmemset) package version(s):                              <!-- fill this out -->
+- PMDK (libpmem2) package version(s):                                <!-- fill this out -->
 - OS(es) version(s):                                                 <!-- fill this out -->
 - kernel version(s):                                                 <!-- fill this out -->
 - compiler, libraries, packaging and other related tools version(s): <!-- fill this out -->

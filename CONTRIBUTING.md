@@ -104,7 +104,7 @@ origin: https://dependency_origin.com
 When adding a new public function, you have to make sure to update:
 - documentation,
 - manpage links,
-- map file with debug symbols ,
+- map file with debug symbols,
 - appropriate examples (to show usage),
 - tests,
 - ChangeLog with new entry for next release.
