@@ -17,13 +17,12 @@ set(CXX_STANDARD 17 CACHE STRING "C++ language standard")
 set(CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD ${CXX_STANDARD})
 
-# XXX: valgrind required only for tests? or in top-level CMake?
-# # Find valgrind
-# if(PKG_CONFIG_FOUND)
-#	pkg_check_modules(VALGRIND QUIET valgrind)
-# else()
-#	find_package(VALGRIND QUIET)
-# endif()
+# Finds valgrind and checks for pmemcheck's availability
+ if(PKG_CONFIG_FOUND)
+	pkg_check_modules(VALGRIND QUIET valgrind)
+else()
+	find_package(VALGRIND QUIET)
+endif()
 
 if(NOT VALGRIND_FOUND AND TESTS_USE_VALGRIND)
 	message(FATAL_ERROR "Valgrind not found, but flag TESTS_USE_VALGRIND was set.")
@@ -31,9 +30,11 @@ elseif(NOT VALGRIND_FOUND)
 	message(WARNING "Valgrind not found. Valgrind tests will not be performed.")
 elseif(VALGRIND_FOUND)
 	message(STATUS "Found Valgrind in '${VALGRIND_LIBRARY_DIRS}' (version: ${VALGRIND_VERSION})")
+
+	include_directories(${VALGRIND_INCLUDE_DIRS})
+	find_pmemcheck()
 endif()
 
-# find_pmemcheck()
 find_libunwind()
 # find_pmreorder()
 # find_gdb()

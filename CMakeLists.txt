@@ -145,32 +145,6 @@ add_common_flag(-ggdb DEBUG)
 add_common_flag(-DDEBUG DEBUG)
 add_common_flag("-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2" RELEASE)
 
-# Finds valgrind and checks for pmemcheck's availability
- if(PKG_CONFIG_FOUND)
-	pkg_check_modules(VALGRIND QUIET valgrind)
-else()
-	find_package(VALGRIND QUIET)
-endif()
-
-if(VALGRIND_FOUND)
-	message(STATUS "Found Valgrind in '${VALGRIND_LIBRARY_DIRS}' (version: ${VALGRIND_VERSION})")
-
-	#	add_flag(-DLIBPMEMOBJ_CPP_VG_MEMCHECK_ENABLED=1)
-	#	add_flag(-DLIBPMEMOBJ_CPP_VG_DRD_ENABLED=1)
-	#	add_flag(-DLIBPMEMOBJ_CPP_VG_HELGRIND_ENABLED=1)
-
-	include_directories(${VALGRIND_INCLUDE_DIRS})
-	find_pmemcheck()
-
-	#	if(VALGRIND_PMEMCHECK_FOUND)
-	#		add_flag(-DLIBPMEMOBJ_CPP_VG_PMEMCHECK_ENABLED=1)
-	#	endif()
-elseif(NOT VALGRIND_FOUND AND TESTS_USE_VALGRIND)
-	message(FATAL_ERROR "Valgrind not found, but flag TESTS_USE_VALGRIND was set.")
-elseif(NOT VALGRIND_FOUND)
-	message(WARNING "Valgrind not found. Valgrind tests will not be performed.")
-endif()
-
 add_custom_target(checkers ALL)
 add_custom_target(cppstyle)
 add_custom_target(cppformat)
