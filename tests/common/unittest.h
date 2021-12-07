@@ -90,7 +90,7 @@ static inline struct pmem2_map *map_open(const char *file, size_t size)
 	struct pmem2_config *config;
 	struct pmem2_map *map = NULL;
 
-	int fd = open(file, O_CREAT | O_RDWR | O_TRUNC, FILE_MODE);
+	int fd = open(file, O_CREAT | O_RDWR, FILE_MODE);
 	if (fd < 0) {
 		UT_FATAL("File creation error (errno: %d)!", errno);
 		return NULL;
