@@ -22,7 +22,6 @@ struct pmemstream_region_iterator;
 struct pmemstream_region {
 	uint64_t offset;
 };
-struct pmemstream_region_context;
 
 struct pmemstream_entry {
 	size_t offset;
