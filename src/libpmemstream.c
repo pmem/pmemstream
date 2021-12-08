@@ -129,12 +129,6 @@ struct pmemstream_region_iterator {
 	struct pmemstream_region region;
 };
 
-struct pmemstream_region_context {
-	// runtime state for a region, not mt-safe
-	struct pmemstream_region region;
-	size_t offset;
-};
-
 static int pmemstream_is_initialized(struct pmemstream *stream)
 {
 	if (strcmp(stream->data->header.signature, PMEMSTREAM_SIGNATURE) != 0) {
