@@ -76,4 +76,7 @@ add_test_generic(NAME cpp_linkage TRACERS none)
 if(TESTS_RAPIDCHECK)
 	build_test_ext(NAME util_popcount SRC_FILES unittest/popcount.cpp LIBS rapidcheck)
 	add_test_generic(NAME util_popcount TRACERS none)
+
+	build_test_ext(NAME append SRC_FILES unittest/append.cpp LIBS rapidcheck)
+	add_test_generic(NAME append TRACERS none SCRIPT cmake/run_with_file.cmake)
 endif()

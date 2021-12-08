@@ -41,15 +41,13 @@ int pmemstream_region_free(struct pmemstream *stream, struct pmemstream_region r
 
 size_t pmemstream_region_size(struct pmemstream *stream, struct pmemstream_region region);
 
-int pmemstream_region_context_new(struct pmemstream_region_context **rcontext, struct pmemstream *stream,
-				  struct pmemstream_region region);
-
-void pmemstream_region_context_delete(struct pmemstream_region_context **rcontext);
-
 // synchronously appends data buffer to the end of the transaction log space
 // fails if no space is available
-int pmemstream_append(struct pmemstream *stream, struct pmemstream_region_context *rcontext, const void *buf,
-		      size_t count, struct pmemstream_entry *entry);
+// 'entry' must provide offset where new entry is appended - it can be obtained from iterator
+// after function completes, entry->offset is incremented by count + metadata size
+// and new_entry->offset is set to original value of entry->offset
+int pmemstream_append(struct pmemstream *stream, struct pmemstream_region *region, struct pmemstream_entry *entry,
+		      const void *buf, size_t count, struct pmemstream_entry *new_entry);
 
 // returns pointer to the data of the entry
 void *pmemstream_entry_data(struct pmemstream *stream, struct pmemstream_entry entry);
@@ -70,6 +68,8 @@ void pmemstream_region_iterator_delete(struct pmemstream_region_iterator **itera
 int pmemstream_entry_iterator_new(struct pmemstream_entry_iterator **iterator, struct pmemstream *stream,
 				  struct pmemstream_region region);
 
+// if this function succeeds, entry points to a valid element in the stream, otherwise, it points to a memory
+// right after last valid entry or to a beggining of region if there are no valid entries
 int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iter, struct pmemstream_region *region,
 				   struct pmemstream_entry *entry);
 
