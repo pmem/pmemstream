@@ -79,6 +79,7 @@ macro(add_common_flag flag)
 endmacro()
 
 # Add sanitizer flag, if it is supported, for C compiler
+# XXX: perhaps we should also extend it for CXX compiler
 macro(add_sanitizer_flag flag)
 	set(SAVED_CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES})
 	set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES} -fsanitize=${flag}")
@@ -186,30 +187,6 @@ function(get_program_version_major_minor name ret)
 		ERROR_QUIET)
 	STRING(REGEX MATCH "([0-9]+.)([0-9]+)" VERSION ${cmd_ret})
 	SET(${ret} ${VERSION} PARENT_SCOPE)
-endfunction()
-
-function(find_pmemcheck)
-	set(ENV{PATH} ${VALGRIND_PREFIX}/bin:$ENV{PATH})
-	execute_process(COMMAND valgrind --tool=pmemcheck --help
-			RESULT_VARIABLE VALGRIND_PMEMCHECK_RET
-			OUTPUT_QUIET
-			ERROR_QUIET)
-	if(VALGRIND_PMEMCHECK_RET)
-		set(VALGRIND_PMEMCHECK_FOUND 0 CACHE INTERNAL "")
-	else()
-		set(VALGRIND_PMEMCHECK_FOUND 1 CACHE INTERNAL "")
-	endif()
-
-	if(VALGRIND_PMEMCHECK_FOUND)
-		execute_process(COMMAND valgrind --tool=pmemcheck true
-				ERROR_VARIABLE PMEMCHECK_OUT
-				OUTPUT_QUIET)
-
-		string(REGEX MATCH ".*pmemcheck-([0-9.]*),.*" PMEMCHECK_OUT "${PMEMCHECK_OUT}")
-		set(PMEMCHECK_VERSION ${CMAKE_MATCH_1} CACHE INTERNAL "")
-	else()
-		message(WARNING "Valgrind pmemcheck NOT found. Pmemcheck tests will not be performed.")
-	endif()
 endfunction()
 
 # ----------------------------------------------------------------- #

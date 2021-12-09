@@ -120,16 +120,6 @@ function(find_pmreorder)
 	endif()
 endfunction()
 
-function(find_pmempool)
-	find_program(PMEMPOOL names pmempool HINTS ${PMDK_BIN_PREFIX})
-	if(PMEMPOOL)
-		set(ENV{PATH} ${PMDK_BIN_PREFIX}:$ENV{PATH})
-		message(STATUS "Found pmempool: ${PMEMPOOL}")
-	else()
-		message(FATAL_ERROR "Pmempool not found.")
-	endif()
-endfunction()
-
 # ----------------------------------------------------------------- #
 ## Functions for building and adding new testcases
 # ----------------------------------------------------------------- #
@@ -175,44 +165,44 @@ function(build_test name)
 	add_dependencies(tests ${name})
 endfunction()
 
-# Configures ctest's testcase with the name: ${test_name}_${testcase}_${tracer}.
+# Configures ctest's testcase with the name: ${name}_${testcase}_${tracer}.
 # It passes CMake params, including GLOBAL_TEST_ARGS and test specific args, like
-# cmake_script (to run the test), test_name, test case number, tracer, and dirs.
+# cmake_script (to run the test), name, test case number, tracer, and dirs.
 # XXX: SRC_DIR is wrong, because we add tests with srcs like "api_c/testname.c"
 #	   and we get actually parent dir (e.g. "../tests" instead of "../tests/api_c").
 #	   We could solve this with per-dir CMake files (i.a. add CMake in api_c dir)
-function(add_testcase test_name tracer testcase cmake_script)
-	add_test(NAME ${test_name}_${testcase}_${tracer}
+function(add_testcase name tracer testcase cmake_script)
+	add_test(NAME ${name}_${testcase}_${tracer}
 			COMMAND ${CMAKE_COMMAND}
 			${GLOBAL_TEST_ARGS}
-			-DEXECUTABLE=$<TARGET_FILE:${test_name}>
-			-DTEST_NAME=${test_name}_${testcase}_${tracer}
+			-DEXECUTABLE=$<TARGET_FILE:${name}>
+			-DTEST_NAME=${name}_${testcase}_${tracer}
 			-DTESTCASE=${testcase}
 			-DTRACER=${tracer}
 			-DSRC_DIR=${CMAKE_CURRENT_SOURCE_DIR}
-			-DBIN_DIR=${CMAKE_CURRENT_BINARY_DIR}/${test_name}_${testcase}_${tracer}
+			-DBIN_DIR=${CMAKE_CURRENT_BINARY_DIR}/${name}_${testcase}_${tracer}
 			${ARGN}
 			-P ${cmake_script})
 
-	set_tests_properties(${test_name}_${testcase}_${tracer} PROPERTIES
+	set_tests_properties(${name}_${testcase}_${tracer} PROPERTIES
 			ENVIRONMENT "LC_ALL=C;PATH=$ENV{PATH};"
 			FAIL_REGULAR_EXPRESSION Sanitizer)
 
 	# XXX: if we use FATAL_ERROR in test.cmake - pmemcheck passes anyway
 	# workaround: look for "CMake Error" in output and fail if found
 	if (${tracer} STREQUAL pmemcheck)
-		set_tests_properties(${test_name}_${testcase}_${tracer} PROPERTIES
+		set_tests_properties(${name}_${testcase}_${tracer} PROPERTIES
 				FAIL_REGULAR_EXPRESSION "CMake Error")
 	endif()
 
 	if (${tracer} STREQUAL pmemcheck)
-		set_tests_properties(${test_name}_${testcase}_${tracer} PROPERTIES
+		set_tests_properties(${name}_${testcase}_${tracer} PROPERTIES
 				COST 100)
 	elseif(${tracer} IN_LIST vg_tracers)
-		set_tests_properties(${test_name}_${testcase}_${tracer} PROPERTIES
+		set_tests_properties(${name}_${testcase}_${tracer} PROPERTIES
 				COST 50)
 	else()
-		set_tests_properties(${test_name}_${testcase}_${tracer} PROPERTIES
+		set_tests_properties(${name}_${testcase}_${tracer} PROPERTIES
 				COST 10)
 	endif()
 endfunction()
@@ -227,7 +217,7 @@ endfunction()
 
 # Adds testcase if all checks passes, e.g., tracer is found, executable (target) is built, etc.
 #	It skips otherwise and prints message if needed.
-function(add_test_common test_name tracer testcase cmake_script)
+function(add_test_common name tracer testcase cmake_script)
 	if(${tracer} STREQUAL "")
 	    set(tracer none)
 	endif()
@@ -264,12 +254,12 @@ function(add_test_common test_name tracer testcase cmake_script)
 	endif()
 
 	# check if test was built
-	if (NOT TARGET ${test_name})
-		message(WARNING "${test_name} not built. Skipping.")
+	if (NOT TARGET ${name})
+		message(WARNING "${name} not built. Skipping.")
 		return()
 	endif()
 
-	add_testcase(${test_name} ${tracer} ${testcase} ${cmake_script} ${ARGN})
+	add_testcase(${name} ${tracer} ${testcase} ${cmake_script} ${ARGN})
 endfunction()
 
 # Adds testcase with optional SCRIPT and CASE parameters.

@@ -31,6 +31,4 @@ int main(int argc, char *argv[])
 	char *path = argv[1];
 
 	return run_test([&] { test_stream_from_map(path, 10240, 64); });
-
-	return 0;
 }

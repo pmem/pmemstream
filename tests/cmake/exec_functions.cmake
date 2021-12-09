@@ -132,10 +132,9 @@ function(execute_common expect_success output_file name)
 		endif()
 	endif()
 
-	string(REPLACE ";" " " TRACE_STR "${TRACE}")
-	message(STATUS "Executing: ${TRACE_STR} ${name} ${ARGN}")
-
 	set(cmd ${TRACE} ${name} ${ARGN})
+	string(REPLACE ";" " " CMD_STR "${cmd}")
+	message(STATUS "Executing: ${CMD_STR}")
 
 	if(DEFINED ENV{CGDB} AND DEFINED ENV{GDBSERVER})
         message(FATAL_ERROR "CGDB and GDBSERVER shouldn't be used at the same time."

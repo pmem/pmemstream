@@ -74,15 +74,14 @@ option(BUILD_DOC "build documentation" ON)
 option(USE_CCACHE "use ccache if it is available in the system" ON)
 option(COVERAGE "enable collecting of coverage data" OFF)
 option(DEVELOPER_MODE "enable developer checks" OFF)
-option(CHECK_CPP_STYLE "check code style of C++ sources" OFF) # XXX: change the name to 'C_STYLE'?
+option(CHECK_CPP_STYLE "check code style of C++ sources" OFF)
 option(TRACE_TESTS "more verbose test outputs" OFF)
 option(USE_LIBUNWIND "use libunwind for more reliable stack traces from tests (it's disabled when running on Valgrind)" ON)
 option(USE_ASAN "enable AddressSanitizer checks" OFF)
 option(USE_UBSAN "enable UndefinedBehaviorSanitizer checks" OFF)
 
 option(TESTS_USE_FORCED_PMEM "run tests with PMEM_IS_PMEM_FORCE=1 - it speeds up tests execution on emulated pmem" OFF)
-# XXX: enable with valgrind support
-option(TESTS_USE_VALGRIND "enable tests with valgrind (fail build if Valgrind not found)" OFF)
+option(TESTS_USE_VALGRIND "enable tests with valgrind (fail build if Valgrind not found)" ON)
 option(TESTS_PMREORDER "enable tests with pmreorder (if pmreorder found; it requires PMDK ver. >= 1.9)" OFF)
 option(TESTS_LONG "enable long running tests" OFF)
 option(TESTS_RAPIDCHECK "enable rapidcheck tests" ON)
@@ -145,34 +144,8 @@ add_common_flag(-ggdb DEBUG)
 add_common_flag(-DDEBUG DEBUG)
 add_common_flag("-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=2" RELEASE)
 
-# Finds valgrind and checks for pmemcheck's availability
- if(PKG_CONFIG_FOUND)
-	pkg_check_modules(VALGRIND QUIET valgrind)
-else()
-	find_package(VALGRIND QUIET)
-endif()
-
-if(VALGRIND_FOUND)
-	message(STATUS "Found Valgrind in '${VALGRIND_LIBRARY_DIRS}' (version: ${VALGRIND_VERSION})")
-
-	#	add_flag(-DLIBPMEMOBJ_CPP_VG_MEMCHECK_ENABLED=1)
-	#	add_flag(-DLIBPMEMOBJ_CPP_VG_DRD_ENABLED=1)
-	#	add_flag(-DLIBPMEMOBJ_CPP_VG_HELGRIND_ENABLED=1)
-
-	include_directories(${VALGRIND_INCLUDE_DIRS})
-	find_pmemcheck()
-
-	#	if(VALGRIND_PMEMCHECK_FOUND)
-	#		add_flag(-DLIBPMEMOBJ_CPP_VG_PMEMCHECK_ENABLED=1)
-	#	endif()
-elseif(NOT VALGRIND_FOUND AND TESTS_USE_VALGRIND)
-	message(FATAL_ERROR "Valgrind not found, but flag TESTS_USE_VALGRIND was set.")
-elseif(NOT VALGRIND_FOUND)
-	message(WARNING "Valgrind not found. Valgrind tests will not be performed.")
-endif()
-
 add_custom_target(checkers ALL)
-add_custom_target(cppstyle) # XXX: change the name to 'cstyle'?
+add_custom_target(cppstyle)
 add_custom_target(cppformat)
 add_custom_target(check-whitespace)
 add_custom_target(check-license
@@ -201,9 +174,9 @@ endif()
 if(DEVELOPER_MODE)
 	# treat compiler warnings as errors
 	if(WIN32)
-		add_c_flag(-WX)
+		add_common_flag(-WX)
 	else()
-		add_c_flag(-Werror)
+		add_common_flag(-Werror)
 
 		# check for required programs for whitespace and license checks and add dependencies to ALL
 		include(FindPerl)
@@ -272,12 +245,6 @@ configure_file(
 
 add_custom_target(uninstall
 	COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake)
-
-# XXX: do we need to check for anything?
-# Run checks for known issues, it's required to enable/disable some tests and examples.
-# It has to be executed (included) here, when environment is fully set up,
-# all packages are found and all paths/variables are set.
-# include(${PMEMSTREAM_ROOT_DIR}/cmake/check_compiling_issues.cmake)
 
 if(NOT "${CPACK_GENERATOR}" STREQUAL "")
 	include(${PMEMSTREAM_ROOT_DIR}/cmake/packages.cmake)
