@@ -47,6 +47,7 @@ std::vector<std::string> get_elements_in_region(struct pmemstream *stream, struc
 	return result;
 }
 
+/* XXX: extend to allow more than one extra_data vector */
 void verify(pmemstream *stream, pmemstream_region region, const std::vector<std::string> &data,
 	    const std::vector<std::string> &extra_data)
 {

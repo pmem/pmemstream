@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-/* Copyright 2021, Intel Corporation */
+/* Copyright 2021-2022, Intel Corporation */
 
 /* Implementation of public C API */
 
@@ -140,10 +140,9 @@ int pmemstream_get_region_context(struct pmemstream *stream, struct pmemstream_r
 	return region_contexts_map_get_or_create(stream->region_contexts_map, region, region_context);
 }
 
-// synchronously appends data buffer to the end of the region
-int pmemstream_append(struct pmemstream *stream, struct pmemstream_region region,
-		      struct pmemstream_region_context *region_context, const void *data, size_t size,
-		      struct pmemstream_entry *new_entry)
+int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region region,
+		       struct pmemstream_region_context *region_context, size_t size,
+		       struct pmemstream_entry *reserved_entry, void **data_addr)
 {
 	size_t entry_total_size = size + SPAN_ENTRY_METADATA_SIZE;
 	size_t entry_total_size_span_aligned = ALIGN_UP(entry_total_size, sizeof(span_bytes));
@@ -175,11 +174,50 @@ int pmemstream_append(struct pmemstream *stream, struct pmemstream_region region
 		return -1;
 	}
 
-	if (new_entry) {
-		new_entry->offset = offset;
+	reserved_entry->offset = offset;
+	/* data are right next after the entry metadata */
+	*data_addr = span_offset_to_span_ptr(stream, offset + SPAN_ENTRY_METADATA_SIZE);
+
+	return ret;
+}
+
+static int pmemstream_internal_publish(struct pmemstream *stream, struct pmemstream_region region, const void *data,
+				       size_t size, struct pmemstream_entry *reserved_entry, int flags)
+{
+	span_create_entry(stream, reserved_entry->offset, data, size, util_popcount_memory(data, size), flags);
+
+	return 0;
+}
+
+int pmemstream_publish(struct pmemstream *stream, struct pmemstream_region region, const void *data, size_t size,
+		       struct pmemstream_entry *reserved_entry)
+{
+	pmemstream_internal_publish(stream, region, data, size, reserved_entry, PMEMSTREAM_PUBLISH_PERSIST);
+
+	return 0;
+}
+
+// synchronously appends data buffer to the end of the region
+int pmemstream_append(struct pmemstream *stream, struct pmemstream_region region,
+		      struct pmemstream_region_context *region_context, const void *data, size_t size,
+		      struct pmemstream_entry *new_entry)
+{
+	struct pmemstream_entry reserved_entry;
+	void *reserved_dest;
+	int ret = pmemstream_reserve(stream, region, region_context, size, &reserved_entry, &reserved_dest);
+	if (ret != 0) {
+		return ret;
 	}
 
-	span_create_entry(stream, offset, data, size, util_popcount_memory(data, size));
+	stream->memcpy(reserved_dest, data, size, PMEM2_F_MEM_NONTEMPORAL);
+	ret = pmemstream_internal_publish(stream, region, data, size, &reserved_entry, PMEMSTREAM_PUBLISH_NOFLUSH_DATA);
+	if (ret != 0) {
+		return ret;
+	}
+
+	if (new_entry) {
+		new_entry->offset = reserved_entry.offset;
+	}
 
 	return 0;
 }
