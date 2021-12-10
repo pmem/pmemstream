@@ -49,6 +49,8 @@ static void pmemstream_span_create_free(pmemstream_span_bytes *span, size_t data
 	span[0] = data_size | PMEMSTREAM_SPAN_EMPTY;
 }
 
+/* Creates span with data_size and popcount.
+ * The span can be updated with popcount later on (with another call to this function). */
 static void pmemstream_span_create_entry(pmemstream_span_bytes *span, size_t data_size, size_t popcount)
 {
 	assert((data_size & PMEMSTREAM_SPAN_TYPE_MASK) == 0);
@@ -235,11 +237,13 @@ int pmemstream_region_free(struct pmemstream *stream, struct pmemstream_region r
 	return 0;
 }
 
-// synchronously appends data buffer to the end of the region
-int pmemstream_append(struct pmemstream *stream, struct pmemstream_region *region, struct pmemstream_entry *entry,
-		      const void *buf, size_t count, struct pmemstream_entry *new_entry)
+/* Reserve space (for some future entry) of a given size, in a region at offset pointed by entry.
+ * entry is updated with new offset; reserved offset is saved in new_entry. */
+int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region *region, struct pmemstream_entry *entry,
+		       size_t size, struct pmemstream_entry *new_entry)
 {
-	size_t entry_total_size = count + MEMBER_SIZE(pmemstream_span_runtime, entry);
+	size_t entry_total_size = size + MEMBER_SIZE(pmemstream_span_runtime, entry);
+
 	pmemstream_span_bytes *region_span = pmemstream_get_span_for_offset(stream, region->offset);
 	struct pmemstream_span_runtime region_sr = pmemstream_span_get_runtime(region_span);
 
@@ -254,18 +258,54 @@ int pmemstream_append(struct pmemstream *stream, struct pmemstream_region *regio
 		return -1;
 	}
 
-	if (new_entry) {
-		new_entry->offset = offset;
-	}
+	/* XXX: should new_entry be optional? you could not save this, just calculate offset by yourself */
+	new_entry->offset = offset;
 
 	pmemstream_span_bytes *entry_span = pmemstream_get_span_for_offset(stream, offset);
-	pmemstream_span_create_entry(entry_span, count, util_popcount_memory(buf, count));
-	// TODO: for popcount, we also need to make sure that the memory is zeroed - maybe it can be done by bg thread?
-
-	struct pmemstream_span_runtime entry_rt = pmemstream_span_get_runtime(entry_span);
-
-	stream->memcpy(entry_rt.data, buf, count, PMEM2_F_MEM_NOFLUSH);
+	pmemstream_span_create_entry(entry_span, size, 0);
 	stream->persist(&entry_span[0], entry_total_size);
+
+	return 0;
+}
+
+/* Write an entry at offset given by entry. It's dedicated to use after pmemstream_reserve.
+ * entry is not updated in any way.
+ * size of the entry have to match the previous reservation. */
+int pmemstream_write(struct pmemstream *stream, struct pmemstream_region *region, struct pmemstream_entry *entry,
+		     const void *buf, size_t size)
+{
+	size_t entry_total_size = size + MEMBER_SIZE(pmemstream_span_runtime, entry);
+
+	/* XXX: check/assert if the size, we try to write, fits the reserved space? */
+	pmemstream_span_bytes *entry_span = pmemstream_get_span_for_offset(stream, entry->offset);
+	pmemstream_span_create_entry(entry_span, size, util_popcount_memory(buf, size));
+
+	struct pmemstream_span_runtime entry_sr = pmemstream_span_get_runtime(entry_span);
+
+	stream->memcpy(entry_sr.data, buf, size, PMEM2_F_MEM_NOFLUSH);
+	stream->persist(&entry_span[0], entry_total_size);
+
+	return 0;
+}
+
+/* Synchronously appends data buffer within a region at offset pointed by entry.
+ * entry is updated with new offset; (optionally) offset of appended entry is saved in new_entry. */
+int pmemstream_append(struct pmemstream *stream, struct pmemstream_region *region, struct pmemstream_entry *entry,
+		      const void *buf, size_t size, struct pmemstream_entry *new_entry)
+{
+	struct pmemstream_entry reserved_entry;
+	int ret = pmemstream_reserve(stream, region, entry, size, &reserved_entry);
+	if (ret != 0) {
+		return ret;
+	}
+	ret = pmemstream_write(stream, region, &reserved_entry, buf, size);
+	if (ret != 0) {
+		return ret;
+	}
+
+	if (new_entry) {
+		new_entry->offset = reserved_entry.offset;
+	}
 
 	return 0;
 }
