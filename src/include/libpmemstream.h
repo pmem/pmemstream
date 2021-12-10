@@ -40,6 +40,11 @@ int pmemstream_region_free(struct pmemstream *stream, struct pmemstream_region r
 
 size_t pmemstream_region_size(struct pmemstream *stream, struct pmemstream_region region);
 
+int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region *region, struct pmemstream_entry *entry,
+		       size_t size, struct pmemstream_entry *reserved_entry, void **data);
+int pmemstream_publish(struct pmemstream *stream, struct pmemstream_region *region, struct pmemstream_entry *entry,
+		       const void *buf, size_t size, int flags);
+
 // synchronously appends data buffer to the end of the transaction log space
 // fails if no space is available
 // 'entry' must provide offset where new entry is appended - it can be obtained from iterator

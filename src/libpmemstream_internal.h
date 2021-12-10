@@ -80,6 +80,8 @@ struct pmemstream_region_iterator {
 	struct pmemstream_region region;
 };
 
+#define PMEMSTREAM_PUBLISH_PERSIST (1 << 0) /* persist data while publishing */
+
 #ifdef __cplusplus
 } /* end extern "C" */
 #endif
