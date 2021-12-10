@@ -103,11 +103,13 @@ int main(int argc, char *argv[])
 		struct data_entry e;
 		e.data = last_entry_data + 1;
 		struct pmemstream_entry new_entry;
-		ret = pmemstream_append(stream, &region, &entry, &e, sizeof(e), &new_entry);
-		if (ret == -1) {
-			fprintf(stderr, "pmemstream_append failed\n");
-			return ret;
-		}
+		// ret = pmemstream_append(stream, &region, &entry, &e, sizeof(e), &new_entry);
+		// if (ret == -1) {
+		// 	fprintf(stderr, "pmemstream_append failed\n");
+		// 	return ret;
+		// } else {
+		// 	printf("appended: data entry %lu: in region\n", entry.offset);
+		// }
 	}
 
 	pmemstream_region_iterator_delete(&riter);
@@ -117,7 +119,7 @@ int main(int argc, char *argv[])
 	ret = pmemstream_region_allocate(stream, 4096, &new_region);
 	if (ret != -1) {
 		struct data_entry e;
-		e.data = 1;
+		e.data = 0xBEEF;
 		struct pmemstream_entry entry;
 		struct pmemstream_entry new_entry;
 

@@ -6,6 +6,7 @@
 #include "common/util.h"
 #include "libpmemstream_internal.h"
 
+#include <stdio.h>
 #include <assert.h>
 #include <stdatomic.h>
 #include <stdlib.h>
@@ -166,6 +167,26 @@ int pmemstream_region_free(struct pmemstream *stream, struct pmemstream_region r
 	return 0;
 }
 
+int validateEntrySpan(pmemstream_span_bytes* entry_span) {
+	struct pmemstream_span_runtime rt = pmemstream_span_get_runtime(entry_span);
+
+	if (rt.type == PMEMSTREAM_SPAN_ENTRY &&
+		util_popcount_memory(rt.data, rt.entry.size) == rt.entry.popcount) {
+		printf("---------------\n");
+		printf("verify_popcount: entry type passed\n");
+		printf("calculated popcount: %ld\n", util_popcount_memory(rt.data, rt.entry.size));
+		return 0;
+	}
+	return -1;
+}
+
+void erase_span(struct pmemstream *stream, pmemstream_span_bytes* entry_span) {
+	printf("Trying to replace\n");
+	stream->memset(entry_span, 0, 2*sizeof(*entry_span), PMEM2_F_MEM_NOFLUSH);
+	stream->persist(entry_span, 2*sizeof(*entry_span));
+}
+
+
 // synchronously appends data buffer to the end of the region
 int pmemstream_append(struct pmemstream *stream, struct pmemstream_region *region, struct pmemstream_entry *entry,
 		      const void *buf, size_t count, struct pmemstream_entry *new_entry)
@@ -182,6 +203,7 @@ int pmemstream_append(struct pmemstream *stream, struct pmemstream_region *regio
 	}
 	/* offset outside of region */
 	if (offset < region->offset + MEMBER_SIZE(pmemstream_span_runtime, region)) {
+		printf("offset: %ld\nregion->offset: %ld\nMEMBER_SIZE: %ld\n", offset, region->offset, MEMBER_SIZE(pmemstream_span_runtime, region));
 		return -1;
 	}
 
@@ -192,6 +214,7 @@ int pmemstream_append(struct pmemstream *stream, struct pmemstream_region *regio
 	pmemstream_span_bytes *entry_span = pmemstream_get_span_for_offset(stream, offset);
 	pmemstream_span_create_entry(entry_span, count, util_popcount_memory(buf, count));
 	// TODO: for popcount, we also need to make sure that the memory is zeroed - maybe it can be done by bg thread?
+	// validateEntrySpan(entry_span);
 
 	struct pmemstream_span_runtime entry_rt = pmemstream_span_get_runtime(entry_span);
 
@@ -299,6 +322,10 @@ int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iter, struc
 	iter->offset += rt.total_size;
 
 	if (rt.type == PMEMSTREAM_SPAN_ENTRY) {
+		if (validateEntrySpan(entry_span) < 0) {
+			pmemstream_span_create_empty(iter->stream, entry_span, region_rt.total_size - iter->offset - sizeof(pmemstream_span_bytes));
+			return -1;
+		}
 		return 0;
 	}
 
