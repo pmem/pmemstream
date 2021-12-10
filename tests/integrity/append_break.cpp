@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-/* Copyright 2021, Intel Corporation */
+/* Copyright 2021-2022, Intel Corporation */
 
 /*
  * append_break.cpp -- pmemstream_append break - data integrity test
@@ -43,9 +43,7 @@ struct pmemstream_region init_stream_single_region(struct pmemstream *stream, si
 	UT_ASSERTeq(pmemstream_entry_iterator_next(eiter, NULL, &entry), -1);
 	pmemstream_entry_iterator_delete(&eiter);
 
-	if (data) {
-		append(stream, new_region, *data);
-	}
+	append(stream, new_region, *data);
 
 	return new_region;
 }
