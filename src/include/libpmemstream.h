@@ -46,11 +46,33 @@ size_t pmemstream_region_size(struct pmemstream *stream, struct pmemstream_regio
 int pmemstream_get_region_context(struct pmemstream *stream, struct pmemstream_region region,
 				  struct pmemstream_region_context **ctx);
 
-/* Synchronously appends data buffer after last valid entry in region.
+/* Reserve space (for a future, custom write) of a given size, in a region at offset pointed by region_context.
+ * Entry's data have to be copied into reserved space by the user and then published using pmemstream_publish.
+ * For regular usage, pmemstream_append should be simpler and safer to use and provide better performance.
  *
  * region_context is an optional parameter which can be obtained from pmemstream_get_region_context.
- * If it's NULL, pmemstream_append will obtain region_context from its internal structures (which might
- * incur overhead).
+ * If it's NULL, it will be obtained from its internal structures (which might incur overhead).
+ * reserved_entry is updated with offset of the reserved entry.
+ * data is updated with a pointer to reserved space - this is a destination for, e.g., custom memcpy. */
+int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region region,
+		       struct pmemstream_region_context *region_context, size_t size,
+		       struct pmemstream_entry *reserved_entry, void **data);
+
+/* Publish previously custom-written entry.
+ * After calling pmemstream_reserve and writing/memcpy'ing data into a reserved_entry it's required
+ * to calculate the checksum (based on the data and size).
+ *
+ * *data has to hold the same data as they were written by user (e.g. in custom memcpy).
+ * size of the entry have to match the previous reservation and the actual size of the data written by user.
+ * flags may be used to adjust behavior of persisting the data. */
+int pmemstream_publish(struct pmemstream *stream, struct pmemstream_region region, const void *data, size_t size,
+		       struct pmemstream_entry *reserved_entry, int flags);
+
+/* Synchronously appends data buffer after last valid entry in region.
+ * Fails if no space is available.
+ *
+ * region_context is an optional parameter which can be obtained from pmemstream_get_region_context.
+ * If it's NULL, it will be obtained from its internal structures (which might incur overhead).
  *
  * data is a pointer to data to be appended
  * size is size of the data to be appended

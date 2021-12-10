@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-/* Copyright 2021, Intel Corporation */
+/* Copyright 2021-2022, Intel Corporation */
 
 #include "span.h"
 #include "libpmemstream_internal.h"
@@ -24,17 +24,22 @@ void span_create_empty(struct pmemstream *stream, uint64_t offset, size_t data_s
 	stream->persist(span, SPAN_EMPTY_METADATA_SIZE);
 }
 
-void span_create_entry(struct pmemstream *stream, uint64_t offset, const void *data, size_t data_size, size_t popcount)
+/* XXX: add descr
+ *
+ * flags may be used to adjust behavior of persisting the data; use 0 for default persist.
+ */
+void span_create_entry(struct pmemstream *stream, uint64_t offset, const void *data, size_t data_size, size_t popcount,
+		       int flags)
 {
 	span_bytes *span = span_offset_to_span_ptr(stream, offset);
 	assert((data_size & SPAN_TYPE_MASK) == 0);
-	span[0] = data_size | SPAN_ENTRY;
-	span[1] = popcount;
 
 	// XXX - use variadic mempcy to store data and metadata at once
-	void *dest = ((uint8_t *)span) + SPAN_ENTRY_METADATA_SIZE;
-	stream->memcpy(dest, data, data_size, PMEM2_F_MEM_NONTEMPORAL | PMEM2_F_MEM_NODRAIN);
-	stream->persist(span, SPAN_ENTRY_METADATA_SIZE);
+	span[0] = data_size | SPAN_ENTRY;
+	span[1] = popcount;
+	if (!(flags & PMEMSTREAM_PUBLISH_NOFLUSH)) {
+		stream->persist(span, SPAN_ENTRY_METADATA_SIZE);
+	}
 }
 
 void span_create_region(struct pmemstream *stream, uint64_t offset, size_t size)
