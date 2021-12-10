@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-/* Copyright 2021, Intel Corporation */
+/* Copyright 2021-2022, Intel Corporation */
 
 /* Internal Header */
 
@@ -14,6 +14,12 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#define PMEMSTREAM_PUBLISH_PERSIST (0)
+#define PMEMSTREAM_PUBLISH_NOFLUSH_DATA (1 << 0)
+/* don't flush nor drain span's metadata + data while publishing;
+ * it makes sense only if a persist function is called later on. */
+#define PMEMSTREAM_PUBLISH_NOFLUSH (11 << 0)
 
 #define PMEMSTREAM_SIGNATURE ("PMEMSTREAM")
 #define PMEMSTREAM_SIGNATURE_SIZE (64)
