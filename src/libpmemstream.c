@@ -156,7 +156,7 @@ static void pmemstream_init(struct pmemstream *stream)
 	pmemstream_span_create_free(&stream->data->spans[0], stream->usable_size - metadata_size);
 	stream->persist(&stream->data->spans[0], metadata_size);
 
-	stream->memcpy(stream->data->header.signature, PMEMSTREAM_SIGNATURE, PMEMSTREAM_SIGNATURE_LEN, 0);
+	stream->memcpy(stream->data->header.signature, PMEMSTREAM_SIGNATURE, strlen(PMEMSTREAM_SIGNATURE), 0);
 }
 
 static pmemstream_span_bytes *pmemstream_get_span_for_offset(struct pmemstream *stream, size_t offset)
