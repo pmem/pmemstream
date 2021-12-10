@@ -11,6 +11,7 @@
 #include <stdatomic.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h> // kfilipek: TO REMOVE
 
 #define MEMBER_SIZE(type, member) sizeof(((struct type *)NULL)->member)
 
@@ -147,16 +148,19 @@ static int pmemstream_is_initialized(struct pmemstream *stream)
 static void pmemstream_init(struct pmemstream *stream)
 {
 	memset(stream->data->header.signature, 0, PMEMSTREAM_SIGNATURE_LEN);
-
+	printf("stream->data->header.signature: %p\n", (void *)&stream->data->header.signature);
 	stream->data->header.stream_size = stream->stream_size;
 	stream->data->header.block_size = stream->block_size;
 	stream->persist(stream->data, sizeof(struct pmemstream_data));
 
 	size_t metadata_size = MEMBER_SIZE(pmemstream_span_runtime, empty);
+	printf("%zu\n", metadata_size);
 	pmemstream_span_create_free(&stream->data->spans[0], stream->usable_size - metadata_size);
 	stream->persist(&stream->data->spans[0], metadata_size);
 
 	stream->memcpy(stream->data->header.signature, PMEMSTREAM_SIGNATURE, PMEMSTREAM_SIGNATURE_LEN, 0);
+	printf("stream->data->header.signature: %p\n", (void *)&stream->data->header.signature);
+	printf("%s\n", (void *)(&stream->data->header.signature)+10);
 }
 
 static pmemstream_span_bytes *pmemstream_get_span_for_offset(struct pmemstream *stream, size_t offset)
@@ -173,6 +177,7 @@ int pmemstream_from_map(struct pmemstream **stream, size_t block_size, struct pm
 {
 	struct pmemstream *s = malloc(sizeof(struct pmemstream));
 	s->data = pmem2_map_get_address(map);
+	printf("s->data: %p\n", (void *)&s->data);
 	s->stream_size = pmem2_map_get_size(map);
 	s->usable_size = ALIGN_DOWN(s->stream_size - sizeof(struct pmemstream_data), block_size);
 	s->block_size = block_size;
@@ -368,9 +373,14 @@ int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iter, struc
 	iter->offset += rt.total_size;
 
 	if (rt.type == PMEMSTREAM_SPAN_ENTRY) {
+		// printf("%ld\n", util_popcount_memory(pmemstream_entry_data(iter->stream, *entry), pmemstream_entry_length(iter->stream, *entry)));
+		// printf("%ld\n", rt.entry.popcount);
+		if (rt.entry.popcount == util_popcount_memory(pmemstream_entry_data(iter->stream, *entry),
+													  pmemstream_entry_length(iter->stream, *entry))) {
+			printf("Say hello from pit of hell :)\n");
+		}
 		return 0;
 	}
-
 	return -1;
 }
 
