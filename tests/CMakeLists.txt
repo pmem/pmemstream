@@ -79,4 +79,8 @@ if(TESTS_RAPIDCHECK)
 
 	build_test_ext(NAME append SRC_FILES unittest/append.cpp LIBS rapidcheck)
 	add_test_generic(NAME append TRACERS none SCRIPT cmake/run_with_file.cmake)
+
+	build_test_ext(NAME pmemstream_memcpy SRC_FILES unittest/pmemstream_memcpy.cpp LIBS rapidcheck)
+	add_test_generic(NAME pmemstream_memcpy TRACERS none)
+
 endif()

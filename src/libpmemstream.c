@@ -196,10 +196,7 @@ int pmemstream_append(struct pmemstream *stream, struct pmemstream_region *regio
 
 	struct pmemstream_span_runtime entry_rt = pmemstream_span_get_runtime(entry_span);
 
-	stream->memcpy(entry_rt.data, buf, count, PMEM2_F_MEM_NOFLUSH);
-	stream->persist(&entry_span[0], entry_total_size);
-
-	return 0;
+	return pmemstream_memcpy(stream->memcpy, entry_rt.data, buf, count);
 }
 
 // returns pointer to the data of the entry
