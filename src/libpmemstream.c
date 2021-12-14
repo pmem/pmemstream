@@ -41,12 +41,26 @@ struct pmemstream_span_runtime {
 	};
 };
 
+struct pmemstream {
+	struct pmemstream_data *data;
+	size_t stream_size;
+	size_t usable_size;
+	size_t block_size;
+
+	pmem2_memcpy_fn memcpy;
+	pmem2_memset_fn memset;
+	pmem2_flush_fn flush;
+	pmem2_drain_fn drain;
+	pmem2_persist_fn persist;
+};
+
 typedef uint64_t pmemstream_span_bytes;
 
 static void pmemstream_span_create_empty(pmemstream_span_bytes *span, size_t data_size, struct pmemstream *stream)
 {
 	assert((data_size & PMEMSTREAM_SPAN_TYPE_MASK) == 0);
 	span[0] = data_size | PMEMSTREAM_SPAN_EMPTY;
+	stream->memset(&span[1], 0, data_size, PMEM2_F_MEM_NONTEMPORAL);
 }
 
 static void pmemstream_span_create_entry(pmemstream_span_bytes *span, size_t data_size, size_t popcount)
@@ -101,19 +115,6 @@ struct pmemstream_data {
 		uint64_t block_size;
 	} header;
 	uint64_t spans[];
-};
-
-struct pmemstream {
-	struct pmemstream_data *data;
-	size_t stream_size;
-	size_t usable_size;
-	size_t block_size;
-
-	pmem2_memcpy_fn memcpy;
-	pmem2_memset_fn memset;
-	pmem2_flush_fn flush;
-	pmem2_drain_fn drain;
-	pmem2_persist_fn persist;
 };
 
 struct pmemstream_entry_iterator {
