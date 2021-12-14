@@ -21,6 +21,7 @@ LIBPMEMSTREAM_1.0 {
 		pmemstream_append;
 		pmemstream_region_allocate;
 		pmemstream_region_free;
+		pmemstream_memcpy_impl;
 	local:
 		*;
 };

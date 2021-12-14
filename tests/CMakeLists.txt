@@ -73,10 +73,16 @@ add_test_generic(NAME stream_from_map TRACERS none memcheck pmemcheck drd helgri
 build_test(cpp_linkage api_c/stream_from_map.cpp)
 add_test_generic(NAME cpp_linkage TRACERS none)
 
+build_test(pmemstream_memcpy_basic unittest/pmemstream_memcpy_basic.cpp)
+add_test_generic(NAME pmemstream_memcpy_basic TRACERS none memcheck)
+
 if(TESTS_RAPIDCHECK)
 	build_test_ext(NAME util_popcount SRC_FILES unittest/popcount.cpp LIBS rapidcheck)
 	add_test_generic(NAME util_popcount TRACERS none)
 
 	build_test_ext(NAME append SRC_FILES unittest/append.cpp LIBS rapidcheck)
 	add_test_generic(NAME append TRACERS none SCRIPT cmake/run_default.cmake)
+
+	build_test_ext(NAME pmemstream_memcpy_pbt SRC_FILES unittest/pmemstream_memcpy_pbt.cpp LIBS rapidcheck)
+	add_test_generic(NAME pmemstream_memcpy_pbt TRACERS none memcheck)
 endif()

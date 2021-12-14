@@ -6,6 +6,7 @@
 #ifndef LIBPMEMSTREAM_INTERNAL_H
 #define LIBPMEMSTREAM_INTERNAL_H
 
+#include "common/util.h"
 #include "libpmemstream.h"
 #include <libpmem2.h>
 
@@ -79,6 +80,11 @@ struct pmemstream_region_iterator {
 	struct pmemstream *stream;
 	struct pmemstream_region region;
 };
+
+int pmemstream_memcpy_impl(pmem2_memcpy_fn pmem2_memcpy, void *destination, const size_t argc, ...);
+
+#define pmemstream_memcpy(pmem2_memcpy, dest, ...)                                                                     \
+	pmemstream_memcpy_impl(pmem2_memcpy, dest, COUNT(__VA_ARGS__), __VA_ARGS__)
 
 #ifdef __cplusplus
 } /* end extern "C" */
