@@ -47,6 +47,7 @@ static void pmemstream_span_create_free(pmemstream_span_bytes *span, size_t data
 {
 	assert((data_size & PMEMSTREAM_SPAN_TYPE_MASK) == 0);
 	span[0] = data_size | PMEMSTREAM_SPAN_EMPTY;
+	memset(&span[1], 0, data_size - 1);
 }
 
 static void pmemstream_span_create_entry(pmemstream_span_bytes *span, size_t data_size, size_t popcount)
