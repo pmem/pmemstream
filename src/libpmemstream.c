@@ -5,43 +5,13 @@
 
 #include "libpmemstream.h"
 #include "common/util.h"
+#include "libpmemstream_internal.h"
 
 #include <assert.h>
 #include <libpmem2.h>
 #include <stdatomic.h>
 #include <stdlib.h>
 #include <string.h>
-
-#define MEMBER_SIZE(type, member) sizeof(((struct type *)NULL)->member)
-
-enum pmemstream_span_type {
-	PMEMSTREAM_SPAN_EMPTY = 00ULL << 62,
-	PMEMSTREAM_SPAN_REGION = 11ULL << 62,
-	PMEMSTREAM_SPAN_ENTRY = 10ULL << 62
-};
-
-#define PMEMSTREAM_SPAN_TYPE_MASK (11ULL << 62)
-#define PMEMSTREAM_SPAN_EXTRA_MASK (~PMEMSTREAM_SPAN_TYPE_MASK)
-
-struct pmemstream_span_runtime {
-	enum pmemstream_span_type type;
-	size_t total_size;
-	uint8_t *data;
-	union {
-		struct {
-			uint64_t size;
-		} empty;
-		struct {
-			uint64_t size;
-		} region;
-		struct {
-			uint64_t size;
-			uint64_t popcount;
-		} entry;
-	};
-};
-
-typedef uint64_t pmemstream_span_bytes;
 
 static void pmemstream_span_create_empty(pmemstream_span_bytes *span, size_t data_size)
 {
@@ -90,42 +60,6 @@ static struct pmemstream_span_runtime pmemstream_span_get_runtime(pmemstream_spa
 
 	return sr;
 }
-
-#define PMEMSTREAM_SIGNATURE ("PMEMSTREAM")
-#define PMEMSTREAM_SIGNATURE_SIZE (64)
-
-struct pmemstream_data {
-	struct pmemstream_header {
-		char signature[PMEMSTREAM_SIGNATURE_SIZE];
-		uint64_t stream_size;
-		uint64_t block_size;
-	} header;
-	uint64_t spans[];
-};
-
-struct pmemstream {
-	struct pmemstream_data *data;
-	size_t stream_size;
-	size_t usable_size;
-	size_t block_size;
-
-	pmem2_memcpy_fn memcpy;
-	pmem2_memset_fn memset;
-	pmem2_flush_fn flush;
-	pmem2_drain_fn drain;
-	pmem2_persist_fn persist;
-};
-
-struct pmemstream_entry_iterator {
-	struct pmemstream *stream;
-	struct pmemstream_region region;
-	size_t offset;
-};
-
-struct pmemstream_region_iterator {
-	struct pmemstream *stream;
-	struct pmemstream_region region;
-};
 
 static int pmemstream_is_initialized(struct pmemstream *stream)
 {
