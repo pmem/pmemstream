@@ -43,7 +43,7 @@ struct pmemstream_span_runtime {
 
 typedef uint64_t pmemstream_span_bytes;
 
-static void pmemstream_span_create_empty(pmemstream_span_bytes *span, size_t data_size)
+static void pmemstream_span_create_empty(pmemstream_span_bytes *span, size_t data_size, struct pmemstream *stream)
 {
 	assert((data_size & PMEMSTREAM_SPAN_TYPE_MASK) == 0);
 	span[0] = data_size | PMEMSTREAM_SPAN_EMPTY;
@@ -151,7 +151,7 @@ static void pmemstream_init(struct pmemstream *stream)
 	stream->persist(stream->data, sizeof(struct pmemstream_data));
 
 	size_t metadata_size = MEMBER_SIZE(pmemstream_span_runtime, empty);
-	pmemstream_span_create_empty(&stream->data->spans[0], stream->usable_size - metadata_size);
+	pmemstream_span_create_empty(&stream->data->spans[0], stream->usable_size - metadata_size, stream);
 	stream->persist(&stream->data->spans[0], metadata_size);
 
 	stream->memcpy(stream->data->header.signature, PMEMSTREAM_SIGNATURE, strlen(PMEMSTREAM_SIGNATURE), 0);
@@ -227,7 +227,7 @@ int pmemstream_region_free(struct pmemstream *stream, struct pmemstream_region r
 		return -1;
 
 	size_t metadata_size = MEMBER_SIZE(pmemstream_span_runtime, empty);
-	pmemstream_span_create_empty(&span[0], stream->usable_size - metadata_size);
+	pmemstream_span_create_empty(&span[0], stream->usable_size - metadata_size, stream);
 	stream->persist(&span[0], metadata_size);
 
 	return 0;
