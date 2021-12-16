@@ -59,7 +59,7 @@ static struct pmemstream_span_runtime pmemstream_span_get_runtime(pmemstream_spa
 	return sr;
 }
 
-static int pmemstream_is_initialized(struct pmemstream *stream)
+static int pmemstream_is_pmem_initialized(struct pmemstream *stream)
 {
 	if (strcmp(stream->data->header.signature, PMEMSTREAM_SIGNATURE) != 0) {
 		return -1;
@@ -74,7 +74,7 @@ static int pmemstream_is_initialized(struct pmemstream *stream)
 	return 0;
 }
 
-static void pmemstream_init(struct pmemstream *stream)
+static void pmemstream_pmem_init(struct pmemstream *stream)
 {
 	memset(stream->data->header.signature, 0, PMEMSTREAM_SIGNATURE_SIZE);
 
@@ -113,8 +113,13 @@ int pmemstream_from_map(struct pmemstream **stream, size_t block_size, struct pm
 	s->flush = pmem2_get_flush_fn(map);
 	s->drain = pmem2_get_drain_fn(map);
 
-	if (pmemstream_is_initialized(s) != 0) {
-		pmemstream_init(s);
+	if (pmemstream_is_pmem_initialized(s) != 0) {
+		pmemstream_pmem_init(s);
+	}
+
+	s->region_context_container = critnib_new();
+	if (!s->region_context_container) {
+		return -1;
 	}
 
 	*stream = s;
@@ -125,6 +130,7 @@ int pmemstream_from_map(struct pmemstream **stream, size_t block_size, struct pm
 void pmemstream_delete(struct pmemstream **stream)
 {
 	struct pmemstream *s = *stream;
+	critnib_delete(s->region_context_container);
 	free(s);
 	*stream = NULL;
 }
@@ -162,40 +168,7 @@ int pmemstream_region_free(struct pmemstream *stream, struct pmemstream_region r
 	pmemstream_span_create_empty(&span[0], stream->usable_size - metadata_size);
 	stream->persist(&span[0], metadata_size);
 
-	return 0;
-}
-
-// synchronously appends data buffer to the end of the region
-int pmemstream_append(struct pmemstream *stream, struct pmemstream_region *region, struct pmemstream_entry *entry,
-		      const void *buf, size_t count, struct pmemstream_entry *new_entry)
-{
-	size_t entry_total_size = count + MEMBER_SIZE(pmemstream_span_runtime, entry);
-	pmemstream_span_bytes *region_span = pmemstream_get_span_for_offset(stream, region->offset);
-	struct pmemstream_span_runtime region_sr = pmemstream_span_get_runtime(region_span);
-
-	size_t offset = __atomic_fetch_add(&entry->offset, entry_total_size, __ATOMIC_RELEASE);
-
-	/* region overflow (no space left) or offset outside of region */
-	if (offset + entry_total_size > region->offset + region_sr.total_size) {
-		return -1;
-	}
-	/* offset outside of region */
-	if (offset < region->offset + MEMBER_SIZE(pmemstream_span_runtime, region)) {
-		return -1;
-	}
-
-	if (new_entry) {
-		new_entry->offset = offset;
-	}
-
-	pmemstream_span_bytes *entry_span = pmemstream_get_span_for_offset(stream, offset);
-	pmemstream_span_create_entry(entry_span, count, util_popcount_memory(buf, count));
-	// TODO: for popcount, we also need to make sure that the memory is zeroed - maybe it can be done by bg thread?
-
-	struct pmemstream_span_runtime entry_rt = pmemstream_span_get_runtime(entry_span);
-
-	stream->memcpy(entry_rt.data, buf, count, PMEM2_F_MEM_NOFLUSH);
-	stream->persist(&entry_span[0], entry_total_size);
+	critnib_remove(stream->region_context_container, region.offset);
 
 	return 0;
 }
@@ -261,30 +234,47 @@ void pmemstream_region_iterator_delete(struct pmemstream_region_iterator **itera
 	*iterator = NULL;
 }
 
+static void pmemstream_entry_iterator_initialize(struct pmemstream_entry_iterator *iter, struct pmemstream *stream,
+						 struct pmemstream_region region)
+{
+	iter->offset = region.offset + MEMBER_SIZE(pmemstream_span_runtime, region);
+	iter->region = region;
+	iter->stream = stream;
+	iter->context_created = 0;
+}
+
 int pmemstream_entry_iterator_new(struct pmemstream_entry_iterator **iterator, struct pmemstream *stream,
 				  struct pmemstream_region region)
 {
 	struct pmemstream_entry_iterator *iter = malloc(sizeof(*iter));
-	iter->offset = region.offset + MEMBER_SIZE(pmemstream_span_runtime, region);
-	iter->region = region;
-	iter->stream = stream;
+	if (!iter) {
+		return -1; // XXX: proper error
+	}
 
+	pmemstream_entry_iterator_initialize(iter, stream, region);
 	*iterator = iter;
 
 	return 0;
 }
 
-int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iter, struct pmemstream_region *region,
-				   struct pmemstream_entry *entry)
+/* Advances iterator to by one.  Returns -1 if outside of region, 0 otherwise. */
+static int pmemstream_entry_iterator_next_internal(struct pmemstream_entry_iterator *iter,
+						   struct pmemstream_region *region,
+						   struct pmemstream_span_runtime *runtime,
+						   struct pmemstream_entry *entry)
 {
 	pmemstream_span_bytes *entry_span = pmemstream_get_span_for_offset(iter->stream, iter->offset);
-	struct pmemstream_span_runtime rt = pmemstream_span_get_runtime(entry_span);
+
+	assert(runtime);
+	*runtime = pmemstream_span_get_runtime(entry_span);
 
 	pmemstream_span_bytes *region_span = pmemstream_get_span_for_offset(iter->stream, iter->region.offset);
 	struct pmemstream_span_runtime region_rt = pmemstream_span_get_runtime(region_span);
 
+	uint64_t offset = pmemstream_get_offset_for_span(iter->stream, entry_span);
+
 	if (entry) {
-		entry->offset = pmemstream_get_offset_for_span(iter->stream, entry_span);
+		entry->offset = offset;
 	}
 	if (region) {
 		*region = iter->region;
@@ -295,13 +285,140 @@ int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iter, struc
 	}
 
 	// TODO: verify popcount
-	iter->offset += rt.total_size;
+	iter->offset += runtime->total_size;
 
-	if (rt.type == PMEMSTREAM_SPAN_ENTRY) {
+	return 0;
+}
+
+static int get_append_offset(struct pmemstream *stream, struct pmemstream_region region, struct pmemstream_entry *entry)
+{
+	assert(entry);
+
+	struct pmemstream_entry_iterator iter;
+	pmemstream_entry_iterator_initialize(&iter, stream, region);
+
+	int ret;
+	struct pmemstream_span_runtime runtime;
+	struct pmemstream_entry it_entry; // XXX: move offset to pmemstream_span_runtime?
+	while ((ret = pmemstream_entry_iterator_next_internal(&iter, NULL, &runtime, &it_entry)) == 0 &&
+	       runtime.type == PMEMSTREAM_SPAN_ENTRY) {
+	}
+	if (ret) {
+		return ret;
+	}
+	if (runtime.type != PMEMSTREAM_SPAN_EMPTY) {
+		return -1;
+	}
+
+	*entry = it_entry;
+
+	return 0;
+}
+
+struct critnib_context {
+	struct pmemstream *stream;
+	struct pmemstream_region region;
+	struct pmemstream_entry entry;
+
+	struct pmemstream_region_context *region_context;
+};
+
+/* If element already exists, just returns it. Otherwise, if arg->entry.offset is a valid offset
+ * allocates a new region_context and sets that offset as append_offset. If arg->entry.offset is
+ * invalid (PMEMSTREAM_INVALID_OFFSET), computes the offset to after last element in the region.
+ *
+ * All this happens under a lock (critnib one).
+ */
+static int set_offset_to_entry(int exists, void **data, void *arg)
+{
+	struct critnib_context *ctx = (struct critnib_context *)arg;
+	if (exists) {
+		ctx->region_context = *data;
+		return 0;
+	} else {
+		if (ctx->entry.offset == PMEMSTREAM_INVALID_OFFSET) {
+			int ret = get_append_offset(ctx->stream, ctx->region, &ctx->entry);
+			if (ret) {
+				ctx->region_context = NULL;
+				return ret;
+			}
+		}
+
+		ctx->region_context = malloc(sizeof(*ctx->region_context));
+		if (!ctx->region_context) {
+			ctx->region_context = NULL;
+			return -1;
+		}
+
+		assert(ctx->entry.offset != PMEMSTREAM_INVALID_OFFSET);
+
+		ctx->region_context->append_offset = ctx->entry.offset; // XXX: need to use atomic store?
+		*data = ctx->region_context;
+
+		return 0;
+	}
+}
+
+static int insert_or_get_region_context(struct pmemstream *stream, struct pmemstream_region region,
+					struct pmemstream_entry entry,
+					struct pmemstream_region_context **region_context)
+{
+	struct pmemstream_region_context *ctx = critnib_get(stream->region_context_container, region.offset);
+	if (ctx) {
+		if (region_context) {
+			*region_context = ctx;
+		}
 		return 0;
 	}
 
-	return -1;
+	struct critnib_context critnib_ctx;
+	critnib_ctx.stream = stream;
+	critnib_ctx.region = region;
+	critnib_ctx.entry = entry;
+	int ret = critnib_emplace(stream->region_context_container, region.offset, set_offset_to_entry, &critnib_ctx);
+	if (ret) {
+		return ret;
+	}
+	if (region_context) {
+		*region_context = critnib_ctx.region_context;
+	}
+
+	return 0;
+}
+
+int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iter, struct pmemstream_region *region,
+				   struct pmemstream_entry *entry)
+{
+	struct pmemstream_span_runtime runtime;
+	struct pmemstream_entry e;
+	int ret = pmemstream_entry_iterator_next_internal(iter, region, &runtime, &e);
+	if (ret) {
+		return ret;
+	}
+
+	if (runtime.type == PMEMSTREAM_SPAN_EMPTY && !iter->context_created) {
+		/* We found end of the stream - set append_offset if it's not already set and mark context as created.
+		 */
+		insert_or_get_region_context(iter->stream, iter->region, e, NULL);
+		iter->context_created = 1;
+	}
+
+	if (entry) {
+		*entry = e;
+	}
+	if (runtime.type == PMEMSTREAM_SPAN_ENTRY) {
+		return 0;
+	}
+
+	return -1; // XXX: proper error, distinguish between corrupted and empty
+}
+
+int pmemstream_get_region_context(struct pmemstream *stream, struct pmemstream_region region,
+				  struct pmemstream_region_context **ctx)
+{
+	struct pmemstream_entry entry_invalid;
+	entry_invalid.offset = PMEMSTREAM_INVALID_OFFSET;
+	return insert_or_get_region_context(stream, region, entry_invalid, ctx);
 }
 
 void pmemstream_entry_iterator_delete(struct pmemstream_entry_iterator **iterator)
@@ -310,4 +427,48 @@ void pmemstream_entry_iterator_delete(struct pmemstream_entry_iterator **iterato
 
 	free(iter);
 	*iterator = NULL;
+}
+
+// synchronously appends data buffer to the end of the region
+int pmemstream_append(struct pmemstream *stream, struct pmemstream_region region,
+		      struct pmemstream_region_context *region_context, const void *buf, size_t count,
+		      struct pmemstream_entry *new_entry)
+{
+	size_t entry_total_size = count + MEMBER_SIZE(pmemstream_span_runtime, entry);
+	pmemstream_span_bytes *region_span = pmemstream_get_span_for_offset(stream, region.offset);
+	struct pmemstream_span_runtime region_sr = pmemstream_span_get_runtime(region_span);
+
+	if (!region_context) {
+		int ret = pmemstream_get_region_context(stream, region, &region_context);
+		if (ret) {
+			return ret;
+		}
+	}
+
+	size_t offset = __atomic_fetch_add(&region_context->append_offset, entry_total_size, __ATOMIC_RELEASE);
+	assert(offset != PMEMSTREAM_INVALID_OFFSET);
+
+	/* region overflow (no space left) or offset outside of region */
+	if (offset + entry_total_size > region.offset + region_sr.total_size) {
+		return -1;
+	}
+	/* offset outside of region */
+	if (offset < region.offset + MEMBER_SIZE(pmemstream_span_runtime, region)) {
+		return -1;
+	}
+
+	if (new_entry) {
+		new_entry->offset = offset;
+	}
+
+	pmemstream_span_bytes *entry_span = pmemstream_get_span_for_offset(stream, offset);
+	pmemstream_span_create_entry(entry_span, count, util_popcount_memory(buf, count));
+	// TODO: for popcount, we also need to make sure that the memory is zeroed - maybe it can be done by bg thread?
+
+	struct pmemstream_span_runtime entry_rt = pmemstream_span_get_runtime(entry_span);
+
+	stream->memcpy(entry_rt.data, buf, count, PMEM2_F_MEM_NOFLUSH);
+	stream->persist(&entry_span[0], entry_total_size);
+
+	return 0;
 }

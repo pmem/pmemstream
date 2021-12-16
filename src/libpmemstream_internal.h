@@ -6,6 +6,7 @@
 #ifndef LIBPMEMSTREAM_INTERNAL_H
 #define LIBPMEMSTREAM_INTERNAL_H
 
+#include "critnib/critnib.h"
 #include "libpmemstream.h"
 #include <libpmem2.h>
 
@@ -67,17 +68,36 @@ struct pmemstream {
 	pmem2_flush_fn flush;
 	pmem2_drain_fn drain;
 	pmem2_persist_fn persist;
+
+	critnib *region_context_container;
 };
 
 struct pmemstream_entry_iterator {
 	struct pmemstream *stream;
 	struct pmemstream_region region;
 	size_t offset;
+
+	/* Specifies whether this iterator created (or attempted to) context region. */
+	int context_created;
 };
 
 struct pmemstream_region_iterator {
 	struct pmemstream *stream;
 	struct pmemstream_region region;
+};
+
+#define PMEMSTREAM_INVALID_OFFSET ((uint64_t)-1)
+
+/*
+ * It contains all runtime data specific to a region.
+ * It is always managed by the pmemstream (user can only obtain a non-owning pointer) and can be created
+ * in few different ways:
+ * - By explicitly calling pmemstream_get_region_context() for the first time
+ * - By calling pmemstream_append if region_context does not exist yet
+ * - By advancing an entry iterator past last entry in a region if region_context does not exist yet
+ */
+struct pmemstream_region_context {
+	uint64_t append_offset;
 };
 
 #ifdef __cplusplus
