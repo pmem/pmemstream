@@ -19,6 +19,7 @@ struct pmemstream;
 struct pmemstream_tx;
 struct pmemstream_entry_iterator;
 struct pmemstream_region_iterator;
+struct pmemstream_region_context;
 struct pmemstream_region {
 	uint64_t offset;
 };
@@ -40,13 +41,17 @@ int pmemstream_region_free(struct pmemstream *stream, struct pmemstream_region r
 
 size_t pmemstream_region_size(struct pmemstream *stream, struct pmemstream_region region);
 
+int pmemstream_get_region_context(struct pmemstream *stream, struct pmemstream_region region,
+				  struct pmemstream_region_context **ctx);
+
 // synchronously appends data buffer to the end of the transaction log space
 // fails if no space is available
 // 'entry' must provide offset where new entry is appended - it can be obtained from iterator
 // after function completes, entry->offset is incremented by count + metadata size
 // and new_entry->offset is set to original value of entry->offset
-int pmemstream_append(struct pmemstream *stream, struct pmemstream_region *region, struct pmemstream_entry *entry,
-		      const void *buf, size_t count, struct pmemstream_entry *new_entry);
+int pmemstream_append(struct pmemstream *stream, struct pmemstream_region *region,
+		      struct pmemstream_region_context *region_context, const void *buf, size_t count,
+		      struct pmemstream_entry *new_entry);
 
 // returns pointer to the data of the entry
 void *pmemstream_entry_data(struct pmemstream *stream, struct pmemstream_entry entry);

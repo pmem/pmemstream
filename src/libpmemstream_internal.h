@@ -6,6 +6,7 @@
 #ifndef LIBPMEMSTREAM_INTERNAL_H
 #define LIBPMEMSTREAM_INTERNAL_H
 
+#include "critnib/critnib.h"
 #include "libpmemstream.h"
 #include <libpmem2.h>
 
@@ -67,6 +68,8 @@ struct pmemstream {
 	pmem2_flush_fn flush;
 	pmem2_drain_fn drain;
 	pmem2_persist_fn persist;
+
+	critnib *region_context_container;
 };
 
 struct pmemstream_entry_iterator {
@@ -79,6 +82,8 @@ struct pmemstream_region_iterator {
 	struct pmemstream *stream;
 	struct pmemstream_region region;
 };
+
+#define PMEMSTREAM_INVALID_OFFSET ((uint64_t)-1)
 
 #ifdef __cplusplus
 } /* end extern "C" */
