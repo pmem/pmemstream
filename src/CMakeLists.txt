@@ -11,7 +11,8 @@ add_check_whitespace(src
 	${CMAKE_CURRENT_SOURCE_DIR}/include/*.h
 	${CMAKE_CURRENT_SOURCE_DIR}/common/*.[chp])
 
-set(SOURCES libpmemstream.c)
+set(SOURCES critnib/critnib.c
+			libpmemstream.c)
 
 add_library(pmemstream SHARED ${SOURCES})
 
