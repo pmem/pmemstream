@@ -11,10 +11,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-static void pmemstream_span_create_empty(pmemstream_span_bytes *span, size_t data_size)
+static void pmemstream_span_create_empty(struct pmemstream *stream, pmemstream_span_bytes *span, size_t data_size)
 {
 	assert((data_size & PMEMSTREAM_SPAN_TYPE_MASK) == 0);
 	span[0] = data_size | PMEMSTREAM_SPAN_EMPTY;
+	stream->memset(&span[1], 0, data_size, PMEM2_F_MEM_NONTEMPORAL);
 }
 
 static void pmemstream_span_create_entry(pmemstream_span_bytes *span, size_t data_size, size_t popcount)
@@ -83,7 +84,7 @@ static void pmemstream_init(struct pmemstream *stream)
 	stream->persist(stream->data, sizeof(struct pmemstream_data));
 
 	size_t metadata_size = MEMBER_SIZE(pmemstream_span_runtime, empty);
-	pmemstream_span_create_empty(&stream->data->spans[0], stream->usable_size - metadata_size);
+	pmemstream_span_create_empty(stream, &stream->data->spans[0], stream->usable_size - metadata_size);
 	stream->persist(&stream->data->spans[0], metadata_size);
 
 	stream->memcpy(stream->data->header.signature, PMEMSTREAM_SIGNATURE, strlen(PMEMSTREAM_SIGNATURE), 0);
@@ -159,7 +160,7 @@ int pmemstream_region_free(struct pmemstream *stream, struct pmemstream_region r
 		return -1;
 
 	size_t metadata_size = MEMBER_SIZE(pmemstream_span_runtime, empty);
-	pmemstream_span_create_empty(&span[0], stream->usable_size - metadata_size);
+	pmemstream_span_create_empty(stream, &span[0], stream->usable_size - metadata_size);
 	stream->persist(&span[0], metadata_size);
 
 	return 0;
