@@ -9,3 +9,4 @@ coverage:
     - examples/
     - tests/
     - utils/
+    - src/critnib/
