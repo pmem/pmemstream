@@ -100,6 +100,15 @@ static uint64_t pmemstream_get_offset_for_span(struct pmemstream *stream, pmemst
 	return (uint64_t)((uint64_t)span - (uint64_t)stream->data->spans);
 }
 
+static int validate_entry_span(pmemstream_span_bytes *entry_span)
+{
+	struct pmemstream_span_runtime rt = pmemstream_span_get_runtime(entry_span);
+	if (rt.type == PMEMSTREAM_SPAN_ENTRY && util_popcount_memory(rt.data, rt.entry.size) == rt.entry.popcount) {
+		return 0;
+	}
+	return -1;
+}
+
 int pmemstream_from_map(struct pmemstream **stream, size_t block_size, struct pmem2_map *map)
 {
 	struct pmemstream *s = malloc(sizeof(struct pmemstream));
@@ -191,7 +200,6 @@ int pmemstream_append(struct pmemstream *stream, struct pmemstream_region *regio
 
 	pmemstream_span_bytes *entry_span = pmemstream_get_span_for_offset(stream, offset);
 	pmemstream_span_create_entry(entry_span, count, util_popcount_memory(buf, count));
-	// TODO: for popcount, we also need to make sure that the memory is zeroed - maybe it can be done by bg thread?
 
 	struct pmemstream_span_runtime entry_rt = pmemstream_span_get_runtime(entry_span);
 
@@ -295,10 +303,22 @@ int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iter, struc
 		return -1;
 	}
 
-	// TODO: verify popcount
 	iter->offset += rt.total_size;
 
+	if (entry->offset + rt.total_size < iter->region.offset + region_rt.total_size) {
+		return -1;
+	}
 	if (rt.type == PMEMSTREAM_SPAN_ENTRY) {
+		/* Validate that entry is correct, if there is any problem, fix it */
+		if (validate_entry_span(entry_span) < 0) {
+			size_t metadata_size = MEMBER_SIZE(pmemstream_span_runtime, empty);
+			size_t region_end_offset = region->offset + region_rt.total_size;
+			size_t remaining_size = region_end_offset - iter->offset;
+
+			pmemstream_span_create_empty(iter->stream, entry_span, remaining_size - metadata_size);
+			iter->stream->persist(entry_span, metadata_size);
+			return -1;
+		}
 		return 0;
 	}
 
