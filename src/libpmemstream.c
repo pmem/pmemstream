@@ -100,6 +100,15 @@ static uint64_t pmemstream_get_offset_for_span(struct pmemstream *stream, pmemst
 	return (uint64_t)((uint64_t)span - (uint64_t)stream->data->spans);
 }
 
+static int validateEntrySpan(pmemstream_span_bytes* entry_span) {
+	struct pmemstream_span_runtime rt = pmemstream_span_get_runtime(entry_span);
+	if (rt.type == PMEMSTREAM_SPAN_ENTRY &&
+		util_popcount_memory(rt.data, rt.entry.size) == rt.entry.popcount) {
+		return 0;
+	}
+	return -1;
+}
+
 int pmemstream_from_map(struct pmemstream **stream, size_t block_size, struct pmem2_map *map)
 {
 	struct pmemstream *s = malloc(sizeof(struct pmemstream));
@@ -295,10 +304,13 @@ int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iter, struc
 		return -1;
 	}
 
-	// TODO: verify popcount
 	iter->offset += rt.total_size;
 
 	if (rt.type == PMEMSTREAM_SPAN_ENTRY) {
+		if (validateEntrySpan(entry_span) < 0) {
+			pmemstream_span_create_empty(iter->stream, entry_span, region_rt.total_size - iter->offset - sizeof(pmemstream_span_bytes));
+			return -1;
+		}
 		return 0;
 	}
 
