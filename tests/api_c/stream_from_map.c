@@ -9,7 +9,7 @@
 
 void test_stream_from_map(char *path, size_t file_size, size_t blk_size)
 {
-	struct pmem2_map *map = map_open(path, file_size);
+	struct pmem2_map *map = map_open(path, file_size, 1);
 	UT_ASSERTne(map, NULL);
 
 	struct pmemstream *s = NULL;

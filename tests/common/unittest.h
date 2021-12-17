@@ -83,14 +83,18 @@ static inline void UT_FATAL(const char *format, ...)
 /* Creates a pmem2_map from a file path, with given size.
  * XXX: add granularity (and FILE_MODE?) as a param
  */
-static inline struct pmem2_map *map_open(const char *file, size_t size)
+static inline struct pmem2_map *map_open(const char *file, size_t size, int truncate)
 {
 	const mode_t FILE_MODE = 0644;
 	struct pmem2_source *source;
 	struct pmem2_config *config;
 	struct pmem2_map *map = NULL;
 
-	int fd = open(file, O_CREAT | O_RDWR | O_TRUNC, FILE_MODE);
+	int flags = O_CREAT | O_RDWR;
+	if (truncate)
+		flags |= O_TRUNC;
+
+	int fd = open(file, flags, FILE_MODE);
 	if (fd < 0) {
 		UT_FATAL("File creation error (errno: %d)!", errno);
 		return NULL;
