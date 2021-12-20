@@ -42,6 +42,10 @@ struct pmemstream_span_runtime {
 	};
 };
 
+#define SPAN_EMPTY_METADATA_SIZE (MEMBER_SIZE(pmemstream_span_runtime, empty))
+#define SPAN_REGION_METADATA_SIZE (MEMBER_SIZE(pmemstream_span_runtime, region))
+#define SPAN_ENTRY_METADATA_SIZE (MEMBER_SIZE(pmemstream_span_runtime, entry))
+
 typedef uint64_t pmemstream_span_bytes;
 
 #define PMEMSTREAM_SIGNATURE ("PMEMSTREAM")
