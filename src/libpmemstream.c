@@ -291,7 +291,7 @@ int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iter, struc
 		*region = iter->region;
 	}
 
-	if (iter->offset >= iter->region.offset + region_rt.total_size) {
+	if (rt.data >= region_rt.data + region_rt.region.size) {
 		return -1;
 	}
 
