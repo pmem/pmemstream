@@ -291,9 +291,13 @@ int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iter, struc
 		*region = iter->region;
 	}
 
+	/* Make sure that we didn't go beyond region. */
 	if (iter->offset >= iter->region.offset + region_rt.total_size) {
 		return -1;
 	}
+
+	/* Verify that all metadata fits inside the region. */
+	assert(rt.data <= region_rt.data + region_rt.region.size);
 
 	// TODO: verify popcount
 	iter->offset += rt.total_size;
