@@ -299,16 +299,17 @@ int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iter, struc
 		*region = iter->region;
 	}
 
+	/* Make sure that we didn't go beyond region. */
 	if (iter->offset >= iter->region.offset + region_rt.total_size) {
 		return -1;
 	}
 
 	iter->offset += rt.total_size;
 
-	// XXX: check if offset is out of region
-	if (entry->offset + rt.total_size > iter->region.offset + region_rt.total_size) {
-		return -1;
-	}
+	/* Verify that all metadata and data fits inside the region - this should not fail unless stream was corrupted.
+	 */
+	assert(entry->offset + rt.total_size <= iter->region.offset + region_rt.total_size);
+
 	if (rt.type == PMEMSTREAM_SPAN_ENTRY) {
 		/* Validate that entry is correct, if there is any problem, clear the data right up to the end */
 		if (validate_entry_span(entry_span) < 0) {
