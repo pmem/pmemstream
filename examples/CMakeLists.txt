@@ -35,3 +35,6 @@ add_check_whitespace(examples ${CMAKE_CURRENT_SOURCE_DIR}/01-iterate/*.*)
 # ----------------------------------------------------------------- #
 add_example(01-iterate 01-iterate/main.c)
 target_link_libraries(example-01-iterate ${LIBPMEM2_LIBRARIES})
+
+add_example(02-visual_iterator 02-visual_iterator/main.cpp)
+target_link_libraries(example-02-visual_iterator ${LIBPMEM2_LIBRARIES})
