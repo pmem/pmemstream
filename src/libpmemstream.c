@@ -77,17 +77,16 @@ static int pmemstream_is_initialized(struct pmemstream *stream)
 
 static void pmemstream_init(struct pmemstream *stream)
 {
-	memset(stream->data->header.signature, 0, PMEMSTREAM_SIGNATURE_SIZE);
+	stream->memset(stream->data->header.signature, 0, PMEMSTREAM_SIGNATURE_SIZE, PMEM2_F_MEM_NONTEMPORAL);
 
 	stream->data->header.stream_size = stream->stream_size;
 	stream->data->header.block_size = stream->block_size;
 	stream->persist(stream->data, sizeof(struct pmemstream_data));
 
 	size_t metadata_size = MEMBER_SIZE(pmemstream_span_runtime, empty);
-	pmemstream_span_create_empty(stream, &stream->data->spans[0], stream->usable_size - metadata_size);
-	stream->persist(&stream->data->spans[0], metadata_size);
-
-	stream->memcpy(stream->data->header.signature, PMEMSTREAM_SIGNATURE, strlen(PMEMSTREAM_SIGNATURE), 0);
+	pmemstream_span_create_empty(stream, stream->data->spans, stream->usable_size - metadata_size);
+	stream->persist(stream->data->spans, metadata_size);
+	stream->memcpy(stream->data->header.signature, PMEMSTREAM_SIGNATURE, strlen(PMEMSTREAM_SIGNATURE), PMEM2_F_MEM_NONTEMPORAL);
 }
 
 static pmemstream_span_bytes *pmemstream_get_span_for_offset(struct pmemstream *stream, size_t offset)
