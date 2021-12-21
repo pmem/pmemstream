@@ -4,3 +4,5 @@
 #
 
 # file-exceptions.sh - filter out files not checked for copyright and license
+
+grep -v -E -e 'tests/external/'
