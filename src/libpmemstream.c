@@ -292,8 +292,11 @@ int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iter, struc
 	pmemstream_span_bytes *region_span = pmemstream_get_span_for_offset(iter->stream, iter->region.offset);
 	struct pmemstream_span_runtime region_rt = pmemstream_span_get_runtime(region_span);
 
+	size_t offset = pmemstream_get_offset_for_span(iter->stream, entry_span);
+
+	// XXX: add test for NULL entry
 	if (entry) {
-		entry->offset = pmemstream_get_offset_for_span(iter->stream, entry_span);
+		entry->offset = offset;
 	}
 	if (region) {
 		*region = iter->region;
@@ -308,12 +311,12 @@ int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iter, struc
 
 	/* Verify that all metadata and data fits inside the region - this should not fail unless stream was corrupted.
 	 */
-	assert(entry->offset + rt.total_size <= iter->region.offset + region_rt.total_size);
+	assert(offset + rt.total_size <= iter->region.offset + region_rt.total_size);
 
 	/* Validate that entry is correct, if there is any problem, clear the data right up to the end */
 	if (validate_entry_span(entry_span) < 0) {
 		size_t region_end_offset = iter->region.offset + region_rt.total_size;
-		size_t remaining_size = region_end_offset - entry->offset;
+		size_t remaining_size = region_end_offset - offset;
 		pmemstream_span_create_empty(iter->stream, entry_span, remaining_size - SPAN_EMPTY_METADATA_SIZE);
 		return -1;
 	}
