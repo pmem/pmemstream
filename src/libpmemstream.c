@@ -32,7 +32,7 @@ static void pmemstream_span_create_empty(struct pmemstream *stream, uint64_t off
 	span[0] = data_size | PMEMSTREAM_SPAN_EMPTY;
 
 	void *dest = ((uint8_t *)span) + SPAN_EMPTY_METADATA_SIZE;
-	stream->memset(dest, 0, data_size, PMEM2_F_MEM_NONTEMPORAL);
+	stream->memset(dest, 0, data_size, PMEM2_F_MEM_NONTEMPORAL | PMEM2_F_MEM_NODRAIN);
 	stream->persist(span, SPAN_EMPTY_METADATA_SIZE);
 }
 
@@ -48,7 +48,7 @@ static void pmemstream_span_create_entry(struct pmemstream *stream, uint64_t off
 
 	// XXX - use variadic mempcy to store data and metadata at once
 	void *dest = ((uint8_t *)span) + SPAN_ENTRY_METADATA_SIZE;
-	stream->memcpy(dest, data, data_size, PMEM2_F_MEM_NODRAIN);
+	stream->memcpy(dest, data, data_size, PMEM2_F_MEM_NONTEMPORAL | PMEM2_F_MEM_NODRAIN);
 	stream->persist(span, SPAN_ENTRY_METADATA_SIZE);
 }
 
@@ -160,15 +160,15 @@ static int pmemstream_is_initialized(struct pmemstream *stream)
 
 static void pmemstream_init(struct pmemstream *stream)
 {
-	memset(stream->data->header.signature, 0, PMEMSTREAM_SIGNATURE_SIZE);
-
+	stream->memset(stream->data->header.signature, 0, PMEMSTREAM_SIGNATURE_SIZE,
+		       PMEM2_F_MEM_NONTEMPORAL | PMEM2_F_MEM_NODRAIN);
 	stream->data->header.stream_size = stream->stream_size;
 	stream->data->header.block_size = stream->block_size;
 	stream->persist(stream->data, sizeof(struct pmemstream_data));
 
 	pmemstream_span_create_empty(stream, 0, stream->usable_size - SPAN_EMPTY_METADATA_SIZE);
-
-	stream->memcpy(stream->data->header.signature, PMEMSTREAM_SIGNATURE, strlen(PMEMSTREAM_SIGNATURE), 0);
+	stream->memcpy(stream->data->header.signature, PMEMSTREAM_SIGNATURE, strlen(PMEMSTREAM_SIGNATURE),
+		       PMEM2_F_MEM_NONTEMPORAL);
 }
 
 static int validate_entry(struct pmemstream *stream, struct pmemstream_entry entry)
