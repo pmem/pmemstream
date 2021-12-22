@@ -210,7 +210,7 @@ endfunction()
 # Skipped test cases execute nothing and contain skip message in the name.
 function(skip_test name message)
 	add_test(NAME ${name}_${message}
-		COMMAND ${CMAKE_COMMAND} -P ${TESTS_ROOT_DIR}/true.cmake)
+		COMMAND ${CMAKE_COMMAND} -P ${TESTS_ROOT_DIR}/cmake/true.cmake)
 
 	set_tests_properties(${name}_${message} PROPERTIES COST 0)
 endfunction()
