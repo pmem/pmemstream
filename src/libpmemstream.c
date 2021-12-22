@@ -178,6 +178,14 @@ int pmemstream_region_allocate(struct pmemstream *stream, size_t size, struct pm
 	return 0;
 }
 
+size_t pmemstream_region_size(struct pmemstream *stream, struct pmemstream_region region)
+{
+	struct pmemstream_span_runtime region_sr = pmemstream_span_get_runtime(stream, region.offset);
+	assert(region_sr.type == PMEMSTREAM_SPAN_REGION);
+
+	return region_sr.region.size;
+}
+
 int pmemstream_region_free(struct pmemstream *stream, struct pmemstream_region region)
 {
 	struct pmemstream_span_runtime sr = pmemstream_span_get_runtime(stream, region.offset);
