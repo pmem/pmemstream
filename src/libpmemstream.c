@@ -151,6 +151,15 @@ int pmemstream_region_allocate(struct pmemstream *stream, size_t size, struct pm
 	return 0;
 }
 
+size_t pmemstream_region_size(struct pmemstream *stream, struct pmemstream_region region)
+{
+	pmemstream_span_bytes *region_span = pmemstream_get_span_for_offset(stream, region.offset);
+	struct pmemstream_span_runtime region_sr = pmemstream_span_get_runtime(region_span);
+	assert(region_sr.type == PMEMSTREAM_SPAN_REGION);
+
+	return region_sr.region.size;
+}
+
 int pmemstream_region_free(struct pmemstream *stream, struct pmemstream_region region)
 {
 	pmemstream_span_bytes *span = pmemstream_get_span_for_offset(stream, region.offset);
