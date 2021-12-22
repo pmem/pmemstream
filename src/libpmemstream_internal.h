@@ -27,7 +27,7 @@ enum pmemstream_span_type {
 struct pmemstream_span_runtime {
 	enum pmemstream_span_type type;
 	size_t total_size;
-	uint8_t *data;
+	uint64_t data_offset;
 	union {
 		struct {
 			uint64_t size;
