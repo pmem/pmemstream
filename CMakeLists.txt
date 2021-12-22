@@ -151,7 +151,11 @@ add_custom_target(check-whitespace)
 add_custom_target(check-license
 	COMMAND ${PMEMSTREAM_ROOT_DIR}/utils/check_license/check-headers.sh
 			${PMEMSTREAM_ROOT_DIR}
-			BSD-3-Clause)
+			BSD-3-Clause -v)
+add_custom_target(copyright-format
+	COMMAND ${PMEMSTREAM_ROOT_DIR}/utils/check_license/check-headers.sh
+			${PMEMSTREAM_ROOT_DIR}
+			BSD-3-Clause -d)
 
 if(CHECK_CPP_STYLE)
 	# XXX: update this, when clang format version is picked, and probably check min. version only
