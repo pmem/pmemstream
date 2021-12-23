@@ -32,7 +32,8 @@ jobs:
         CONFIG: [
                   "TYPE=debug OS=ubuntu OS_VER=20.04 CHECK_CPP_STYLE=1 ",
                   "TYPE=debug OS=ubuntu OS_VER=20.04 COVERAGE=1 PUSH_IMAGE=1",
-                  "TYPE=debug OS=ubuntu OS_VER=20.04 TESTS_ASAN=1 TESTS_UBSAN=1",
+                  "TYPE=debug OS=ubuntu OS_VER=20.04 TESTS_ASAN=1",
+                  "TYPE=debug OS=ubuntu OS_VER=20.04 TESTS_UBSAN=1",
                   "TYPE=valgrind OS=ubuntu OS_VER=20.04",
                   "TYPE=package OS=ubuntu OS_VER=20.04",
                  ]
