@@ -16,11 +16,18 @@ static uint8_t *pmemstream_offset_to_ptr(struct pmemstream *stream, size_t offse
 	return (uint8_t *)stream->data->spans + offset;
 }
 
+static pmemstream_span_bytes *pmemstream_offset_to_span_ptr(struct pmemstream *stream, size_t offset)
+{
+	assert(offset % sizeof(pmemstream_span_bytes) == 0);
+
+	return (pmemstream_span_bytes *)pmemstream_offset_to_ptr(stream, offset);
+}
+
 static void pmemstream_span_create_empty(struct pmemstream *stream, uint64_t offset, size_t data_size)
 {
 	assert(offset % sizeof(pmemstream_span_bytes) == 0);
 
-	pmemstream_span_bytes *span = (pmemstream_span_bytes *)pmemstream_offset_to_ptr(stream, offset);
+	pmemstream_span_bytes *span = pmemstream_offset_to_span_ptr(stream, offset);
 	assert((data_size & PMEMSTREAM_SPAN_TYPE_MASK) == 0);
 	span[0] = data_size | PMEMSTREAM_SPAN_EMPTY;
 
@@ -34,7 +41,7 @@ static void pmemstream_span_create_entry(struct pmemstream *stream, uint64_t off
 {
 	assert(offset % sizeof(pmemstream_span_bytes) == 0);
 
-	pmemstream_span_bytes *span = (pmemstream_span_bytes *)pmemstream_offset_to_ptr(stream, offset);
+	pmemstream_span_bytes *span = pmemstream_offset_to_span_ptr(stream, offset);
 	assert((data_size & PMEMSTREAM_SPAN_TYPE_MASK) == 0);
 	span[0] = data_size | PMEMSTREAM_SPAN_ENTRY;
 	span[1] = popcount;
@@ -49,7 +56,7 @@ static void pmemstream_span_create_region(struct pmemstream *stream, uint64_t of
 {
 	assert(offset % sizeof(pmemstream_span_bytes) == 0);
 
-	pmemstream_span_bytes *span = (pmemstream_span_bytes *)pmemstream_offset_to_ptr(stream, offset);
+	pmemstream_span_bytes *span = pmemstream_offset_to_span_ptr(stream, offset);
 	assert((size & PMEMSTREAM_SPAN_TYPE_MASK) == 0);
 	span[0] = size | PMEMSTREAM_SPAN_REGION;
 
@@ -69,9 +76,10 @@ static enum pmemstream_span_type pmemstream_get_span_type(pmemstream_span_bytes 
 
 static struct pmemstream_span_runtime pmemstream_span_get_empty_runtime(struct pmemstream *stream, uint64_t offset)
 {
-	pmemstream_span_bytes *span = (pmemstream_span_bytes *)pmemstream_offset_to_ptr(stream, offset);
+	pmemstream_span_bytes *span = pmemstream_offset_to_span_ptr(stream, offset);
 	struct pmemstream_span_runtime sr;
 
+	assert(offset % sizeof(pmemstream_span_bytes) == 0);
 	assert(pmemstream_get_span_type(span) == PMEMSTREAM_SPAN_EMPTY);
 
 	sr.type = PMEMSTREAM_SPAN_EMPTY;
@@ -84,9 +92,10 @@ static struct pmemstream_span_runtime pmemstream_span_get_empty_runtime(struct p
 
 static struct pmemstream_span_runtime pmemstream_span_get_entry_runtime(struct pmemstream *stream, uint64_t offset)
 {
-	pmemstream_span_bytes *span = (pmemstream_span_bytes *)pmemstream_offset_to_ptr(stream, offset);
+	pmemstream_span_bytes *span = pmemstream_offset_to_span_ptr(stream, offset);
 	struct pmemstream_span_runtime sr;
 
+	assert(offset % sizeof(pmemstream_span_bytes) == 0);
 	assert(pmemstream_get_span_type(span) == PMEMSTREAM_SPAN_ENTRY);
 
 	sr.type = PMEMSTREAM_SPAN_ENTRY;
@@ -100,9 +109,10 @@ static struct pmemstream_span_runtime pmemstream_span_get_entry_runtime(struct p
 
 static struct pmemstream_span_runtime pmemstream_span_get_region_runtime(struct pmemstream *stream, uint64_t offset)
 {
-	pmemstream_span_bytes *span = (pmemstream_span_bytes *)pmemstream_offset_to_ptr(stream, offset);
+	pmemstream_span_bytes *span = pmemstream_offset_to_span_ptr(stream, offset);
 	struct pmemstream_span_runtime sr;
 
+	assert(offset % sizeof(pmemstream_span_bytes) == 0);
 	assert(pmemstream_get_span_type(span) == PMEMSTREAM_SPAN_REGION);
 
 	sr.type = PMEMSTREAM_SPAN_REGION;
@@ -117,7 +127,7 @@ static struct pmemstream_span_runtime pmemstream_span_get_runtime(struct pmemstr
 {
 	assert(offset % sizeof(pmemstream_span_bytes) == 0);
 
-	pmemstream_span_bytes *span = (pmemstream_span_bytes *)pmemstream_offset_to_ptr(stream, offset);
+	pmemstream_span_bytes *span = pmemstream_offset_to_span_ptr(stream, offset);
 	struct pmemstream_span_runtime sr;
 
 	switch (pmemstream_get_span_type(span)) {
