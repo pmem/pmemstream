@@ -21,6 +21,7 @@ In order to build libpmemstream, you need to have installed:
 	* [**valgrind**](https://github.com/pmem/valgrind) - tool for profiling and memory leak detection. *pmem* forked version with *pmemcheck*
 		tool is recommended, but upstream/original [valgrind](https://valgrind.org/) is also compatible (package valgrind-devel is required).
 	* [**rapidcheck**](https://github.com/emil-e/rapidcheck) - some tests require this property based testing framework
+	* **gdb**
 * Used only for **development**:
 	* [**pandoc**](https://pandoc.org/) - markup converter to generate man pages
 	* [**perl**](https://www.perl.org/) - for whitespace checker script

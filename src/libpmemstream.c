@@ -31,9 +31,9 @@ static void pmemstream_span_create_empty(struct pmemstream *stream, uint64_t off
 	assert((data_size & PMEMSTREAM_SPAN_TYPE_MASK) == 0);
 	span[0] = data_size | PMEMSTREAM_SPAN_EMPTY;
 
-	const size_t metadata_size = MEMBER_SIZE(pmemstream_span_runtime, empty);
-	stream->memset(((uint8_t *)span) + metadata_size, 0, data_size, PMEM2_F_MEM_NONTEMPORAL);
-	stream->persist(span, metadata_size);
+	void *dest = ((uint8_t *)span) + SPAN_EMPTY_METADATA_SIZE;
+	stream->memset(dest, 0, data_size, PMEM2_F_MEM_NONTEMPORAL);
+	stream->persist(span, SPAN_EMPTY_METADATA_SIZE);
 }
 
 static void pmemstream_span_create_entry(struct pmemstream *stream, uint64_t offset, const void *data, size_t data_size,
@@ -46,10 +46,10 @@ static void pmemstream_span_create_entry(struct pmemstream *stream, uint64_t off
 	span[0] = data_size | PMEMSTREAM_SPAN_ENTRY;
 	span[1] = popcount;
 
-	const size_t metadata_size = MEMBER_SIZE(pmemstream_span_runtime, entry);
 	// XXX - use variadic mempcy to store data and metadata at once
-	stream->memcpy(((uint8_t *)span) + metadata_size, data, data_size, PMEM2_F_MEM_NODRAIN);
-	stream->persist(span, metadata_size);
+	void *dest = ((uint8_t *)span) + SPAN_ENTRY_METADATA_SIZE;
+	stream->memcpy(dest, data, data_size, PMEM2_F_MEM_NODRAIN);
+	stream->persist(span, SPAN_ENTRY_METADATA_SIZE);
 }
 
 static void pmemstream_span_create_region(struct pmemstream *stream, uint64_t offset, size_t size)
@@ -60,8 +60,7 @@ static void pmemstream_span_create_region(struct pmemstream *stream, uint64_t of
 	assert((size & PMEMSTREAM_SPAN_TYPE_MASK) == 0);
 	span[0] = size | PMEMSTREAM_SPAN_REGION;
 
-	const size_t metadata_size = MEMBER_SIZE(pmemstream_span_runtime, region);
-	stream->persist(span, metadata_size);
+	stream->persist(span, SPAN_REGION_METADATA_SIZE);
 }
 
 static uint64_t pmemstream_get_span_size(pmemstream_span_bytes *span)

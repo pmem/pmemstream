@@ -320,12 +320,11 @@ function(pmreorder_execute expect_success engine conf_file name)
 	unset(ENV{PMEMOBJ_CONF})
 endfunction()
 
-# Executes test command ${name} under GDB.
-# First argument of the command is a gdb batch file.
-# Second argument of the command is the test command.
-# Optional function arguments are passed as consecutive arguments to
-# the command.
-function(crash_with_gdb gdb_batch_file name)
+# Executes test command ${name} under GDB (in batch mode). Most likely to crash the test.
+# First argument is a gdb batch file.
+# Second argument is the test command.
+# Optional function arguments (${ARGN}) are passed as consecutive parameters to the test command.
+function(run_with_gdb gdb_batch_file name)
 	check_target(${name})
 
 	set(PREV_TRACER ${TRACER})
