@@ -369,7 +369,14 @@ int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iter, struc
 
 	iter->offset += span_rt.total_size;
 
-	/* Verify that all metadata and data fits inside the region - this should not fail unless stream was corrupted.
+	/* XXX: even if this is true we might have some garbage further in the stream. Shoud
+	 * we always clear it? */
+	if (span_rt.type == PMEMSTREAM_SPAN_EMPTY) {
+		return -1;
+	}
+
+	/*
+	 * Verify that all metadata and data fits inside the region - this should not fail unless stream was corrupted.
 	 */
 	assert(entry.offset + span_rt.total_size <= iter->region.offset + region_rt.total_size);
 
