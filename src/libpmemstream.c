@@ -395,17 +395,32 @@ void pmemstream_region_iterator_delete(struct pmemstream_region_iterator **itera
 	*iterator = NULL;
 }
 
+static int pmemstream_entry_iterator_initialize(struct pmemstream_entry_iterator *iterator, struct pmemstream *stream,
+						struct pmemstream_region region)
+{
+	struct pmemstream_span_runtime srt = pmemstream_span_get_region_runtime(stream, region.offset);
+	struct pmemstream_entry_iterator iter;
+	iter.offset = srt.data_offset;
+	iter.region = region;
+	iter.stream = stream;
+
+	struct pmemstream_region_context region_context = {0};
+	int ret = insert_or_get_region_context(stream, region, region_context, &iter.region_context);
+	if (ret) {
+		return ret;
+	}
+
+	*iterator = iter;
+
+	return 0;
+}
+
 int pmemstream_entry_iterator_new(struct pmemstream_entry_iterator **iterator, struct pmemstream *stream,
 				  struct pmemstream_region region)
 {
-	struct pmemstream_span_runtime srt = pmemstream_span_get_region_runtime(stream, region.offset);
 	struct pmemstream_entry_iterator *iter = malloc(sizeof(*iter));
-	iter->offset = srt.data_offset;
-	iter->region = region;
-	iter->stream = stream;
 
-	struct pmemstream_region_context region_context = {0};
-	int ret = insert_or_get_region_context(stream, region, region_context, &iter->region_context);
+	int ret = pmemstream_entry_iterator_initialize(iter, stream, region);
 	if (ret) {
 		free(iter);
 		return ret;
@@ -431,6 +446,7 @@ static void recover_region(struct pmemstream *stream, struct pmemstream_region r
 	__atomic_store_n(&region_context->recovered, 1, __ATOMIC_RELAXED);
 }
 
+/* Advances entry iterator by one. Verifies entry integrity and reovers the region if neccessary. */
 int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iter, struct pmemstream_region *region,
 				   struct pmemstream_entry *user_entry)
 {
