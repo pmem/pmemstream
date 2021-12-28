@@ -6,8 +6,12 @@
 #ifndef LIBPMEMSTREAM_INTERNAL_H
 #define LIBPMEMSTREAM_INTERNAL_H
 
+#include "critnib/critnib.h"
 #include "libpmemstream.h"
+
 #include <libpmem2.h>
+
+#include <pthread.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -71,17 +75,26 @@ struct pmemstream {
 	pmem2_flush_fn flush;
 	pmem2_drain_fn drain;
 	pmem2_persist_fn persist;
+
+	critnib *region_contexts_container;
+	pthread_mutex_t region_contexts_container_lock;
 };
 
 struct pmemstream_entry_iterator {
 	struct pmemstream *stream;
 	struct pmemstream_region region;
+	struct pmemstream_region_context *region_context;
 	size_t offset;
 };
 
 struct pmemstream_region_iterator {
 	struct pmemstream *stream;
 	struct pmemstream_region region;
+};
+
+struct pmemstream_region_context {
+	/* Is region already recovered? If yes, no need to do entry validation. */
+	int recovered;
 };
 
 #ifdef __cplusplus
