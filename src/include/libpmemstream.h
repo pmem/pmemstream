@@ -19,6 +19,7 @@ struct pmemstream;
 struct pmemstream_tx;
 struct pmemstream_entry_iterator;
 struct pmemstream_region_iterator;
+struct pmemstream_region_context;
 struct pmemstream_region {
 	uint64_t offset;
 };
@@ -40,13 +41,26 @@ int pmemstream_region_free(struct pmemstream *stream, struct pmemstream_region r
 
 size_t pmemstream_region_size(struct pmemstream *stream, struct pmemstream_region region);
 
-// synchronously appends data buffer to the end of the transaction log space
-// fails if no space is available
-// 'entry' must provide offset where new entry is appended - it can be obtained from iterator
-// after function completes, entry->offset is incremented by count + metadata size
-// and new_entry->offset is set to original value of entry->offset
-int pmemstream_append(struct pmemstream *stream, struct pmemstream_region *region, struct pmemstream_entry *entry,
-		      const void *buf, size_t count, struct pmemstream_entry *new_entry);
+/* Returns pointer to pmemstream_region_context. The context is managed by libpmemstream - user does not
+ * have to explicitly delete/free it. Context becomes invalid after corresponding region is freed. */
+int pmemstream_get_region_context(struct pmemstream *stream, struct pmemstream_region region,
+				  struct pmemstream_region_context **ctx);
+
+/* Synchronously appends data buffer after last valid entry in region.
+ *
+ * region_context is an optional parameter which can be obtained from pmemstream_get_region_context.
+ * If it's NULL, pmemstream_append will obtain region_context from its internal structures (which might
+ * incur overhead).
+ *
+ * data is a pointer to data to be appended
+ * size is size of the data to be appended
+ *
+ * new_entry is an optional pointer. On success, it will contain information about position of newly
+ * appended entry.
+ */
+int pmemstream_append(struct pmemstream *stream, struct pmemstream_region region,
+		      struct pmemstream_region_context *region_context, const void *data, size_t size,
+		      struct pmemstream_entry *new_entry);
 
 // returns pointer to the data of the entry
 void *pmemstream_entry_data(struct pmemstream *stream, struct pmemstream_entry entry);

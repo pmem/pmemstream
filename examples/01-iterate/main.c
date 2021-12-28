@@ -103,7 +103,7 @@ int main(int argc, char *argv[])
 		struct data_entry e;
 		e.data = last_entry_data + 1;
 		struct pmemstream_entry new_entry;
-		ret = pmemstream_append(stream, &region, &entry, &e, sizeof(e), &new_entry);
+		ret = pmemstream_append(stream, region, NULL, &e, sizeof(e), &new_entry);
 		if (ret == -1) {
 			fprintf(stderr, "pmemstream_append failed\n");
 			return ret;
@@ -118,7 +118,6 @@ int main(int argc, char *argv[])
 	if (ret != -1) {
 		struct data_entry e;
 		e.data = 1;
-		struct pmemstream_entry entry;
 		struct pmemstream_entry new_entry;
 
 		struct pmemstream_entry_iterator *eiter;
@@ -128,11 +127,7 @@ int main(int argc, char *argv[])
 			return ret;
 		}
 
-		/* Find out offset for the first entry in region */
-		pmemstream_entry_iterator_next(eiter, NULL, &entry);
-		pmemstream_entry_iterator_delete(&eiter);
-
-		ret = pmemstream_append(stream, &new_region, &entry, &e, sizeof(e), &new_entry);
+		ret = pmemstream_append(stream, new_region, NULL, &e, sizeof(e), &new_entry);
 		if (ret == -1) {
 			fprintf(stderr, "pmemstream_append failed\n");
 			return ret;
@@ -142,7 +137,7 @@ int main(int argc, char *argv[])
 		printf("new_data_entry: %lu\n", new_data_entry->data);
 
 		e.data++;
-		ret = pmemstream_append(stream, &new_region, &entry, &e, sizeof(e), &new_entry);
+		ret = pmemstream_append(stream, new_region, NULL, &e, sizeof(e), &new_entry);
 		if (ret == -1) {
 			fprintf(stderr, "pmemstream_append failed\n");
 			return ret;
