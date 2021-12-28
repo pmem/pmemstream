@@ -93,6 +93,9 @@ if(TESTS_RAPIDCHECK)
 
 	build_test_ext(NAME append SRC_FILES unittest/append.cpp LIBS rapidcheck)
 	add_test_generic(NAME append TRACERS none SCRIPT cmake/run_default.cmake)
+
+	build_test_ext(NAME concurrent_iterate SRC_FILES unittest/concurrent_iterate.cpp LIBS rapidcheck)
+	add_test_generic(NAME concurrent_iterate TRACERS none SCRIPT cmake/run_default.cmake)
 endif()
 
 if(GDB AND DEBUG_BUILD)
