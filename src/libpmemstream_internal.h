@@ -92,9 +92,21 @@ struct pmemstream_region_iterator {
 	struct pmemstream_region region;
 };
 
+#define PMEMSTREAM_OFFSET_UNITINIALIZED 0ULL
+
+/*
+ * It contains all runtime data specific to a region.
+ * It is always managed by the pmemstream (user can only obtain a non-owning pointer) and can be created
+ * in few different ways:
+ * - By explicitly calling pmemstream_get_region_context() for the first time
+ * - By calling pmemstream_append (only if region_context does not exist yet)
+ * - By advancing an entry iterator past last entry in a region (only if region_context does not exist yet)
+ */
 struct pmemstream_region_context {
-	/* Is region already recovered? If yes, no need to do entry validation. */
-	int recovered;
+	/*
+	 * Offset at which new entries will be appended. If set to PMEMSTREAM_OFFSET_UNITINIALIZED it means
+	 * that region was not yet recovered. */
+	uint64_t append_offset;
 };
 
 #ifdef __cplusplus
