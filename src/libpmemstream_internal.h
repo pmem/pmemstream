@@ -24,7 +24,7 @@ struct pmemstream_data {
 		uint64_t stream_size;
 		uint64_t block_size;
 	} header;
-	pmemstream_span_bytes spans[];
+	span_bytes spans[];
 };
 
 struct pmemstream {
