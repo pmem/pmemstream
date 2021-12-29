@@ -8,7 +8,7 @@ set breakpoint pending on
 b pmemstream_append
 r
 info break 1
-b pmemstream_span_create_entry
+b span_create_entry
 c
 #
 # Unfortunately on some systems (various gdb ver.) there's no way to

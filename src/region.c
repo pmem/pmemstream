@@ -103,7 +103,7 @@ int region_is_recovered(struct pmemstream_region_context *region_context)
 static int region_iterate_and_try_recover(struct pmemstream *stream, struct pmemstream_region region)
 {
 	struct pmemstream_entry_iterator iter;
-	int ret = pmemstream_entry_iterator_initialize(&iter, stream, region);
+	int ret = entry_iterator_initialize(&iter, stream, region);
 	if (ret) {
 		return ret;
 	}
@@ -142,7 +142,7 @@ void region_recover(struct pmemstream *stream, struct pmemstream_region region,
 	assert(region_context);
 	assert(tail.offset != PMEMSTREAM_OFFSET_UNINITIALIZED);
 
-	struct pmemstream_span_runtime region_rt = pmemstream_span_get_region_runtime(stream, region.offset);
+	struct span_runtime region_rt = span_get_region_runtime(stream, region.offset);
 	size_t region_end_offset = region.offset + region_rt.total_size;
 	size_t remaining_size = region_end_offset - tail.offset;
 
@@ -150,7 +150,7 @@ void region_recover(struct pmemstream *stream, struct pmemstream_region region,
 	int weak = 0; /* Use compare_exchange int strong variation. */
 	if (__atomic_compare_exchange_n(&region_context->append_offset, &expected_append_offset, tail.offset, weak,
 					__ATOMIC_RELEASE, __ATOMIC_RELAXED)) {
-		pmemstream_span_create_empty(stream, tail.offset, remaining_size - SPAN_EMPTY_METADATA_SIZE);
+		span_create_empty(stream, tail.offset, remaining_size - SPAN_EMPTY_METADATA_SIZE);
 	} else {
 		/* Nothing to do, someone else already performed recovery. */
 	}

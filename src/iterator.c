@@ -21,19 +21,19 @@ int pmemstream_region_iterator_new(struct pmemstream_region_iterator **iterator,
 
 int pmemstream_region_iterator_next(struct pmemstream_region_iterator *it, struct pmemstream_region *region)
 {
-	struct pmemstream_span_runtime srt;
+	struct span_runtime srt;
 
 	while (it->region.offset < it->stream->usable_size) {
-		srt = pmemstream_span_get_runtime(it->stream, it->region.offset);
+		srt = span_get_runtime(it->stream, it->region.offset);
 
-		if (srt.type == PMEMSTREAM_SPAN_REGION) {
+		if (srt.type == SPAN_REGION) {
 			*region = it->region;
 			it->region.offset += srt.total_size;
 			return 0;
 		}
 
 		/* if there are no more regions we should expect an empty span */
-		assert(srt.type == PMEMSTREAM_SPAN_EMPTY);
+		assert(srt.type == SPAN_EMPTY);
 		it->region.offset += srt.total_size;
 	}
 
@@ -48,10 +48,10 @@ void pmemstream_region_iterator_delete(struct pmemstream_region_iterator **itera
 	*iterator = NULL;
 }
 
-int pmemstream_entry_iterator_initialize(struct pmemstream_entry_iterator *iterator, struct pmemstream *stream,
-					 struct pmemstream_region region)
+int entry_iterator_initialize(struct pmemstream_entry_iterator *iterator, struct pmemstream *stream,
+			      struct pmemstream_region region)
 {
-	struct pmemstream_span_runtime region_srt = pmemstream_span_get_region_runtime(stream, region.offset);
+	struct span_runtime region_srt = span_get_region_runtime(stream, region.offset);
 	struct pmemstream_entry_iterator iter;
 	iter.offset = region_srt.data_offset;
 	iter.region = region;
@@ -72,7 +72,7 @@ int pmemstream_entry_iterator_new(struct pmemstream_entry_iterator **iterator, s
 {
 	struct pmemstream_entry_iterator *iter = malloc(sizeof(*iter));
 
-	int ret = pmemstream_entry_iterator_initialize(iter, stream, region);
+	int ret = entry_iterator_initialize(iter, stream, region);
 	if (ret) {
 		free(iter);
 		return ret;
@@ -85,10 +85,9 @@ int pmemstream_entry_iterator_new(struct pmemstream_entry_iterator **iterator, s
 
 static int validate_entry(struct pmemstream *stream, struct pmemstream_entry entry)
 {
-	struct pmemstream_span_runtime srt = pmemstream_span_get_runtime(stream, entry.offset);
+	struct span_runtime srt = span_get_runtime(stream, entry.offset);
 	void *entry_data = pmemstream_offset_to_ptr(stream, srt.data_offset);
-	if (srt.type == PMEMSTREAM_SPAN_ENTRY &&
-	    util_popcount_memory(entry_data, srt.entry.size) == srt.entry.popcount) {
+	if (srt.type == SPAN_ENTRY && util_popcount_memory(entry_data, srt.entry.size) == srt.entry.popcount) {
 		return 0;
 	}
 	return -1;
@@ -98,9 +97,8 @@ static int validate_entry(struct pmemstream *stream, struct pmemstream_entry ent
 int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iter, struct pmemstream_region *region,
 				   struct pmemstream_entry *user_entry)
 {
-	struct pmemstream_span_runtime srt = pmemstream_span_get_runtime(iter->stream, iter->offset);
-	struct pmemstream_span_runtime region_srt =
-		pmemstream_span_get_region_runtime(iter->stream, iter->region.offset);
+	struct span_runtime srt = span_get_runtime(iter->stream, iter->offset);
+	struct span_runtime region_srt = span_get_region_runtime(iter->stream, iter->region.offset);
 	struct pmemstream_entry entry;
 	entry.offset = iter->offset;
 
@@ -126,7 +124,7 @@ int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iter, struc
 
 	int region_recovered = region_is_recovered(iter->region_context);
 
-	if (region_recovered && srt.type == PMEMSTREAM_SPAN_EMPTY) {
+	if (region_recovered && srt.type == SPAN_EMPTY) {
 		/* If we found last entry and region is already recovered, just return -1. */
 		return -1;
 	} else if (!region_recovered && validate_entry(iter->stream, entry) < 0) {

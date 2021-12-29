@@ -26,9 +26,8 @@ struct pmemstream_region_iterator {
 	struct pmemstream_region region;
 };
 
-// XXX: internal
-int pmemstream_entry_iterator_initialize(struct pmemstream_entry_iterator *iterator, struct pmemstream *stream,
-					 struct pmemstream_region region);
+int entry_iterator_initialize(struct pmemstream_entry_iterator *iterator, struct pmemstream *stream,
+			      struct pmemstream_region region);
 
 #ifdef __cplusplus
 } /* end extern "C" */
