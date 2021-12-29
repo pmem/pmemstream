@@ -1,46 +1,13 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /* Copyright 2021, Intel Corporation */
 
+#include "examples_helpers.h"
 #include "libpmemstream.h"
 
-#include <cstdio>
+#include <libpmem2.h>
+#include <stdio.h>
 #include <string>
 #include <vector>
-
-#include <fcntl.h>
-#include <libpmem2.h>
-#include <unistd.h>
-
-static struct pmem2_map *map_open(const char *file)
-{
-	struct pmem2_source *source;
-	struct pmem2_config *config;
-	struct pmem2_map *map = NULL;
-
-	int fd = open(file, O_RDWR);
-	if (fd < 0)
-		return NULL;
-
-	if (pmem2_source_from_fd(&source, fd) != 0)
-		goto err_fd;
-
-	if (pmem2_config_new(&config) != 0)
-		goto err_config;
-
-	pmem2_config_set_required_store_granularity(config, PMEM2_GRANULARITY_PAGE);
-
-	if (pmem2_map_new(&map, config, source) != 0)
-		goto err_map;
-
-err_map:
-	pmem2_config_delete(&config);
-err_config:
-	pmem2_source_delete(&source);
-err_fd:
-	close(fd);
-
-	return map;
-}
 
 struct data_entry {
 	uint64_t data;
@@ -54,12 +21,14 @@ static vector<string> inner_pointers = { "├── ", "│   " };
 void print_help(const char* exec_filename) {
 	printf("Usage: %s file [--print-as-text]\n", exec_filename);
 }
+
 /**
- * This example prints a stream from map2 source.
+ * This example prints visual representation of stream's content.
+ * It requires a path to already existing file, with a previously filled stream data.
  *
  * Possible usage:
- * ./example-01-iterate XYZ
- * ./example-02-visual_iterator XYZ
+ * ./example-01-iterate existing_file
+ * ./example-02-visual_iterator existing_file
  */
 int main(int argc, char *argv[])
 {
@@ -78,7 +47,7 @@ int main(int argc, char *argv[])
 		values_as_text = true;
 	}
 
-	struct pmem2_map *map = map_open(argv[1]);
+	struct pmem2_map *map = example_map_open(argv[1]);
 	if (map == NULL) {
 		pmem2_perror("pmem2_map");
 		return -1;
