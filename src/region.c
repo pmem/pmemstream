@@ -47,7 +47,6 @@ void region_contexts_map_destroy(struct region_contexts_map *map)
 	free(map);
 }
 
-/* Gets (or creates if missing) pointer to region_context associated with specified region. */
 int region_contexts_map_get_or_create(struct region_contexts_map *map, struct pmemstream_region region,
 				      struct pmemstream_region_context **container_handle)
 {
@@ -114,7 +113,6 @@ static int region_iterate_and_try_recover(struct pmemstream *stream, struct pmem
 	return 0;
 }
 
-/* Recovers a region (under a global lock) if it is not yet recovered. */
 int region_try_recover_locked(struct pmemstream *stream, struct pmemstream_region region,
 			      struct pmemstream_region_context *region_context)
 {
@@ -135,7 +133,6 @@ int region_try_recover_locked(struct pmemstream *stream, struct pmemstream_regio
 	return ret;
 }
 
-/* Performs stream recovery - clears all the data in the region after `tail` entry. */
 void region_recover(struct pmemstream *stream, struct pmemstream_region region,
 		    struct pmemstream_region_context *region_context, struct pmemstream_entry tail)
 {

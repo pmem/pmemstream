@@ -17,6 +17,10 @@
 extern "C" {
 #endif
 
+/**
+ * Functions for manipulating regions.
+ */
+
 #define PMEMSTREAM_OFFSET_UNINITIALIZED 0ULL
 
 /*
@@ -45,6 +49,7 @@ struct region_contexts_map {
 struct region_contexts_map *region_contexts_map_new(void);
 void region_contexts_map_destroy(struct region_contexts_map *map);
 
+/* Gets (or creates if missing) pointer to region_context associated with specified region. */
 int region_contexts_map_get_or_create(struct region_contexts_map *map, struct pmemstream_region region,
 				      struct pmemstream_region_context **container_handle);
 
@@ -56,6 +61,7 @@ int region_is_recovered(struct pmemstream_region_context *region_context);
 int region_try_recover_locked(struct pmemstream *stream, struct pmemstream_region region,
 			      struct pmemstream_region_context *region_context);
 
+/* Performs region recovery - initializes append_offset and clears all the data in the region after `tail` entry. */
 void region_recover(struct pmemstream *stream, struct pmemstream_region region,
 		    struct pmemstream_region_context *region_context, struct pmemstream_entry tail);
 
