@@ -20,11 +20,10 @@ namespace
  *	We need to make them usable for all (RC and non-RC) tests (use defines/macros for ASSERTs?). */
 
 /* append all data in the vector at the offset */
-void append_at_offset(struct pmemstream *stream, struct pmemstream_region *region, struct pmemstream_entry *offset,
-		      const std::vector<std::string> &data)
+void append(struct pmemstream *stream, struct pmemstream_region region, const std::vector<std::string> &data)
 {
 	for (const auto &e : data) {
-		auto ret = pmemstream_append(stream, region, offset, e.data(), e.size(), nullptr);
+		auto ret = pmemstream_append(stream, region, nullptr, e.data(), e.size(), nullptr);
 		UT_ASSERTeq(ret, 0);
 	}
 }
@@ -45,7 +44,7 @@ struct pmemstream_region init_stream_single_region(struct pmemstream *stream, si
 	pmemstream_entry_iterator_delete(&eiter);
 
 	if (data) {
-		append_at_offset(stream, &new_region, &entry, *data);
+		append(stream, new_region, *data);
 	}
 
 	return new_region;
@@ -64,22 +63,6 @@ struct pmemstream_region get_first_region(struct pmemstream *stream)
 	pmemstream_region_iterator_delete(&riter);
 
 	return region;
-}
-
-/* get last offset (within a region) for next entry append */
-struct pmemstream_entry get_append_offset(struct pmemstream *stream, struct pmemstream_region *region)
-{
-	struct pmemstream_entry_iterator *eiter;
-	UT_ASSERTeq(pmemstream_entry_iterator_new(&eiter, stream, *region), 0);
-
-	struct pmemstream_entry entry;
-	while (pmemstream_entry_iterator_next(eiter, NULL, &entry) == 0) {
-		/* do nothing */
-	}
-
-	pmemstream_entry_iterator_delete(&eiter);
-
-	return entry;
 }
 
 /* read all elements in a region */
@@ -126,10 +109,9 @@ static void test(int argc, char *argv[])
 		auto r = get_first_region(s.get());
 
 		/* append (gdb script should tear the memcpy) */
-		auto append_offset = get_append_offset(s.get(), &r);
 		/* add entry longer than 512 */
 		std::string buf(1500, '~');
-		pmemstream_append(s.get(), &r, &append_offset, buf.data(), buf.size(), nullptr);
+		pmemstream_append(s.get(), r, NULL, buf.data(), buf.size(), nullptr);
 		ASSERT_UNREACHABLE;
 
 	} else if (argv[1][0] == 'i') {

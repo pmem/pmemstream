@@ -7,6 +7,7 @@
 #include "libpmemstream_internal.h"
 
 #include <assert.h>
+#include <errno.h>
 #include <stdatomic.h>
 #include <stdlib.h>
 #include <string.h>
@@ -192,14 +193,37 @@ int pmemstream_from_map(struct pmemstream **stream, size_t block_size, struct pm
 		pmemstream_init(s);
 	}
 
+	s->region_contexts_container = critnib_new();
+	if (!s->region_contexts_container) {
+		return -1;
+	}
+
+	int ret = pthread_mutex_init(&s->region_contexts_container_lock, NULL);
+	if (ret) {
+		return ret;
+	}
+
 	*stream = s;
 
+	return 0;
+}
+
+int critnib_free_context(uintptr_t key, void *value, void *privdata)
+{
+	free(value);
 	return 0;
 }
 
 void pmemstream_delete(struct pmemstream **stream)
 {
 	struct pmemstream *s = *stream;
+
+	critnib_iter(s->region_contexts_container, 0, (uint64_t)-1, critnib_free_context, NULL);
+	critnib_delete(s->region_contexts_container);
+
+	/* XXX: Handle error */
+	pthread_mutex_destroy(&s->region_contexts_container_lock);
+
 	free(s);
 	*stream = NULL;
 }
@@ -238,33 +262,8 @@ int pmemstream_region_free(struct pmemstream *stream, struct pmemstream_region r
 
 	pmemstream_span_create_empty(stream, 0, stream->usable_size - SPAN_EMPTY_METADATA_SIZE);
 
-	return 0;
-}
-
-// synchronously appends data buffer to the end of the region
-int pmemstream_append(struct pmemstream *stream, struct pmemstream_region *region, struct pmemstream_entry *entry,
-		      const void *buf, size_t count, struct pmemstream_entry *new_entry)
-{
-	size_t entry_total_size = count + SPAN_ENTRY_METADATA_SIZE;
-	size_t entry_total_size_span_aligned = ALIGN_UP(entry_total_size, sizeof(pmemstream_span_bytes));
-	struct pmemstream_span_runtime region_srt = pmemstream_span_get_region_runtime(stream, region->offset);
-
-	size_t offset = __atomic_fetch_add(&entry->offset, entry_total_size_span_aligned, __ATOMIC_RELEASE);
-
-	/* region overflow (no space left) or offset outside of region. */
-	if (offset + entry_total_size_span_aligned > region->offset + region_srt.total_size) {
-		return -1;
-	}
-	/* offset outside of region */
-	if (offset < region_srt.data_offset) {
-		return -1;
-	}
-
-	if (new_entry) {
-		new_entry->offset = offset;
-	}
-
-	pmemstream_span_create_entry(stream, offset, buf, count, util_popcount_memory(buf, count));
+	struct pmemstream_region_context *ctx = critnib_remove(stream->region_contexts_container, region.offset);
+	free(ctx);
 
 	return 0;
 }
@@ -283,6 +282,48 @@ size_t pmemstream_entry_length(struct pmemstream *stream, struct pmemstream_entr
 	struct pmemstream_span_runtime entry_srt = pmemstream_span_get_entry_runtime(stream, entry.offset);
 
 	return entry_srt.entry.size;
+}
+
+/* Gets (or creates if missing) pointer to region_context associated with specified region. */
+static int get_or_insert_region_context(struct pmemstream *stream, struct pmemstream_region region,
+					struct pmemstream_region_context **container_handle)
+{
+	struct pmemstream_region_context *ctx = critnib_get(stream->region_contexts_container, region.offset);
+	if (ctx) {
+		if (container_handle) {
+			*container_handle = ctx;
+		}
+		return 0;
+	}
+
+	int ret = -1;
+
+	pthread_mutex_lock(&stream->region_contexts_container_lock);
+	ctx = malloc(sizeof(*ctx));
+	if (ctx) {
+		*ctx = (struct pmemstream_region_context){0};
+		ret = critnib_insert(stream->region_contexts_container, region.offset, ctx, 0 /* no update */);
+	}
+	pthread_mutex_unlock(&stream->region_contexts_container_lock);
+
+	if (ret) {
+		/* Insert failed, free the context. */
+		free(ctx);
+
+		if (ret == EEXIST) {
+			/* Someone else inserted the region context - just get a pointer to it. */
+			ctx = critnib_get(stream->region_contexts_container, region.offset);
+			assert(ctx);
+		} else {
+			return ret;
+		}
+	}
+
+	if (container_handle) {
+		*container_handle = ctx;
+	}
+
+	return 0;
 }
 
 int pmemstream_region_iterator_new(struct pmemstream_region_iterator **iterator, struct pmemstream *stream)
@@ -325,20 +366,110 @@ void pmemstream_region_iterator_delete(struct pmemstream_region_iterator **itera
 	*iterator = NULL;
 }
 
-int pmemstream_entry_iterator_new(struct pmemstream_entry_iterator **iterator, struct pmemstream *stream,
-				  struct pmemstream_region region)
+static int pmemstream_entry_iterator_initialize(struct pmemstream_entry_iterator *iterator, struct pmemstream *stream,
+						struct pmemstream_region region)
 {
-	struct pmemstream_span_runtime srt = pmemstream_span_get_region_runtime(stream, region.offset);
-	struct pmemstream_entry_iterator *iter = malloc(sizeof(*iter));
-	iter->offset = srt.data_offset;
-	iter->region = region;
-	iter->stream = stream;
+	struct pmemstream_span_runtime region_srt = pmemstream_span_get_region_runtime(stream, region.offset);
+	struct pmemstream_entry_iterator iter;
+	iter.offset = region_srt.data_offset;
+	iter.region = region;
+	iter.stream = stream;
+
+	int ret = get_or_insert_region_context(stream, region, &iter.region_context);
+	if (ret) {
+		return ret;
+	}
 
 	*iterator = iter;
 
 	return 0;
 }
 
+int pmemstream_entry_iterator_new(struct pmemstream_entry_iterator **iterator, struct pmemstream *stream,
+				  struct pmemstream_region region)
+{
+	struct pmemstream_entry_iterator *iter = malloc(sizeof(*iter));
+
+	int ret = pmemstream_entry_iterator_initialize(iter, stream, region);
+	if (ret) {
+		free(iter);
+		return ret;
+	}
+
+	*iterator = iter;
+
+	return 0;
+}
+
+int pmemstream_get_region_context(struct pmemstream *stream, struct pmemstream_region region,
+				  struct pmemstream_region_context **region_context)
+{
+	return get_or_insert_region_context(stream, region, region_context);
+}
+
+static int is_region_recovered(struct pmemstream_region_context *region_context)
+{
+	return __atomic_load_n(&region_context->append_offset, __ATOMIC_ACQUIRE) != PMEMSTREAM_OFFSET_UNINITIALIZED;
+}
+
+/* Iterates over entire region Might perform recovery. */
+static int region_iterate(struct pmemstream *stream, struct pmemstream_region region)
+{
+	struct pmemstream_entry_iterator iter;
+	int ret = pmemstream_entry_iterator_initialize(&iter, stream, region);
+	if (ret) {
+		return ret;
+	}
+
+	while (pmemstream_entry_iterator_next(&iter, NULL, NULL) == 0) {
+	}
+
+	return 0;
+}
+
+/* Recovers a region (under a global lock) if it is not yet recovered. */
+static int maybe_recover_region_locked(struct pmemstream *stream, struct pmemstream_region region,
+				       struct pmemstream_region_context *region_context)
+{
+	assert(region_context);
+	int ret = 0;
+
+	/* If region is not recovered, iterate over region and perform recovery.
+	 * Uses "double-checked locking". */
+	if (!is_region_recovered(region_context)) {
+		/* XXX: this can be per-region lock */
+		pthread_mutex_lock(&stream->region_contexts_container_lock);
+		if (!is_region_recovered(region_context)) {
+			ret = region_iterate(stream, region);
+		}
+		pthread_mutex_unlock(&stream->region_contexts_container_lock);
+	}
+
+	return ret;
+}
+
+/* Performs stream recovery - clears all the data in the region after `tail` entry. */
+static void recover_region(struct pmemstream *stream, struct pmemstream_region region,
+			   struct pmemstream_region_context *region_context, struct pmemstream_entry tail)
+{
+	assert(region_context);
+	assert(tail.offset != PMEMSTREAM_OFFSET_UNINITIALIZED);
+
+	struct pmemstream_span_runtime region_rt = pmemstream_span_get_region_runtime(stream, region.offset);
+	size_t region_end_offset = region.offset + region_rt.total_size;
+	size_t remaining_size = region_end_offset - tail.offset;
+
+	uint64_t expected_append_offset = PMEMSTREAM_OFFSET_UNINITIALIZED;
+	int weak = 0; /* Use compare_exchange int strong variation. */
+	if (__atomic_compare_exchange_n(&region_context->append_offset, &expected_append_offset, tail.offset, weak,
+					__ATOMIC_RELEASE, __ATOMIC_RELAXED)) {
+		pmemstream_span_create_empty(stream, tail.offset, remaining_size - SPAN_EMPTY_METADATA_SIZE);
+	} else {
+		/* Nothing to do, someone else already performed recovery. */
+	}
+}
+
+/* Advances entry iterator by one. Verifies entry integrity and recovers the region if necessary. */
 int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iter, struct pmemstream_region *region,
 				   struct pmemstream_entry *user_entry)
 {
@@ -363,17 +494,25 @@ int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iter, struc
 
 	iter->offset += srt.total_size;
 
-	/* Verify that all metadata and data fits inside the region - this should not fail unless stream was corrupted.
+	/*
+	 * Verify that all metadata and data fits inside the region - this should not fail unless stream was corrupted.
 	 */
 	assert(entry.offset + srt.total_size <= iter->region.offset + region_srt.total_size);
 
-	/* Validate that entry is correct, if there is any problem, clear the data right up to the end */
-	if (validate_entry(iter->stream, entry) < 0) {
-		size_t region_end_offset = iter->region.offset + region_srt.total_size;
-		size_t remaining_size = region_end_offset - entry.offset;
-		pmemstream_span_create_empty(iter->stream, entry.offset, remaining_size - SPAN_EMPTY_METADATA_SIZE);
+	int region_recovered = is_region_recovered(iter->region_context);
+
+	if (region_recovered && srt.type == PMEMSTREAM_SPAN_EMPTY) {
+		/* If we found last entry and region is already recovered, just return -1. */
+		return -1;
+	} else if (!region_recovered && validate_entry(iter->stream, entry) < 0) {
+		/* If region was not yet recovered, validate that entry is correct. If there is any problem, recover the
+		 * region. */
+		recover_region(iter->stream, iter->region, iter->region_context, entry);
 		return -1;
 	}
+
+	/* Region is already recovered, and we did not enounter end of the data yet - span must be a valid entry */
+	assert(validate_entry(iter->stream, entry) == 0);
 
 	return 0;
 }
@@ -384,4 +523,48 @@ void pmemstream_entry_iterator_delete(struct pmemstream_entry_iterator **iterato
 
 	free(iter);
 	*iterator = NULL;
+}
+
+// synchronously appends data buffer to the end of the region
+int pmemstream_append(struct pmemstream *stream, struct pmemstream_region region,
+		      struct pmemstream_region_context *region_context, const void *data, size_t size,
+		      struct pmemstream_entry *new_entry)
+{
+	size_t entry_total_size = size + SPAN_ENTRY_METADATA_SIZE;
+	size_t entry_total_size_span_aligned = ALIGN_UP(entry_total_size, sizeof(pmemstream_span_bytes));
+	struct pmemstream_span_runtime region_srt = pmemstream_span_get_region_runtime(stream, region.offset);
+	int ret = 0;
+
+	if (!region_context) {
+		ret = pmemstream_get_region_context(stream, region, &region_context);
+		if (ret) {
+			return ret;
+		}
+	}
+
+	ret = maybe_recover_region_locked(stream, region, region_context);
+	if (ret) {
+		return ret;
+	}
+
+	size_t offset =
+		__atomic_fetch_add(&region_context->append_offset, entry_total_size_span_aligned, __ATOMIC_RELEASE);
+
+	/* XXX: should we revert this fetch_add if no space left? What about concurrent appends? */
+	/* region overflow (no space left) or offset outside of region. */
+	if (offset + entry_total_size_span_aligned > region.offset + region_srt.total_size) {
+		return -1;
+	}
+	/* offset outside of region */
+	if (offset < region_srt.data_offset) {
+		return -1;
+	}
+
+	if (new_entry) {
+		new_entry->offset = offset;
+	}
+
+	pmemstream_span_create_entry(stream, offset, data, size, util_popcount_memory(data, size));
+
+	return 0;
 }
