@@ -3,9 +3,9 @@
 
 #include "iterator.h"
 #include "common/util.h"
-
 #include "libpmemstream_internal.h"
 #include "region.h"
+
 #include <assert.h>
 
 int pmemstream_region_iterator_new(struct pmemstream_region_iterator **iterator, struct pmemstream *stream)

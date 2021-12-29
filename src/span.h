@@ -16,6 +16,20 @@
 extern "C" {
 #endif
 
+/**
+ * Span is a contiguous sequence of bytes, which are located on peristent storage.
+ *
+ * Span is always 8-bytes aligned. Its first 8 bytes hold information about size and type of a span. Type can be one
+ * of the following:
+ * - region
+ * - entry
+ * - empty space
+ *
+ * Span can be created using span_create_* family of functions. Access to a span is performed through a helper
+ * span_runtime structure which exposes span's type, size and other metadata depending on its type. span_runtime
+ * can be obtained from span_get_runtime* family of functions.
+ */
+
 enum span_type { SPAN_EMPTY = 00ULL << 62, SPAN_REGION = 11ULL << 62, SPAN_ENTRY = 10ULL << 62 };
 
 #define SPAN_TYPE_MASK (11ULL << 62)
@@ -45,10 +59,14 @@ struct span_runtime {
 
 typedef uint64_t span_bytes;
 
+/* Convert offset to pointer to span. offset must be 8-bytes aligned. */
 span_bytes *span_offset_to_span_ptr(struct pmemstream *stream, size_t offset);
+
+/* Those functions create appropriate span at specified offset. offset must be 8-bytes aligned. */
 void span_create_empty(struct pmemstream *stream, uint64_t offset, size_t data_size);
 void span_create_entry(struct pmemstream *stream, uint64_t offset, const void *data, size_t data_size, size_t popcount);
 void span_create_region(struct pmemstream *stream, uint64_t offset, size_t size);
+
 uint64_t span_get_size(span_bytes *span);
 enum span_type span_get_type(span_bytes *span);
 
@@ -59,7 +77,6 @@ struct span_runtime span_get_runtime(struct pmemstream *stream, uint64_t offset)
 struct span_runtime span_get_empty_runtime(struct pmemstream *stream, uint64_t offset);
 struct span_runtime span_get_entry_runtime(struct pmemstream *stream, uint64_t offset);
 struct span_runtime span_get_region_runtime(struct pmemstream *stream, uint64_t offset);
-struct span_runtime span_get_runtime(struct pmemstream *stream, uint64_t offset);
 
 #ifdef __cplusplus
 } /* end extern "C" */
