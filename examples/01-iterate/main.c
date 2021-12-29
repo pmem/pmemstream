@@ -1,56 +1,23 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /* Copyright 2021, Intel Corporation */
 
+#include "../examples_helpers.h"
 #include "libpmemstream.h"
-#include <assert.h>
-#include <fcntl.h>
+
 #include <libpmem2.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-
-static struct pmem2_map *map_open(const char *file)
-{
-	struct pmem2_source *source;
-	struct pmem2_config *config;
-	struct pmem2_map *map = NULL;
-
-	int fd = open(file, O_RDWR);
-	if (fd < 0)
-		return NULL;
-
-	if (pmem2_source_from_fd(&source, fd) != 0)
-		goto err_fd;
-
-	if (pmem2_config_new(&config) != 0)
-		goto err_config;
-
-	pmem2_config_set_required_store_granularity(config, PMEM2_GRANULARITY_PAGE);
-
-	if (pmem2_map_new(&map, config, source) != 0)
-		goto err_map;
-
-err_map:
-	pmem2_config_delete(&config);
-err_config:
-	pmem2_source_delete(&source);
-err_fd:
-	close(fd);
-
-	return map;
-}
 
 struct data_entry {
 	uint64_t data;
 };
 
 /**
- * This example creates a stream from map2 source, prints its content and appends monotonically
- * increasing values at the end.
+ * This example creates a stream from map2 source, prints its content,
+ * and appends monotonically increasing values at the end.
  *
- * It accepts a path to already existing, zeroed out file.
- * (File can be created e.g. by dd: dd if=/dev/zero of=file bs=1024 count=1024)
+ * It accepts a path to an existing file.
+ * File can be created, e.g., by command:
+ *	dd if=/dev/zero of=file bs=1024 count=1024
  */
 int main(int argc, char *argv[])
 {
@@ -59,7 +26,7 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
-	struct pmem2_map *map = map_open(argv[1]);
+	struct pmem2_map *map = example_map_open(argv[1]);
 	if (map == NULL) {
 		pmem2_perror("pmem2_map");
 		return -1;
@@ -148,7 +115,6 @@ int main(int argc, char *argv[])
 	}
 
 	pmemstream_delete(&stream);
-
 	pmem2_map_delete(&map);
 
 	return 0;
