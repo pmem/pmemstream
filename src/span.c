@@ -6,7 +6,7 @@
 
 #include <assert.h>
 
-span_bytes *span_offset_to_span_ptr(struct pmemstream *stream, size_t offset)
+span_bytes *span_offset_to_span_ptr(struct pmemstream *stream, uint64_t offset)
 {
 	assert(offset % sizeof(span_bytes) == 0);
 

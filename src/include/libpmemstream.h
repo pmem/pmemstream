@@ -25,7 +25,7 @@ struct pmemstream_region {
 };
 
 struct pmemstream_entry {
-	size_t offset;
+	uint64_t offset;
 };
 
 // manages lifecycle of the stream. Can be based on top of a raw pmem2_map

@@ -159,7 +159,7 @@ int pmemstream_append(struct pmemstream *stream, struct pmemstream_region region
 		return ret;
 	}
 
-	size_t offset =
+	uint64_t offset =
 		__atomic_fetch_add(&region_context->append_offset, entry_total_size_span_aligned, __ATOMIC_RELEASE);
 
 	/* XXX: should we revert this fetch_add if no space left? What about concurrent appends? */

@@ -42,7 +42,7 @@ struct pmemstream {
 	struct region_contexts_map *region_contexts_map;
 };
 
-static inline uint8_t *pmemstream_offset_to_ptr(struct pmemstream *stream, size_t offset)
+static inline uint8_t *pmemstream_offset_to_ptr(struct pmemstream *stream, uint64_t offset)
 {
 	return (uint8_t *)stream->data->spans + offset;
 }

@@ -18,7 +18,7 @@ struct pmemstream_entry_iterator {
 	struct pmemstream *stream;
 	struct pmemstream_region region;
 	struct pmemstream_region_context *region_context;
-	size_t offset;
+	uint64_t offset;
 };
 
 struct pmemstream_region_iterator {
