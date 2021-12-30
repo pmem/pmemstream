@@ -60,12 +60,15 @@ int pmemstream_from_map(struct pmemstream **stream, size_t block_size, struct pm
 
 	s->region_contexts_map = region_contexts_map_new();
 	if (!s->region_contexts_map) {
-		return -1;
+		goto err;
 	}
 
 	*stream = s;
-
 	return 0;
+
+err:
+	free(s);
+	return -1;
 }
 
 void pmemstream_delete(struct pmemstream **stream)

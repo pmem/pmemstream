@@ -15,19 +15,23 @@ struct region_contexts_map *region_contexts_map_new(void)
 		return NULL;
 	}
 
-	map->container = critnib_new();
-	if (!map->container) {
-		region_contexts_map_destroy(map);
-		return NULL;
-	}
-
 	int ret = pthread_mutex_init(&map->lock, NULL);
 	if (ret) {
-		region_contexts_map_destroy(map);
-		return NULL;
+		goto err_lock;
+	}
+
+	map->container = critnib_new();
+	if (!map->container) {
+		goto err_critnib;
 	}
 
 	return map;
+
+err_critnib:
+	pthread_mutex_destroy(&map->lock);
+err_lock:
+	free(map);
+	return NULL;
 }
 
 static int free_region_context_cb(uintptr_t key, void *value, void *privdata)
