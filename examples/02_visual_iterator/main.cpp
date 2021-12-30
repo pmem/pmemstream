@@ -27,8 +27,8 @@ void print_help(const char* exec_filename) {
  * It requires a path to already existing file, with a previously filled stream data.
  *
  * Possible usage:
- * ./example-01-iterate existing_file
- * ./example-02-visual_iterator existing_file
+ * ./example-01_basic_iterate existing_file
+ * ./example-02_visual_iterator existing_file
  */
 int main(int argc, char *argv[])
 {
