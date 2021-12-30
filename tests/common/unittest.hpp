@@ -40,6 +40,12 @@ static inline void UT_EXCEPTION(std::exception &e)
 		UT_FATAL("%s:%d in function %s should never be reached", __FILE__, __LINE__, __func__);                \
 	} while (0)
 
+template <typename T>
+bool all_equal(const T &t)
+{
+	return t.empty() ? true : std::equal(t.begin() + 1, t.end(), t.begin());
+}
+
 static inline int run_test(std::function<void()> test)
 {
 	test_register_sighandlers();

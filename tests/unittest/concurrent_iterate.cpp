@@ -37,10 +37,7 @@ int main(int argc, char *argv[])
 						 threads_data[tid] = get_elements_in_region(stream.get(), region);
 					 });
 
-					 for (const auto &d : threads_data) {
-						 RC_ASSERT(data == d);
-					 }
-
+					 RC_ASSERT(all_equal(threads_data));
 					 RC_ASSERT(pmemstream_region_free(stream.get(), region) == 0);
 				 });
 		ret += rc::check(
@@ -61,10 +58,7 @@ int main(int argc, char *argv[])
 						threads_data[tid] = get_elements_in_region(stream.get(), region);
 					});
 
-					for (const auto &d : threads_data) {
-						RC_ASSERT(data == d);
-					}
-
+					RC_ASSERT(all_equal(threads_data));
 					RC_ASSERT(pmemstream_region_free(stream.get(), region) == 0);
 				}
 			});
