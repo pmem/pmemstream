@@ -189,8 +189,23 @@ function tests_gcc_release_cpp17_no_valgrind() {
 function tests_package() {
 	printf "\n$(tput setaf 1)$(tput setab 7)BUILD ${FUNCNAME[0]} START$(tput sgr 0)\n"
 
-	mkdir build
-	cd build
+	# building of packages should be verified only if PACKAGE_MANAGER equals 'rpm' or 'deb'
+	case ${PACKAGE_MANAGER} in
+		rpm|deb)
+			# we're good to go
+			;;
+		*)
+			echo "Notice: skipping building of packages because PACKAGE_MANAGER is not equal 'rpm' nor 'deb' ..."
+			return 0
+			;;
+	esac
+
+	# Fetch git history for `git describe` to work,
+	# so that package has proper 'version' field
+	[ -f .git/shallow ] && git fetch --unshallow --tags
+
+	mkdir ${WORKDIR}/build
+	pushd ${WORKDIR}/build
 
 	CC=gcc CXX=g++ \
 	cmake .. -DCMAKE_INSTALL_PREFIX=/usr \
@@ -200,16 +215,12 @@ function tests_package() {
 		-DCPACK_GENERATOR=${PACKAGE_MANAGER} \
 		-DTESTS_USE_FORCED_PMEM=${TESTS_USE_FORCED_PMEM}
 
-	make -j$(nproc)
-	ctest --output-on-failure --timeout ${TEST_TIMEOUT}
+	echo "Make sure there is no library currently installed."
+	echo "---------------------------- Error expected! ------------------------------"
+	compile_example_standalone basic_iterate && exit 1
+	echo "---------------------------------------------------------------------------"
 
 	make -j$(nproc) package
-
-	## XXX: Add cmake file for standalone example compilation
-	#echo "Make sure there is no library currently installed."
-	#echo "---------------------------- Error expected! ------------------------------"
-	#compile_example_standalone 01-iterate && exit 1
-	#echo "---------------------------------------------------------------------------"
 
 	if [ ${PACKAGE_MANAGER} = "deb" ]; then
 		sudo_password dpkg -i libpmemstream*.deb
@@ -217,13 +228,22 @@ function tests_package() {
 		sudo_password rpm -i libpmemstream*.rpm
 	fi
 
+	echo "Verify installed package:"
+	# prepare file with size > 0
+	dd if=/dev/urandom of=${WORKDIR}/build/testfile bs=1024 count=1024
+
+	echo "Basic C example, run it twice for more entries:"
+	compile_example_standalone 01_basic_iterate
+	run_example_standalone 01_basic_iterate ${WORKDIR}/build/testfile
+	run_example_standalone 01_basic_iterate ${WORKDIR}/build/testfile
+
+	echo "C++ example, should print data from previous example:"
+	compile_example_standalone 02_visual_iterator
+	run_example_standalone 02_visual_iterator ${WORKDIR}/build/testfile
+
+	popd
 	workspace_cleanup
 
-	## XXX: Add cmake file for standalone example compilation
-	#echo "Verify installed package."
-	#compile_example_standalone 01-iterate
-
-	workspace_cleanup
 	printf "$(tput setaf 1)$(tput setab 7)BUILD ${FUNCNAME[0]} END$(tput sgr 0)\n\n"
 }
 
