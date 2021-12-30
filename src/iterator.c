@@ -74,13 +74,16 @@ int pmemstream_entry_iterator_new(struct pmemstream_entry_iterator **iterator, s
 
 	int ret = entry_iterator_initialize(iter, stream, region);
 	if (ret) {
-		free(iter);
-		return ret;
+		goto err;
 	}
 
 	*iterator = iter;
 
 	return 0;
+
+err:
+	free(iter);
+	return ret;
 }
 
 static int validate_entry(struct pmemstream *stream, struct pmemstream_entry entry)

@@ -17,17 +17,19 @@ struct region_contexts_map *region_contexts_map_new(void)
 
 	map->container = critnib_new();
 	if (!map->container) {
-		region_contexts_map_destroy(map);
-		return NULL;
+		goto err;
 	}
 
 	int ret = pthread_mutex_init(&map->lock, NULL);
 	if (ret) {
-		region_contexts_map_destroy(map);
-		return NULL;
+		goto err;
 	}
 
 	return map;
+
+err:
+	region_contexts_map_destroy(map);
+	return NULL;
 }
 
 static int free_region_context_cb(uintptr_t key, void *value, void *privdata)
