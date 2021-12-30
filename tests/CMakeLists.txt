@@ -96,6 +96,9 @@ if(TESTS_RAPIDCHECK)
 
 	build_test_ext(NAME concurrent_iterate SRC_FILES unittest/concurrent_iterate.cpp LIBS rapidcheck)
 	add_test_generic(NAME concurrent_iterate TRACERS none)
+
+	build_test_ext(NAME get_region_context SRC_FILES unittest/get_region_context.cpp LIBS rapidcheck)
+	add_test_generic(NAME get_region_context TRACERS none)
 endif()
 
 if(GDB AND DEBUG_BUILD)
