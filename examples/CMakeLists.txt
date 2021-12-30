@@ -26,15 +26,15 @@ endfunction()
 # ----------------------------------------------------------------- #
 ## Add developer checks
 # ----------------------------------------------------------------- #
-add_cppstyle(examples ${CMAKE_CURRENT_SOURCE_DIR}/01-iterate/*.c)
+add_cppstyle(examples ${CMAKE_CURRENT_SOURCE_DIR}/*/*.c)
 
-add_check_whitespace(examples ${CMAKE_CURRENT_SOURCE_DIR}/01-iterate/*.*)
+add_check_whitespace(examples ${CMAKE_CURRENT_SOURCE_DIR}/*/*.*)
 
 # ----------------------------------------------------------------- #
 ## Add examples
 # ----------------------------------------------------------------- #
-add_example(01-iterate 01-iterate/main.c)
-target_link_libraries(example-01-iterate ${LIBPMEM2_LIBRARIES})
+add_example(basic_iterate basic_iterate/main.c)
+target_link_libraries(example-basic_iterate ${LIBPMEM2_LIBRARIES})
 
-add_example(02-visual_iterator 02-visual_iterator/main.cpp)
-target_link_libraries(example-02-visual_iterator ${LIBPMEM2_LIBRARIES})
+add_example(visual_iterator visual_iterator/main.cpp)
+target_link_libraries(example-visual_iterator ${LIBPMEM2_LIBRARIES})
