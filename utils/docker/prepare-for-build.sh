@@ -22,7 +22,7 @@ function sudo_password() {
 function workspace_cleanup() {
 	echo "Cleanup build dirs"
 
-	cd ${WORKDIR}
+	pushd ${WORKDIR}
 	rm -rf ${WORKDIR}/build
 	rm -rf ${EXAMPLE_TEST_DIR}
 	rm -rf ${INSTALL_DIR}
@@ -60,18 +60,37 @@ function compile_example_standalone() {
 
 	rm -rf ${EXAMPLE_TEST_DIR}
 	mkdir ${EXAMPLE_TEST_DIR}
-	cd ${EXAMPLE_TEST_DIR}
+	pushd ${EXAMPLE_TEST_DIR}
 
 	cmake ${WORKDIR}/examples/${example_name}
 
 	# exit on error
 	if [[ $? != 0 ]]; then
-		cd -
+		popd
 		return 1
 	fi
 
 	make -j$(nproc)
-	cd -
+	popd
+}
+
+function run_example_standalone() {
+	example_name=${1}
+	file_path=${2}
+	optional_args=${@:3}
+	echo "Run standalone example: ${example_name} with file path: ${file_path}"
+
+	pushd ${EXAMPLE_TEST_DIR}
+
+	PMEM_IS_PMEM_FORCE=${TESTS_USE_FORCED_PMEM} ./${example_name} ${file_path} ${optional_args}
+
+	# exit on error
+	if [[ $? != 0 ]]; then
+		popd
+		return 1
+	fi
+
+	popd
 }
 
 ### Additional checks, to be run, when this file is sourced
