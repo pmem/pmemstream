@@ -16,9 +16,10 @@ struct data_entry {
 using std::string;
 using std::vector;
 
-static vector<string> inner_pointers = { "├── ", "│   " };
+static vector<string> inner_pointers = {"├── ", "│   "};
 
-void print_help(const char* exec_filename) {
+void print_help(const char *exec_filename)
+{
 	printf("Usage: %s file [--print-as-text]\n", exec_filename);
 }
 
@@ -83,10 +84,12 @@ int main(int argc, char *argv[])
 		/* Iterate over all elements in a region and save last entry value. */
 		while (pmemstream_entry_iterator_next(eiter, NULL, &entry) == 0) {
 			auto entry_length = pmemstream_entry_length(stream, entry);
-			printf("%s%s0x%-3X %ldbytes ", inner_pointers[1].data(), inner_pointers[0].data(), (unsigned int)entry.offset, entry_length);
+			printf("%s%s0x%-3X %ldbytes ", inner_pointers[1].data(), inner_pointers[0].data(),
+			       (unsigned int)entry.offset, entry_length);
 
 			if (values_as_text) {
-				string entry_text(static_cast<char *>(pmemstream_entry_data(stream, entry)), entry_length);
+				string entry_text(static_cast<char *>(pmemstream_entry_data(stream, entry)),
+						  entry_length);
 				printf("%s", entry_text.c_str());
 			} else {
 				auto d = static_cast<unsigned char *>(pmemstream_entry_data(stream, entry));

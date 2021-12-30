@@ -26,9 +26,13 @@ endfunction()
 # ----------------------------------------------------------------- #
 ## Add developer checks
 # ----------------------------------------------------------------- #
-add_cppstyle(examples ${CMAKE_CURRENT_SOURCE_DIR}/*/*.c)
+add_cppstyle(examples ${CMAKE_CURRENT_SOURCE_DIR}/*.[ch]
+					${CMAKE_CURRENT_SOURCE_DIR}/basic_iterate/*.[ch]
+					${CMAKE_CURRENT_SOURCE_DIR}/visual_iterator/*.[ch]pp)
 
-add_check_whitespace(examples ${CMAKE_CURRENT_SOURCE_DIR}/*/*.*)
+add_check_whitespace(examples ${CMAKE_CURRENT_SOURCE_DIR}/*.*
+							${CMAKE_CURRENT_SOURCE_DIR}/basic_iterate/*.*
+							${CMAKE_CURRENT_SOURCE_DIR}/visual_iterator/*.*)
 
 # ----------------------------------------------------------------- #
 ## Add examples
