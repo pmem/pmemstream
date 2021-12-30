@@ -15,9 +15,14 @@ struct region_contexts_map *region_contexts_map_new(void)
 		return NULL;
 	}
 
-	int ret = pthread_mutex_init(&map->lock, NULL);
+	int ret = pthread_mutex_init(&map->container_lock, NULL);
 	if (ret) {
-		goto err_lock;
+		goto err_container_lock;
+	}
+
+	ret = pthread_mutex_init(&map->region_lock, NULL);
+	if (ret) {
+		goto err_region_lock;
 	}
 
 	map->container = critnib_new();
@@ -28,8 +33,10 @@ struct region_contexts_map *region_contexts_map_new(void)
 	return map;
 
 err_critnib:
-	pthread_mutex_destroy(&map->lock);
-err_lock:
+	pthread_mutex_destroy(&map->region_lock);
+err_region_lock:
+	pthread_mutex_destroy(&map->container_lock);
+err_container_lock:
 	free(map);
 	return NULL;
 }
@@ -46,7 +53,8 @@ void region_contexts_map_destroy(struct region_contexts_map *map)
 	critnib_delete(map->container);
 
 	/* XXX: Handle error */
-	pthread_mutex_destroy(&map->lock);
+	pthread_mutex_destroy(&map->region_lock);
+	pthread_mutex_destroy(&map->container_lock);
 
 	free(map);
 }
@@ -64,12 +72,12 @@ int region_contexts_map_get_or_create(struct region_contexts_map *map, struct pm
 
 	int ret = -1;
 
-	pthread_mutex_lock(&map->lock);
+	pthread_mutex_lock(&map->container_lock);
 	ctx = calloc(1, sizeof(*ctx));
 	if (ctx) {
 		ret = critnib_insert(map->container, region.offset, ctx, 0 /* no update */);
 	}
-	pthread_mutex_unlock(&map->lock);
+	pthread_mutex_unlock(&map->container_lock);
 
 	if (ret) {
 		/* Insert failed, free the context. */
@@ -126,12 +134,11 @@ int region_try_recover_locked(struct pmemstream *stream, struct pmemstream_regio
 	/* If region is not recovered, iterate over region and perform recovery.
 	 * Uses "double-checked locking". */
 	if (!region_is_recovered(region_context)) {
-		/* XXX: this can be per-region lock */
-		pthread_mutex_lock(&stream->region_contexts_map->lock);
+		pthread_mutex_lock(&stream->region_contexts_map->region_lock);
 		if (!region_is_recovered(region_context)) {
 			ret = region_iterate_and_try_recover(stream, region);
 		}
-		pthread_mutex_unlock(&stream->region_contexts_map->lock);
+		pthread_mutex_unlock(&stream->region_contexts_map->region_lock);
 	}
 
 	return ret;
