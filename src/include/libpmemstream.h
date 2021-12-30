@@ -25,7 +25,7 @@ struct pmemstream_region {
 };
 
 struct pmemstream_entry {
-	size_t offset;
+	uint64_t offset;
 };
 
 // manages lifecycle of the stream. Can be based on top of a raw pmem2_map
@@ -74,7 +74,7 @@ size_t pmemstream_entry_length(struct pmemstream *stream, struct pmemstream_entr
 
 int pmemstream_region_iterator_new(struct pmemstream_region_iterator **iterator, struct pmemstream *stream);
 
-int pmemstream_region_iterator_next(struct pmemstream_region_iterator *iter, struct pmemstream_region *region);
+int pmemstream_region_iterator_next(struct pmemstream_region_iterator *iterator, struct pmemstream_region *region);
 
 void pmemstream_region_iterator_delete(struct pmemstream_region_iterator **iterator);
 
@@ -83,7 +83,7 @@ int pmemstream_entry_iterator_new(struct pmemstream_entry_iterator **iterator, s
 
 // if this function succeeds, entry points to a valid element in the stream, otherwise, it points to a memory
 // right after last valid entry or to a beggining of region if there are no valid entries
-int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iter, struct pmemstream_region *region,
+int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iterator, struct pmemstream_region *region,
 				   struct pmemstream_entry *entry);
 
 void pmemstream_entry_iterator_delete(struct pmemstream_entry_iterator **iterator);

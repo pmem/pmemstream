@@ -12,6 +12,8 @@
 #define ALIGN_UP(size, align) (((size) + (align)-1) & ~((align)-1))
 #define ALIGN_DOWN(size, align) ((size) & ~((align)-1))
 
+#define MEMBER_SIZE(type, member) sizeof(((struct type *)NULL)->member)
+
 static inline unsigned char util_popcount64(uint64_t value)
 {
 	return (unsigned char)__builtin_popcountll(value);
