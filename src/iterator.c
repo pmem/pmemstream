@@ -11,6 +11,10 @@
 int pmemstream_region_iterator_new(struct pmemstream_region_iterator **iterator, struct pmemstream *stream)
 {
 	struct pmemstream_region_iterator *iter = malloc(sizeof(*iter));
+	if (!iter) {
+		return -1;
+	}
+
 	iter->stream = stream;
 	iter->region.offset = 0;
 
@@ -71,16 +75,22 @@ int pmemstream_entry_iterator_new(struct pmemstream_entry_iterator **iterator, s
 				  struct pmemstream_region region)
 {
 	struct pmemstream_entry_iterator *iter = malloc(sizeof(*iter));
+	if (!iter) {
+		return -1;
+	}
 
 	int ret = entry_iterator_initialize(iter, stream, region);
 	if (ret) {
-		free(iter);
-		return ret;
+		goto err;
 	}
 
 	*iterator = iter;
 
 	return 0;
+
+err:
+	free(iter);
+	return ret;
 }
 
 static int validate_entry(struct pmemstream *stream, struct pmemstream_entry entry)
