@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: BSD-3-Clause
-# Copyright 2018-2021, Intel Corporation
+# Copyright 2018-2022, Intel Corporation
 
 #
 # functions.cmake - helper variables and functions for tests/CMakeLists.txt:
@@ -131,7 +131,6 @@ function(build_test_ext)
 	set(oneValueArgs NAME)
 	set(multiValueArgs SRC_FILES LIBS BUILD_OPTIONS OPTS)
 	cmake_parse_arguments(TEST "" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
-	set(LIBS_TO_LINK "")
 
 	if(${TEST_NAME} MATCHES "posix$" AND WIN32)
 		return()
@@ -141,6 +140,17 @@ function(build_test_ext)
 	target_link_libraries(${TEST_NAME} ${TEST_LIBS})
 	target_compile_definitions(${TEST_NAME} PRIVATE ${TEST_BUILD_OPTIONS})
 	target_compile_options(${TEST_NAME} PRIVATE ${TEST_OPTS})
+endfunction()
+
+# wrapper for RapidCheck tests; passes all params to build_test_ext with LIBS extended by "rapidcheck"
+function(build_test_rc)
+	set(oneValueArgs NAME)
+	set(multiValueArgs SRC_FILES LIBS BUILD_OPTIONS OPTS)
+	cmake_parse_arguments(TEST "" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+
+	list(APPEND TEST_LIBS rapidcheck)
+	build_test_ext(NAME ${TEST_NAME} SRC_FILES ${TEST_SRC_FILES} LIBS ${TEST_LIBS}
+					BUILD_OPTIONS ${TEST_BUILD_OPTIONS} OPTS ${TEST_OPTS})
 endfunction()
 
 # Prepares test executable with given {name} and extra arguments equal to source files({ARGN}).
