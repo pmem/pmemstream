@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-/* Copyright 2021, Intel Corporation */
+/* Copyright 2021-2022, Intel Corporation */
 
 /*
  * reserve_publish.cpp -- pmemstream_reserve and pmemstream_publish functional test.
@@ -61,6 +61,7 @@ struct pmemstream_region init_stream_single_region(struct pmemstream *stream, si
 
 	struct pmemstream_entry_iterator *eiter;
 	UT_ASSERTeq(pmemstream_entry_iterator_new(&eiter, stream, new_region), 0);
+	pmemstream_entry_iterator_delete(&eiter);
 
 	append(stream, new_region, nullptr, data);
 
