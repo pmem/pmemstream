@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: BSD-3-Clause
-# Copyright 2019-2021, Intel Corporation
+# Copyright 2019-2022, Intel Corporation
 
 #
 # tests/CMakeLists.txt - prepares all tests; it specifies which tests are enabled based on options
@@ -66,7 +66,7 @@ endif()
 
 # Produce general warnings, e.g. when a command/tool is missing
 if(NOT DEBUG_BUILD)
-	message(WARNING "This is a non-debug build - some tests may be skipped.")
+	message(STATUS "This is a non-debug build - some tests may be skipped.")
 endif()
 
 if(NOT GDB)
@@ -78,19 +78,19 @@ if(COVERAGE AND TESTS_USE_VALGRIND)
 endif()
 
 # ----------------------------------------------------------------- #
-## Common tests
+## All tests
 # ----------------------------------------------------------------- #
 build_test(stream_from_map api_c/stream_from_map.c)
 add_test_generic(NAME stream_from_map TRACERS none memcheck pmemcheck drd helgrind)
 
 if(TESTS_RAPIDCHECK)
-	build_test_ext(NAME util_popcount SRC_FILES unittest/popcount.cpp LIBS rapidcheck)
+	build_test_rc(NAME util_popcount SRC_FILES unittest/popcount.cpp)
 	add_test_generic(NAME util_popcount TRACERS none)
 
-	build_test_ext(NAME append SRC_FILES unittest/append.cpp LIBS rapidcheck)
+	build_test_rc(NAME append SRC_FILES unittest/append.cpp)
 	add_test_generic(NAME append TRACERS none)
 
-	build_test_ext(NAME concurrent_iterate SRC_FILES unittest/concurrent_iterate.cpp LIBS rapidcheck)
+	build_test_rc(NAME concurrent_iterate SRC_FILES unittest/concurrent_iterate.cpp)
 	add_test_generic(NAME concurrent_iterate TRACERS none)
 endif()
 
