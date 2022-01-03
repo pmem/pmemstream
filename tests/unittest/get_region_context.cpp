@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-/* Copyright 2021, Intel Corporation */
+/* Copyright 2021-2022, Intel Corporation */
 
 #include <vector>
 
@@ -10,7 +10,6 @@
 #include "thread_helpers.hpp"
 #include "unittest.hpp"
 
-static constexpr size_t stream_size = 1024 * 1024;
 static constexpr size_t max_concurrency = 56;
 
 int main(int argc, char *argv[])
@@ -26,12 +25,10 @@ int main(int argc, char *argv[])
 		return_check ret;
 
 		ret += rc::check("verify pmemstream_get_region_context return the same value for all threads", [&]() {
-			static constexpr size_t region_size = stream_size - 16 * 1024;
-			static constexpr size_t block_size = 4096;
 			const auto concurrency = *rc::gen::inRange<std::size_t>(0, max_concurrency);
 
-			auto stream = make_pmemstream(filename, block_size, stream_size);
-			auto region = initialize_stream_single_region(stream.get(), region_size, {});
+			auto stream = make_pmemstream(filename, TEST_DEFAULT_BLOCK_SIZE, TEST_DEFAULT_STREAM_SIZE);
+			auto region = initialize_stream_single_region(stream.get(), TEST_DEFAULT_REGION_SIZE, {});
 
 			std::vector<pmemstream_region_context *> threads_data(concurrency);
 			parallel_exec(concurrency, [&](size_t tid) {

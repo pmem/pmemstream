@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-/* Copyright 2020-2021, Intel Corporation */
+/* Copyright 2020-2022, Intel Corporation */
 
 #ifndef LIBPMEMSTREAM_UNITTEST_H
 #define LIBPMEMSTREAM_UNITTEST_H
@@ -22,6 +22,12 @@ extern "C" {
 
 /* XXX: refactor to use __start (https://stackoverflow.com/questions/15919356/c-program-start) */
 #define START() test_register_sighandlers()
+
+/* XXX: provide function to get the actual metadata overhead */
+#define STREAM_METADATA_SIZE		(16UL * 1024)
+#define TEST_DEFAULT_STREAM_SIZE	(1024UL * 1024)
+#define TEST_DEFAULT_REGION_SIZE	(TEST_DEFAULT_STREAM_SIZE - STREAM_METADATA_SIZE)
+#define TEST_DEFAULT_BLOCK_SIZE		(4096UL)
 
 static inline void UT_OUT(const char *format, ...)
 {

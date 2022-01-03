@@ -13,9 +13,8 @@
 #include "libpmemstream_internal.h"
 #include "unittest.hpp"
 
-static constexpr size_t FILE_SIZE = 1024ULL * 1024 * 1024;
-static constexpr size_t REGION_SIZE = FILE_SIZE - 16 * 1024;
-static constexpr size_t BLK_SIZE = 4096;
+/* use bigger than default stream size */
+static constexpr size_t STREAM_SIZE = 1024ULL * TEST_DEFAULT_STREAM_SIZE;
 
 namespace
 {
@@ -104,8 +103,8 @@ static void test(int argc, char *argv[])
 
 	try {
 		/* initialize stream with a single region and "regularly" append initial data */
-		auto s = make_pmemstream(path, BLK_SIZE, FILE_SIZE);
-		auto r = init_stream_single_region(s.get(), REGION_SIZE, init_data);
+		auto s = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE, STREAM_SIZE);
+		auto r = init_stream_single_region(s.get(), TEST_DEFAULT_REGION_SIZE, init_data);
 
 		std::vector<std::string> data_to_reserve;
 		data_to_reserve.emplace_back("0");
