@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-/* Copyright 2021, Intel Corporation */
+/* Copyright 2021-2022, Intel Corporation */
 
 /*
  * append_break.cpp -- pmemstream_append break - data integrity test
@@ -9,10 +9,6 @@
 
 #include <cstring>
 #include <vector>
-
-static constexpr size_t FILE_SIZE = 1024ULL * 1024 * 1024;
-static constexpr size_t REGION_SIZE = FILE_SIZE - 16 * 1024;
-static constexpr size_t BLK_SIZE = 4096;
 
 namespace
 {
@@ -99,13 +95,13 @@ static void test(int argc, char *argv[])
 	if (argv[1][0] == 'a') {
 		/* append initial data to a new stream */
 
-		auto s = make_pmemstream(path, BLK_SIZE, FILE_SIZE); /* non-zero size to create a file */
+		auto s = make_pmemstream(path, BLOCK_SIZE, STREAM_SIZE); /* non-zero size to create a file */
 		init_stream_single_region(s.get(), REGION_SIZE, &init_data);
 
 	} else if (argv[1][0] == 'b') {
 		/* break in the middle of an append */
 
-		auto s = make_pmemstream(path, BLK_SIZE, 0, false);
+		auto s = make_pmemstream(path, BLOCK_SIZE, 0, false);
 		auto r = get_first_region(s.get());
 
 		/* append (gdb script should tear the memcpy) */
@@ -117,7 +113,7 @@ static void test(int argc, char *argv[])
 	} else if (argv[1][0] == 'i') {
 		/* iterate all entries */
 
-		auto s = make_pmemstream(path, BLK_SIZE, 0, false);
+		auto s = make_pmemstream(path, BLOCK_SIZE, 0, false);
 		auto r = get_first_region(s.get());
 
 		/* read back data and count for the same output */
