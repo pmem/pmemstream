@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-/* Copyright 2021, Intel Corporation */
+/* Copyright 2021-2022, Intel Corporation */
 
 #include "iterator.h"
 #include "common/util.h"
@@ -127,11 +127,6 @@ int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iterator, s
 
 	iterator->offset += srt.total_size;
 
-	/*
-	 * Verify that all metadata and data fits inside the region - this should not fail unless stream was corrupted.
-	 */
-	assert(entry.offset + srt.total_size <= iterator->region.offset + region_srt.total_size);
-
 	int region_recovered = region_is_recovered(iterator->region_context);
 
 	if (region_recovered && srt.type == SPAN_EMPTY) {
@@ -143,6 +138,9 @@ int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iterator, s
 		region_recover(iterator->stream, iterator->region, iterator->region_context, entry);
 		return -1;
 	}
+
+	/* Verify all metadata and data fits inside the region - this should not fail unless stream was corrupted */
+	assert(entry.offset + srt.total_size <= iterator->region.offset + region_srt.total_size);
 
 	/* Region is already recovered, and we did not encounter end of the data yet - span must be a valid entry */
 	assert(validate_entry(iterator->stream, entry) == 0);
