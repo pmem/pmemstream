@@ -7,6 +7,7 @@
 #include "region.h"
 
 #include <assert.h>
+#include <string.h>
 
 int pmemstream_region_iterator_new(struct pmemstream_region_iterator **iterator, struct pmemstream *stream)
 {
@@ -52,26 +53,24 @@ void pmemstream_region_iterator_delete(struct pmemstream_region_iterator **itera
 	*iterator = NULL;
 }
 
-int entry_iterator_initialize(struct pmemstream_entry_iterator *iterator, struct pmemstream *stream,
+int entry_iterator_initialize(struct pmemstream_entry_iterator *iterator, const struct pmemstream *stream,
 			      struct pmemstream_region region)
 {
 	struct span_runtime region_srt = span_get_region_runtime(stream, region.offset);
-	struct pmemstream_entry_iterator iter;
-	iter.offset = region_srt.data_offset;
-	iter.region = region;
-	iter.stream = stream;
+	struct pmemstream_entry_iterator iter = {.stream = stream, .offset = region_srt.data_offset, .region = region};
 
-	int ret = region_runtimes_map_get_or_create(stream->region_runtimes_map, region, &iter.region_runtime);
+	int ret = region_runtimes_map_get_or_create(stream->region_runtimes_map, region,
+						    (struct pmemstream_region_runtime **)&iter.region_runtime);
 	if (ret) {
 		return ret;
 	}
 
-	*iterator = iter;
+	memcpy(iterator, &iter, sizeof(struct pmemstream_entry_iterator));
 
 	return 0;
 }
 
-int pmemstream_entry_iterator_new(struct pmemstream_entry_iterator **iterator, struct pmemstream *stream,
+int pmemstream_entry_iterator_new(struct pmemstream_entry_iterator **iterator, const struct pmemstream *stream,
 				  struct pmemstream_region region)
 {
 	struct pmemstream_entry_iterator *iter = malloc(sizeof(*iter));
@@ -93,10 +92,10 @@ err:
 	return ret;
 }
 
-static int validate_entry(struct pmemstream *stream, struct pmemstream_entry entry)
+static int validate_entry(const struct pmemstream *stream, struct pmemstream_entry entry)
 {
 	struct span_runtime srt = span_get_runtime(stream, entry.offset);
-	void *entry_data = pmemstream_offset_to_ptr(stream, srt.data_offset);
+	const void *entry_data = pmemstream_offset_to_ptr(stream, srt.data_offset);
 	if (srt.type == SPAN_ENTRY && util_popcount_memory(entry_data, srt.entry.size) == srt.entry.popcount) {
 		return 0;
 	}
@@ -138,7 +137,7 @@ int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iterator, s
 	} else if (!initialized && validate_entry(iterator->stream, entry) < 0) {
 		/* If append_offset was not set yet, validate that entry is correct. If entry is not valid, set
 		 * append_offset to point to that entry. */
-		region_runtime_initialize(iterator->region_runtime, entry);
+		region_runtime_initialize((struct pmemstream_region_runtime *)iterator->region_runtime, entry);
 		return -1;
 	}
 
