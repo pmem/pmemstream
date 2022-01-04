@@ -77,7 +77,7 @@ std::vector<std::string> get_elements_in_region(struct pmemstream *stream, struc
 
 	struct pmemstream_entry entry;
 	while (pmemstream_entry_iterator_next(eiter, NULL, &entry) == 0) {
-		auto data = reinterpret_cast<char *>(pmemstream_entry_data(stream, entry));
+		auto data = reinterpret_cast<const char *>(pmemstream_entry_data(stream, entry));
 		auto data_len = pmemstream_entry_length(stream, entry);
 		result.emplace_back(data, data_len);
 	}
