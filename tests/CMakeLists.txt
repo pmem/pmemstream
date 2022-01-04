@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: BSD-3-Clause
-# Copyright 2019-2021, Intel Corporation
+# Copyright 2019-2022, Intel Corporation
 
 #
 # tests/CMakeLists.txt - prepares all tests; it specifies which tests are enabled based on options
@@ -89,6 +89,9 @@ add_test_generic(NAME cpp_linkage TRACERS none)
 
 build_test(reserve_publish unittest/reserve_publish.cpp)
 add_test_generic(NAME reserve_publish TRACERS none memcheck pmemcheck)
+
+add_test(NAME symbols COMMAND bash ${TESTS_ROOT_DIR}/check_symbols.sh
+	${PMEMSTREAM_ROOT_DIR}/src/libpmemstream.map ${CMAKE_BINARY_DIR}/src/libpmemstream.so)
 
 if(TESTS_RAPIDCHECK)
 	build_test_ext(NAME util_popcount SRC_FILES unittest/popcount.cpp LIBS rapidcheck)
