@@ -81,7 +81,7 @@ void pmemstream_delete(struct pmemstream **stream)
 
 // stream owns the region object - the user gets a reference, but it's not
 // necessary to hold on to it and explicitly delete it.
-int pmemstream_region_allocate(struct pmemstream *stream, size_t size, struct pmemstream_region *region)
+int pmemstream_region_allocate(const struct pmemstream *stream, size_t size, struct pmemstream_region *region)
 {
 	const uint64_t offset = 0;
 	struct span_runtime srt = span_get_runtime(stream, offset);
@@ -104,7 +104,7 @@ size_t pmemstream_region_size(struct pmemstream *stream, struct pmemstream_regio
 	return region_srt.region.size;
 }
 
-int pmemstream_region_free(struct pmemstream *stream, struct pmemstream_region region)
+int pmemstream_region_free(const struct pmemstream *stream, struct pmemstream_region region)
 {
 	struct span_runtime srt = span_get_runtime(stream, region.offset);
 

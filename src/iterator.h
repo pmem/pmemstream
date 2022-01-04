@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-/* Copyright 2021, Intel Corporation */
+/* Copyright 2021-2022, Intel Corporation */
 
 /* Internal Header */
 
@@ -26,8 +26,8 @@ struct pmemstream_region_iterator {
 	struct pmemstream_region region;
 };
 
-/* Initializes entry_iterator pointed to by 'iterator'. */
-int entry_iterator_initialize(struct pmemstream_entry_iterator *iterator, struct pmemstream *stream,
+/* Initializes pmemstream_entry_iterator pointed to by 'iterator'. */
+int entry_iterator_initialize(struct pmemstream_entry_iterator *iterator, const struct pmemstream *stream,
 			      struct pmemstream_region region);
 
 #ifdef __cplusplus
