@@ -92,6 +92,9 @@ if(TESTS_RAPIDCHECK)
 
 	build_test_rc(NAME concurrent_iterate SRC_FILES unittest/concurrent_iterate.cpp)
 	add_test_generic(NAME concurrent_iterate TRACERS none)
+
+	build_test_rc(NAME create SRC_FILES unittest/create.cpp)
+	add_test_generic(NAME create TRACERS none)
 endif()
 
 if(GDB AND DEBUG_BUILD)

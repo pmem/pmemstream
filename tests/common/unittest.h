@@ -24,6 +24,7 @@ extern "C" {
 #define START() test_register_sighandlers()
 
 static const size_t STREAM_METADATA_SIZE = 16ULL * 1024;
+static const size_t REGION_METADATA_SIZE = 4ULL * 1024;
 static const size_t STREAM_SIZE = 1024ULL * 1024;
 static const size_t REGION_SIZE = STREAM_SIZE - STREAM_METADATA_SIZE;
 static const size_t BLOCK_SIZE = 4096ULL;
