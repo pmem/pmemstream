@@ -15,18 +15,18 @@ extern "C" {
 #endif
 
 struct pmemstream_entry_iterator {
-	struct pmemstream *stream;
-	struct pmemstream_region region;
-	struct pmemstream_region_runtime *region_runtime;
+	struct pmemstream const *stream;
+	const struct pmemstream_region region;
+	struct pmemstream_region_runtime *const region_runtime;
 	uint64_t offset;
 };
 
 struct pmemstream_region_iterator {
-	struct pmemstream *stream;
+	struct pmemstream const *stream;
 	struct pmemstream_region region;
 };
 
-/* Initializes entry_iterator pointed to by 'iterator'. */
+/* Initializes pmemstream_entry_iterator pointed to by 'iterator'. */
 int entry_iterator_initialize(struct pmemstream_entry_iterator *iterator, struct pmemstream *stream,
 			      struct pmemstream_region region);
 
