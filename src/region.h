@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-/* Copyright 2021, Intel Corporation */
+/* Copyright 2021-2022, Intel Corporation */
 
 /* Internal Header */
 
@@ -56,11 +56,11 @@ int region_contexts_map_get_or_create(struct region_contexts_map *map, struct pm
 
 void region_contexts_map_remove(struct region_contexts_map *map, struct pmemstream_region region);
 
-int region_is_recovered(struct pmemstream_region_context *region_context);
+int region_is_recovered(const struct pmemstream_region_context *region_context);
 
 /* Recovers a region (under a global lock) if it is not yet recovered. */
 int region_try_recover_locked(struct pmemstream *stream, struct pmemstream_region region,
-			      struct pmemstream_region_context *region_context);
+			      const struct pmemstream_region_context *region_context);
 
 /* Performs region recovery - initializes append_offset and clears all the data in the region after `tail` entry. */
 void region_recover(struct pmemstream *stream, struct pmemstream_region region,
