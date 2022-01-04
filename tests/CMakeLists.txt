@@ -98,6 +98,9 @@ if(TESTS_RAPIDCHECK)
 
 	build_test_rc(NAME get_region_context SRC_FILES unittest/get_region_context.cpp)
 	add_test_generic(NAME get_region_context TRACERS none)
+
+	build_test_rc(NAME create SRC_FILES unittest/create.cpp)
+	add_test_generic(NAME create TRACERS none)
 endif()
 
 if(GDB AND DEBUG_BUILD)
