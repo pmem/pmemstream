@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-/* Copyright 2021, Intel Corporation */
+/* Copyright 2021-2022, Intel Corporation */
 
 /* Implementation of public C API */
 
@@ -42,6 +42,10 @@ static void pmemstream_init(struct pmemstream *stream)
 
 int pmemstream_from_map(struct pmemstream **stream, size_t block_size, struct pmem2_map *map)
 {
+	if (block_size == 0) {
+		return -1;
+	}
+
 	struct pmemstream *s = malloc(sizeof(struct pmemstream));
 	s->data = pmem2_map_get_address(map);
 	s->stream_size = pmem2_map_get_size(map);
