@@ -105,12 +105,12 @@ void region_runtimes_map_remove(struct region_runtimes_map *map, struct pmemstre
 	free(runtime);
 }
 
-int region_is_runtime_initialized(struct pmemstream_region_runtime *region_runtime)
+int region_is_runtime_initialized(const struct pmemstream_region_runtime *region_runtime)
 {
 	return __atomic_load_n(&region_runtime->append_offset, __ATOMIC_ACQUIRE) != PMEMSTREAM_OFFSET_UNINITIALIZED;
 }
 
-/* Iterates over entire region. Might initialize append_offset. */
+/* Iterates over entire region. Might perform recovery. */
 static int region_iterate_and_try_recover(struct pmemstream *stream, struct pmemstream_region region)
 {
 	struct pmemstream_entry_iterator iter;
