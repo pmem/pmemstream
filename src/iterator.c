@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-/* Copyright 2021, Intel Corporation */
+/* Copyright 2021-2022, Intel Corporation */
 
 #include "iterator.h"
 #include "common/util.h"
@@ -52,14 +52,13 @@ void pmemstream_region_iterator_delete(struct pmemstream_region_iterator **itera
 	*iterator = NULL;
 }
 
-int entry_iterator_initialize(struct pmemstream_entry_iterator *iterator, struct pmemstream *stream,
+int entry_iterator_initialize(struct pmemstream_entry_iterator *iterator, const struct pmemstream *stream,
 			      struct pmemstream_region region)
 {
 	struct span_runtime region_srt = span_get_region_runtime(stream, region.offset);
-	struct pmemstream_entry_iterator iter;
+	struct pmemstream_entry_iterator iter = {.stream = stream};
 	iter.offset = region_srt.data_offset;
 	iter.region = region;
-	iter.stream = stream;
 
 	int ret = region_contexts_map_get_or_create(stream->region_contexts_map, region, &iter.region_context);
 	if (ret) {
@@ -71,7 +70,7 @@ int entry_iterator_initialize(struct pmemstream_entry_iterator *iterator, struct
 	return 0;
 }
 
-int pmemstream_entry_iterator_new(struct pmemstream_entry_iterator **iterator, struct pmemstream *stream,
+int pmemstream_entry_iterator_new(struct pmemstream_entry_iterator **iterator, const struct pmemstream *stream,
 				  struct pmemstream_region region)
 {
 	struct pmemstream_entry_iterator *iter = malloc(sizeof(*iter));
@@ -93,7 +92,7 @@ err:
 	return ret;
 }
 
-static int validate_entry(struct pmemstream *stream, struct pmemstream_entry entry)
+static int validate_entry(const struct pmemstream *stream, struct pmemstream_entry entry)
 {
 	struct span_runtime srt = span_get_runtime(stream, entry.offset);
 	void *entry_data = pmemstream_offset_to_ptr(stream, srt.data_offset);
@@ -140,7 +139,7 @@ int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iterator, s
 	} else if (!region_recovered && validate_entry(iterator->stream, entry) < 0) {
 		/* If region was not yet recovered, validate that entry is correct. If there is any problem, recover the
 		 * region. */
-		region_recover(iterator->stream, iterator->region, iterator->region_context, entry);
+		region_recover((struct pmemstream *)iterator->stream, iterator->region, iterator->region_context, entry);
 		return -1;
 	}
 
