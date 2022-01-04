@@ -11,11 +11,11 @@
 int main(int argc, char *argv[])
 {
 	if (argc != 2) {
-		std::cout << "Usage: " << argv[0] << " file" << std::endl;
+		std::cout << "Usage: " << argv[0] << " file-path" << std::endl;
 		return -1;
 	}
 
-	auto file = std::string(argv[1]);
+	auto path = std::string(argv[1]);
 
 	return run_test([&] {
 		return_check ret;
@@ -27,7 +27,7 @@ int main(int argc, char *argv[])
 		 */
 		ret += rc::check("verify if iteration return proper elements after append",
 				 [&](const std::vector<std::string> &data, const std::vector<std::string> &extra_data) {
-					 auto stream = make_pmemstream(file, BLOCK_SIZE, STREAM_SIZE);
+					 auto stream = make_pmemstream(path, BLOCK_SIZE, STREAM_SIZE);
 					 auto region = initialize_stream_single_region(stream.get(), REGION_SIZE, data);
 					 verify(stream.get(), region, data, {});
 					 append(stream.get(), region, NULL, extra_data);
@@ -40,13 +40,13 @@ int main(int argc, char *argv[])
 				     bool user_created_context) {
 					 pmemstream_region region;
 					 {
-						 auto stream = make_pmemstream(file, BLOCK_SIZE, STREAM_SIZE);
+						 auto stream = make_pmemstream(path, BLOCK_SIZE, STREAM_SIZE);
 						 region = initialize_stream_single_region(stream.get(), REGION_SIZE,
 											  data);
 						 verify(stream.get(), region, data, {});
 					 }
 					 {
-						 auto stream = make_pmemstream(file, BLOCK_SIZE, STREAM_SIZE, false);
+						 auto stream = make_pmemstream(path, BLOCK_SIZE, STREAM_SIZE, false);
 						 verify(stream.get(), region, data, {});
 						 RC_ASSERT(pmemstream_region_free(stream.get(), region) == 0);
 					 }
@@ -57,13 +57,13 @@ int main(int argc, char *argv[])
 				     bool user_created_context) {
 					 pmemstream_region region;
 					 {
-						 auto stream = make_pmemstream(file, BLOCK_SIZE, STREAM_SIZE);
+						 auto stream = make_pmemstream(path, BLOCK_SIZE, STREAM_SIZE);
 						 region = initialize_stream_single_region(stream.get(), REGION_SIZE,
 											  data);
 						 verify(stream.get(), region, data, {});
 					 }
 					 {
-						 auto stream = make_pmemstream(file, BLOCK_SIZE, STREAM_SIZE, false);
+						 auto stream = make_pmemstream(path, BLOCK_SIZE, STREAM_SIZE, false);
 						 pmemstream_region_context *ctx = NULL;
 						 if (user_created_context) {
 							 pmemstream_get_region_context(stream.get(), region, &ctx);

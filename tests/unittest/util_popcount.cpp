@@ -1,14 +1,18 @@
 // SPDX-License-Identifier: BSD-3-Clause
-/* Copyright 2021, Intel Corporation */
+/* Copyright 2021-2022, Intel Corporation */
+
+/* util_popcount.cpp -- verifies correctness of util_popcount_memory calculations */
+
+#include "common/util.h"
 
 #include <algorithm>
 #include <bitset>
 #include <cstring>
 #include <numeric>
-#include <rapidcheck.h>
 #include <vector>
 
-#include "common/util.h"
+#include <rapidcheck.h>
+
 #include "unittest.hpp"
 
 int main()

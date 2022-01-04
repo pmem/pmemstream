@@ -14,18 +14,18 @@ static constexpr size_t concurrency = 4;
 int main(int argc, char *argv[])
 {
 	if (argc != 2) {
-		std::cout << "Usage: " << argv[0] << " file" << std::endl;
+		std::cout << "Usage: " << argv[0] << " file-path" << std::endl;
 		return -1;
 	}
 
-	auto file = std::string(argv[1]);
+	auto path = std::string(argv[1]);
 
 	return run_test([&] {
 		return_check ret;
 
 		ret += rc::check("verify if each concurrent iteration observes the same data",
 				 [&](const std::vector<std::string> &data) {
-					 auto stream = make_pmemstream(file, BLOCK_SIZE, STREAM_SIZE);
+					 auto stream = make_pmemstream(path, BLOCK_SIZE, STREAM_SIZE);
 					 auto region = initialize_stream_single_region(stream.get(), REGION_SIZE, data);
 
 					 std::vector<std::vector<std::string>> threads_data(concurrency);
@@ -44,12 +44,12 @@ int main(int argc, char *argv[])
 			[&](const std::vector<std::string> &data) {
 				pmemstream_region region;
 				{
-					auto stream = make_pmemstream(file, BLOCK_SIZE, STREAM_SIZE);
+					auto stream = make_pmemstream(path, BLOCK_SIZE, STREAM_SIZE);
 					region = initialize_stream_single_region(stream.get(), REGION_SIZE, data);
 					verify(stream.get(), region, data, {});
 				}
 				{
-					auto stream = make_pmemstream(file, BLOCK_SIZE, STREAM_SIZE, false);
+					auto stream = make_pmemstream(path, BLOCK_SIZE, STREAM_SIZE, false);
 					std::vector<std::vector<std::string>> threads_data(concurrency);
 					parallel_exec(concurrency, [&](size_t tid) {
 						threads_data[tid] = get_elements_in_region(stream.get(), region);
