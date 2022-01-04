@@ -6,6 +6,7 @@
 
 #include "unittest.h"
 
+#include <algorithm>
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
@@ -39,6 +40,27 @@ static inline void UT_EXCEPTION(std::exception &e)
 	do {                                                                                                           \
 		UT_FATAL("%s:%d in function %s should never be reached", __FILE__, __LINE__, __func__);                \
 	} while (0)
+
+namespace predicates
+{
+template <typename T>
+auto equal(const T &expected)
+{
+	return [&](const auto &value) { return value == expected; };
+}
+} // namespace predicates
+
+template <typename R, typename Pred>
+bool all_of(const R &r, Pred &&pred)
+{
+	return std::all_of(r.begin(), r.end(), std::forward<Pred>(pred));
+}
+
+template <typename R>
+bool all_equal(const R &r)
+{
+	return r.empty() ? true : std::equal(r.begin() + 1, r.end(), r.begin());
+}
 
 static inline int run_test(std::function<void()> test)
 {
