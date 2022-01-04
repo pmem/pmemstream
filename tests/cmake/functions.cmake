@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: BSD-3-Clause
-# Copyright 2018-2021, Intel Corporation
+# Copyright 2018-2022, Intel Corporation
 
 #
 # functions.cmake - helper variables and functions for tests/CMakeLists.txt:
@@ -118,6 +118,25 @@ function(find_pmreorder)
 	else()
 		message(WARNING "Pmemcheck must be installed in version 1.X for pmreorder to work - pmreorder tests will not be performed.")
 	endif()
+endfunction()
+
+# Checks if listed dependencies are present in the system
+function(check_test_dependecies)
+	set(oneValueArgs NAME)
+	set(multiValueArgs DEPENDENCIES)
+
+	cmake_parse_arguments(TEST "" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+
+	foreach(dependency ${TEST_DEPENDENCIES})
+		find_program(${dependency}_PROGRAM ${dependency})
+		if( NOT ${dependency}_PROGRAM)
+			message(WARNING "${dependency} not found, some tests will be skipped.")
+			return()
+		else()
+			message(STATUS "Found ${dependency}")
+		endif()
+	endforeach()
+	set(${TEST_NAME}_FOUND 1 PARENT_SCOPE)
 endfunction()
 
 # ----------------------------------------------------------------- #
