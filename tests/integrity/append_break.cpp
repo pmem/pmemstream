@@ -82,9 +82,10 @@ std::vector<std::string> get_elements_in_region(struct pmemstream *stream, struc
 static void test(int argc, char *argv[])
 {
 	if (argc != 3 || strchr("abi", argv[1][0]) == nullptr)
-		UT_FATAL("usage: %s <a|b|i> file-name", argv[0]);
+		UT_FATAL("usage: %s <a|b|i> file-path ", argv[0]);
 
-	const char *path = argv[2];
+	auto path = std::string(argv[2]);
+
 	std::vector<std::string> init_data;
 	init_data.emplace_back("DEADBEEF");
 	init_data.emplace_back("NONEMPTYDATA");
@@ -93,7 +94,7 @@ static void test(int argc, char *argv[])
 	if (argv[1][0] == 'a') {
 		/* append initial data to a new stream */
 
-		auto s = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE, TEST_DEFAULT_STREAM_SIZE); /* non-zero size to create a file */
+		auto s = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE, TEST_DEFAULT_STREAM_SIZE);
 		init_stream_single_region(s.get(), TEST_DEFAULT_REGION_SIZE, &init_data);
 
 	} else if (argv[1][0] == 'b') {
@@ -106,7 +107,7 @@ static void test(int argc, char *argv[])
 		/* add entry longer than 512 */
 		std::string buf(1500, '~');
 		pmemstream_append(s.get(), r, NULL, buf.data(), buf.size(), nullptr);
-		ASSERT_UNREACHABLE;
+		UT_ASSERT_UNREACHABLE;
 
 	} else if (argv[1][0] == 'i') {
 		/* iterate all entries */

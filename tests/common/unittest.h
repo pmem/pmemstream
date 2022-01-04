@@ -24,10 +24,11 @@ extern "C" {
 #define START() test_register_sighandlers()
 
 /* XXX: provide function to get the actual metadata overhead */
-#define STREAM_METADATA_SIZE		(16UL * 1024)
-#define TEST_DEFAULT_STREAM_SIZE	(1024UL * 1024)
-#define TEST_DEFAULT_REGION_SIZE	(TEST_DEFAULT_STREAM_SIZE - STREAM_METADATA_SIZE)
-#define TEST_DEFAULT_BLOCK_SIZE		(4096UL)
+#define STREAM_METADATA_SIZE (16UL * 1024)
+#define REGION_METADATA_SIZE (4UL * 1024)
+#define TEST_DEFAULT_STREAM_SIZE (1024UL * 1024)
+#define TEST_DEFAULT_REGION_SIZE (TEST_DEFAULT_STREAM_SIZE - STREAM_METADATA_SIZE)
+#define TEST_DEFAULT_BLOCK_SIZE (4096UL)
 
 static inline void UT_OUT(const char *format, ...)
 {

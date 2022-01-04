@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-/* Copyright 2018-2021, Intel Corporation */
+/* Copyright 2018-2022, Intel Corporation */
 
 #ifndef LIBPMEMSTREAM_UNITTEST_HPP
 #define LIBPMEMSTREAM_UNITTEST_HPP
@@ -36,7 +36,7 @@ static inline void UT_EXCEPTION(std::exception &e)
 
 #define UT_ASSERT_NOEXCEPT(...) static_assert(noexcept(__VA_ARGS__), "Operation must be noexcept")
 
-#define ASSERT_UNREACHABLE                                                                                             \
+#define UT_ASSERT_UNREACHABLE                                                                                          \
 	do {                                                                                                           \
 		UT_FATAL("%s:%d in function %s should never be reached", __FILE__, __LINE__, __func__);                \
 	} while (0)

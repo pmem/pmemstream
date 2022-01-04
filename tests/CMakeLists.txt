@@ -87,7 +87,7 @@ build_test(reserve_publish unittest/reserve_publish.cpp)
 add_test_generic(NAME reserve_publish TRACERS none memcheck pmemcheck)
 
 if(TESTS_RAPIDCHECK)
-	build_test_rc(NAME util_popcount SRC_FILES unittest/popcount.cpp)
+	build_test_rc(NAME util_popcount SRC_FILES unittest/util_popcount.cpp)
 	add_test_generic(NAME util_popcount TRACERS none)
 
 	build_test_rc(NAME append SRC_FILES unittest/append.cpp)
