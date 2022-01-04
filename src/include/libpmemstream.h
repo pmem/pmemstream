@@ -99,7 +99,7 @@ int pmemstream_region_iterator_next(struct pmemstream_region_iterator *iterator,
 
 void pmemstream_region_iterator_delete(struct pmemstream_region_iterator **iterator);
 
-int pmemstream_entry_iterator_new(struct pmemstream_entry_iterator **iterator, struct pmemstream *stream,
+int pmemstream_entry_iterator_new(struct pmemstream_entry_iterator **iterator, const struct pmemstream *stream,
 				  struct pmemstream_region region);
 
 // if this function succeeds, entry points to a valid element in the stream, otherwise, it points to a memory
