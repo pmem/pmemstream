@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-/* Copyright 2021, Intel Corporation */
+/* Copyright 2021-2022, Intel Corporation */
 
 /* Internal Header */
 
@@ -60,24 +60,24 @@ struct span_runtime {
 typedef uint64_t span_bytes;
 
 /* Convert offset to pointer to span. offset must be 8-bytes aligned. */
-span_bytes *span_offset_to_span_ptr(struct pmemstream *stream, uint64_t offset);
+const span_bytes *span_offset_to_span_ptr(const struct pmemstream *stream, uint64_t offset);
 
 /* Those functions create appropriate span at specified offset. offset must be 8-bytes aligned. */
 void span_create_empty(struct pmemstream *stream, uint64_t offset, size_t data_size);
-void span_create_entry(struct pmemstream *stream, uint64_t offset, const void *data, size_t data_size, size_t popcount,
-		       int flags);
+void span_create_entry(struct pmemstream *stream, uint64_t offset, const void *data, size_t data_size,
+		       size_t popcount, int flags);
 void span_create_region(struct pmemstream *stream, uint64_t offset, size_t size);
 
-uint64_t span_get_size(span_bytes *span);
-enum span_type span_get_type(span_bytes *span);
+uint64_t span_get_size(const span_bytes *span);
+enum span_type span_get_type(const span_bytes *span);
 
 /* Obtain span_runtime structure describing span at 'offset'. offset must be 8-bytes aligned. */
-struct span_runtime span_get_runtime(struct pmemstream *stream, uint64_t offset);
+struct span_runtime span_get_runtime(const struct pmemstream *stream, uint64_t offset);
 
 /* Works similar to the function above but span must be of certain type. */
-struct span_runtime span_get_empty_runtime(struct pmemstream *stream, uint64_t offset);
-struct span_runtime span_get_entry_runtime(struct pmemstream *stream, uint64_t offset);
-struct span_runtime span_get_region_runtime(struct pmemstream *stream, uint64_t offset);
+struct span_runtime span_get_empty_runtime(const struct pmemstream *stream, uint64_t offset);
+struct span_runtime span_get_entry_runtime(const struct pmemstream *stream, uint64_t offset);
+struct span_runtime span_get_region_runtime(const struct pmemstream *stream, uint64_t offset);
 
 #ifdef __cplusplus
 } /* end extern "C" */

@@ -130,7 +130,7 @@ int pmemstream_region_free(struct pmemstream *stream, struct pmemstream_region r
 }
 
 // returns pointer to the data of the entry
-void *pmemstream_entry_data(struct pmemstream *stream, struct pmemstream_entry entry)
+const void *pmemstream_entry_data(struct pmemstream *stream, struct pmemstream_entry entry)
 {
 	struct span_runtime entry_srt = span_get_entry_runtime(stream, entry.offset);
 
@@ -199,7 +199,7 @@ int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region regio
 
 	reserved_entry->offset = offset;
 	/* data is right after the entry metadata */
-	*data_addr = span_offset_to_span_ptr(stream, offset + SPAN_ENTRY_METADATA_SIZE);
+	*data_addr = (void*)span_offset_to_span_ptr(stream, offset + SPAN_ENTRY_METADATA_SIZE);
 
 	return ret;
 }

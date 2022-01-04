@@ -88,11 +88,11 @@ int main(int argc, char *argv[])
 			       (unsigned int)entry.offset, entry_length);
 
 			if (values_as_text) {
-				string entry_text(static_cast<char *>(pmemstream_entry_data(stream, entry)),
+				string entry_text(static_cast<const char *>(pmemstream_entry_data(stream, entry)),
 						  entry_length);
 				printf("%s", entry_text.c_str());
 			} else {
-				auto d = static_cast<unsigned char *>(pmemstream_entry_data(stream, entry));
+				auto d = static_cast<const unsigned char *>(pmemstream_entry_data(stream, entry));
 				for (size_t i = 0; i < entry_length; i++) {
 					printf("%.2X ", (int)d[i]);
 				}
