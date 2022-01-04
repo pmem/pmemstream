@@ -99,19 +99,19 @@ int region_contexts_map_get_or_create(struct region_contexts_map *map, struct pm
 	return 0;
 }
 
-void region_contexts_map_remove(struct region_contexts_map *map, struct pmemstream_region region)
+void region_contexts_map_remove(const struct region_contexts_map *map, struct pmemstream_region region)
 {
 	struct pmemstream_region_context *ctx = critnib_remove(map->container, region.offset);
 	free(ctx);
 }
 
-int region_is_recovered(struct pmemstream_region_context *region_context)
+int region_is_recovered(const struct pmemstream_region_context *region_context)
 {
 	return __atomic_load_n(&region_context->append_offset, __ATOMIC_ACQUIRE) != PMEMSTREAM_OFFSET_UNINITIALIZED;
 }
 
 /* Iterates over entire region. Might perform recovery. */
-static int region_iterate_and_try_recover(struct pmemstream *stream, struct pmemstream_region region)
+static int region_iterate_and_try_recover (const struct pmemstream *stream, struct pmemstream_region region)
 {
 	struct pmemstream_entry_iterator iter;
 	int ret = entry_iterator_initialize(&iter, stream, region);
@@ -125,8 +125,8 @@ static int region_iterate_and_try_recover(struct pmemstream *stream, struct pmem
 	return 0;
 }
 
-int region_try_recover_locked(struct pmemstream *stream, struct pmemstream_region region,
-			      struct pmemstream_region_context *region_context)
+int region_try_recover_locked(const struct pmemstream *stream, struct pmemstream_region region,
+			      const struct pmemstream_region_context *region_context)
 {
 	assert(region_context);
 	int ret = 0;
@@ -144,7 +144,7 @@ int region_try_recover_locked(struct pmemstream *stream, struct pmemstream_regio
 	return ret;
 }
 
-void region_recover(struct pmemstream *stream, struct pmemstream_region region,
+void region_recover(const struct pmemstream *stream, struct pmemstream_region region,
 		    struct pmemstream_region_context *region_context, struct pmemstream_entry tail)
 {
 	assert(region_context);

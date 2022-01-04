@@ -8,14 +8,14 @@
 
 #include <assert.h>
 
-int pmemstream_region_iterator_new(struct pmemstream_region_iterator **iterator, struct pmemstream *stream)
+int pmemstream_region_iterator_new(struct pmemstream_region_iterator **iterator, const struct pmemstream *stream)
 {
 	struct pmemstream_region_iterator *iter = malloc(sizeof(*iter));
 	if (!iter) {
 		return -1;
 	}
 
-	iter->stream = stream;
+	iter->stream = (struct pmemstream *)stream;
 	iter->region.offset = 0;
 
 	*iterator = iter;
@@ -52,14 +52,14 @@ void pmemstream_region_iterator_delete(struct pmemstream_region_iterator **itera
 	*iterator = NULL;
 }
 
-int entry_iterator_initialize(struct pmemstream_entry_iterator *iterator, struct pmemstream *stream,
+int entry_iterator_initialize(struct pmemstream_entry_iterator *iterator, const struct pmemstream *stream,
 			      struct pmemstream_region region)
 {
 	struct span_runtime region_srt = span_get_region_runtime(stream, region.offset);
 	struct pmemstream_entry_iterator iter;
 	iter.offset = region_srt.data_offset;
 	iter.region = region;
-	iter.stream = stream;
+	iter.stream = (struct pmemstream*)stream;
 
 	int ret = region_contexts_map_get_or_create(stream->region_contexts_map, region, &iter.region_context);
 	if (ret) {
@@ -71,7 +71,7 @@ int entry_iterator_initialize(struct pmemstream_entry_iterator *iterator, struct
 	return 0;
 }
 
-int pmemstream_entry_iterator_new(struct pmemstream_entry_iterator **iterator, struct pmemstream *stream,
+int pmemstream_entry_iterator_new(struct pmemstream_entry_iterator **iterator, const struct pmemstream *stream,
 				  struct pmemstream_region region)
 {
 	struct pmemstream_entry_iterator *iter = malloc(sizeof(*iter));
@@ -93,7 +93,7 @@ err:
 	return ret;
 }
 
-static int validate_entry(struct pmemstream *stream, struct pmemstream_entry entry)
+static int validate_entry(const struct pmemstream *stream, struct pmemstream_entry entry)
 {
 	struct span_runtime srt = span_get_runtime(stream, entry.offset);
 	void *entry_data = pmemstream_offset_to_ptr(stream, srt.data_offset);
