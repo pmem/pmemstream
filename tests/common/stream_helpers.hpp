@@ -42,7 +42,7 @@ std::vector<std::string> get_elements_in_region(struct pmemstream *stream, struc
 	struct pmemstream_region r;
 	while (pmemstream_entry_iterator_next(eiter, &r, &entry) == 0) {
 		RC_ASSERT(r.offset == region.offset);
-		auto data_ptr = reinterpret_cast<char *>(pmemstream_entry_data(stream, entry));
+		auto data_ptr = reinterpret_cast<const char *>(pmemstream_entry_data(stream, entry));
 		result.emplace_back(data_ptr, pmemstream_entry_length(stream, entry));
 	}
 
