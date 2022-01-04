@@ -88,15 +88,15 @@ int main(int argc, char *argv[])
 		});
 
 		/* verify if a stream of block_size = 0 cannot be created */
-		// {
-		// try {
-		// make_pmemstream(path, 0, TEST_DEFAULT_STREAM_SIZE);
-		// UT_ASSERT_UNREACHABLE;
-		// } catch (std::runtime_error &e) {
-		// /* noop */
-		// } catch (...) {
-		// UT_ASSERT_UNREACHABLE;
-		// }
-		// }
+		{
+			try {
+				make_pmemstream(path, 0, TEST_DEFAULT_STREAM_SIZE);
+				UT_ASSERT_UNREACHABLE;
+			} catch (std::runtime_error &e) {
+				/* noop */
+			} catch (...) {
+				UT_ASSERT_UNREACHABLE;
+			}
+		}
 	});
 }
