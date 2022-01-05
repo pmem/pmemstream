@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-/* Copyright 2021, Intel Corporation */
+/* Copyright 2021-2022, Intel Corporation */
 
 #include "region.h"
 #include "iterator.h"
@@ -105,12 +105,12 @@ void region_contexts_map_remove(struct region_contexts_map *map, struct pmemstre
 	free(ctx);
 }
 
-int region_is_recovered(struct pmemstream_region_context *region_context)
+int region_is_append_offset_initialized(struct pmemstream_region_context *region_context)
 {
 	return __atomic_load_n(&region_context->append_offset, __ATOMIC_ACQUIRE) != PMEMSTREAM_OFFSET_UNINITIALIZED;
 }
 
-/* Iterates over entire region. Might perform recovery. */
+/* Iterates over entire region. Might initialize append_offset. */
 static int region_iterate_and_try_recover(struct pmemstream *stream, struct pmemstream_region region)
 {
 	struct pmemstream_entry_iterator iter;
@@ -125,17 +125,17 @@ static int region_iterate_and_try_recover(struct pmemstream *stream, struct pmem
 	return 0;
 }
 
-int region_try_recover_locked(struct pmemstream *stream, struct pmemstream_region region,
-			      struct pmemstream_region_context *region_context)
+int region_try_initialize_append_offset_locked(struct pmemstream *stream, struct pmemstream_region region,
+					       struct pmemstream_region_context *region_context)
 {
 	assert(region_context);
 	int ret = 0;
 
-	/* If region is not recovered, iterate over region and perform recovery.
+	/* If append_offset is not set, iterate over region and set it after last valid entry.
 	 * Uses "double-checked locking". */
-	if (!region_is_recovered(region_context)) {
+	if (!region_is_append_offset_initialized(region_context)) {
 		pthread_mutex_lock(&stream->region_contexts_map->region_lock);
-		if (!region_is_recovered(region_context)) {
+		if (!region_is_append_offset_initialized(region_context)) {
 			ret = region_iterate_and_try_recover(stream, region);
 		}
 		pthread_mutex_unlock(&stream->region_contexts_map->region_lock);
@@ -144,22 +144,14 @@ int region_try_recover_locked(struct pmemstream *stream, struct pmemstream_regio
 	return ret;
 }
 
-void region_recover(struct pmemstream *stream, struct pmemstream_region region,
-		    struct pmemstream_region_context *region_context, struct pmemstream_entry tail)
+void region_initialize_append_offset(struct pmemstream_region_context *region_context, struct pmemstream_entry tail)
 {
 	assert(region_context);
 	assert(tail.offset != PMEMSTREAM_OFFSET_UNINITIALIZED);
 
-	struct span_runtime region_rt = span_get_region_runtime(stream, region.offset);
-	size_t region_end_offset = region.offset + region_rt.total_size;
-	size_t remaining_size = region_end_offset - tail.offset;
-
 	uint64_t expected_append_offset = PMEMSTREAM_OFFSET_UNINITIALIZED;
+	uint64_t desired = tail.offset | PMEMSTREAM_OFFSET_DIRTY_BIT;
 	int weak = 0; /* Use compare_exchange int strong variation. */
-	if (__atomic_compare_exchange_n(&region_context->append_offset, &expected_append_offset, tail.offset, weak,
-					__ATOMIC_RELEASE, __ATOMIC_RELAXED)) {
-		span_create_empty(stream, tail.offset, remaining_size - SPAN_EMPTY_METADATA_SIZE);
-	} else {
-		/* Nothing to do, someone else already performed recovery. */
-	}
+	__atomic_compare_exchange_n(&region_context->append_offset, &expected_append_offset, desired, weak,
+				    __ATOMIC_RELEASE, __ATOMIC_RELAXED);
 }
