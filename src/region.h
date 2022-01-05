@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-/* Copyright 2021, Intel Corporation */
+/* Copyright 2021-2022, Intel Corporation */
 
 /* Internal Header */
 
@@ -22,6 +22,8 @@ extern "C" {
  */
 
 #define PMEMSTREAM_OFFSET_UNINITIALIZED 0ULL
+#define PMEMSTREAM_OFFSET_DIRTY_BIT (1ULL << 63)
+#define PMEMSTREAM_OFFSET_DIRTY_MASK (~PMEMSTREAM_OFFSET_DIRTY_BIT)
 
 /*
  * It contains all runtime data specific to a region.
@@ -33,8 +35,10 @@ extern "C" {
  */
 struct pmemstream_region_context {
 	/*
-	 * Offset at which new entries will be appended. If set to PMEMSTREAM_OFFSET_UNINITIALIZED it means
-	 * that region was not yet recovered. */
+	 * Offset at which new entries will be appended. Can be set to PMEMSTREAM_OFFSET_UNINITIALIZED.
+	 *
+	 * If PMEMSTREAM_OFFSET_DIRTY_BIT is set, append_offset points to a valid location but the memory from
+	 * 'append_offset & PMEMSTREAM_OFFSET_DIRTY_MASK' to the end of region was not yet cleared. */
 	uint64_t append_offset;
 };
 
@@ -56,15 +60,14 @@ int region_contexts_map_get_or_create(struct region_contexts_map *map, struct pm
 
 void region_contexts_map_remove(struct region_contexts_map *map, struct pmemstream_region region);
 
-int region_is_recovered(struct pmemstream_region_context *region_context);
+int region_is_append_offset_initialized(struct pmemstream_region_context *region_context);
 
 /* Recovers a region (under a global lock) if it is not yet recovered. */
-int region_try_recover_locked(struct pmemstream *stream, struct pmemstream_region region,
-			      struct pmemstream_region_context *region_context);
+int region_try_initialize_append_offset_locked(struct pmemstream *stream, struct pmemstream_region region,
+					       struct pmemstream_region_context *region_context);
 
 /* Performs region recovery - initializes append_offset and clears all the data in the region after `tail` entry. */
-void region_recover(struct pmemstream *stream, struct pmemstream_region region,
-		    struct pmemstream_region_context *region_context, struct pmemstream_entry tail);
+void region_initialize_append_offset(struct pmemstream_region_context *region_context, struct pmemstream_entry tail);
 
 #ifdef __cplusplus
 } /* end extern "C" */
