@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: BSD-3-Clause
-# Copyright 2016-2021, Intel Corporation
+# Copyright 2016-2022, Intel Corporation
 
 # check-headers.sh - check copyright and license in source files
 
@@ -76,26 +76,18 @@ if [ $CHECK_ALL -eq 0 ]; then
 fi
 
 if [ $CHECK_ALL -eq 1 ]; then
-	echo "Checking copyright headers of all files..."
+	echo "INFO: Checking copyright headers of all files..."
 	GIT_COMMAND="ls-tree -r --name-only HEAD"
 else
-	if [ $VERBOSE -eq 1 ]; then
-		echo
-		echo "Warning: will check copyright headers of modified files only,"
-		echo "         in order to check all files issue the following command:"
-		echo "         $ $SELF <source_root_path> <license_tag> -a"
-		echo "         (e.g.: $ $SELF $SOURCE_ROOT $LICENSE -a)"
-		echo
-	fi
-	echo "Checking copyright headers of modified files only..."
+	echo "INFO: Checking copyright headers of modified files only..."
 	GIT_COMMAND="diff --name-only $MERGE_BASE $CURRENT_COMMIT"
 fi
 
 FILES=$($GIT $GIT_COMMAND | ${SOURCE_ROOT}/utils/check_license/file-exceptions.sh | \
-	grep    -E -e '*\.[chs]$' -e '*\.[ch]pp$' -e '*\.sh$' \
-		   -e '*\.link$' -e 'Makefile*' -e 'TEST*' \
-		   -e '/common.inc$' -e '/match$' -e '/check_whitespace$' \
-		   -e 'LICENSE$' -e 'CMakeLists.txt$' -e '*\.cmake$' | \
+	grep    -E -e '*\.[chs]$' -e '*\.[ch]pp$' -e '*\.sh$' -e '*\.py$' \
+		   -e 'TEST*' -e 'Makefile*' -e 'CMakeLists.txt$' -e '*\.cmake$' \
+		   -e '*\.link$' -e '*\.map$' -e '*\.Dockerfile$' -e 'LICENSE$' \
+		   -e '/common.inc$' -e '/match$' -e '/check_whitespace$' -e '/cppstyle$' | \
 	xargs)
 
 RV=0
