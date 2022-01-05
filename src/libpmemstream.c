@@ -140,6 +140,14 @@ int pmemstream_get_region_context(struct pmemstream *stream, struct pmemstream_r
 	return region_contexts_map_get_or_create(stream->region_contexts_map, region, region_context);
 }
 
+static void pmemstream_clear_region_remaining(struct pmemstream *stream, struct pmemstream_region region, uint64_t tail)
+{
+	struct span_runtime region_rt = span_get_region_runtime(stream, region.offset);
+	size_t region_end_offset = region.offset + region_rt.total_size;
+	size_t remaining_size = region_end_offset - tail;
+	span_create_empty(stream, tail, remaining_size - SPAN_EMPTY_METADATA_SIZE);
+}
+
 int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region region,
 		       struct pmemstream_region_context *region_context, size_t size,
 		       struct pmemstream_entry *reserved_entry, void **data_addr)
@@ -156,16 +164,18 @@ int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region regio
 		}
 	}
 
-	ret = region_try_recover_locked(stream, region, region_context);
+	ret = region_try_initialize_append_offset_locked(stream, region, region_context);
 	if (ret) {
 		return ret;
 	}
 
-	uint64_t offset =
-		__atomic_fetch_add(&region_context->append_offset, entry_total_size_span_aligned, __ATOMIC_RELEASE);
+	uint64_t offset = __atomic_load_n(&region_context->append_offset, __ATOMIC_RELAXED);
+	if (offset & PMEMSTREAM_OFFSET_DIRTY_BIT) {
+		offset &= PMEMSTREAM_OFFSET_DIRTY_MASK;
+		pmemstream_clear_region_remaining(stream, region, offset);
+		__atomic_store_n(&region_context->append_offset, offset, __ATOMIC_RELEASE);
+	}
 
-	/* XXX: should we revert this fetch_add if no space left? What about concurrent appends? */
-	/* region overflow (no space left) or offset outside of region. */
 	if (offset + entry_total_size_span_aligned > region.offset + region_srt.total_size) {
 		return -1;
 	}
@@ -174,8 +184,10 @@ int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region regio
 		return -1;
 	}
 
+	region_context->append_offset += entry_total_size_span_aligned;
+
 	reserved_entry->offset = offset;
-	/* data are right next after the entry metadata */
+	/* data is right after the entry metadata */
 	*data_addr = span_offset_to_span_ptr(stream, offset + SPAN_ENTRY_METADATA_SIZE);
 
 	return ret;
