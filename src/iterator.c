@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-/* Copyright 2021, Intel Corporation */
+/* Copyright 2021-2022, Intel Corporation */
 
 #include "iterator.h"
 #include "common/util.h"
@@ -103,7 +103,7 @@ static int validate_entry(struct pmemstream *stream, struct pmemstream_entry ent
 	return -1;
 }
 
-/* Advances entry iterator by one. Verifies entry integrity and recovers the region if necessary. */
+/* Advances entry iterator by one. Verifies entry integrity and sets append_offset is end of data is found. */
 int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iterator, struct pmemstream_region *region,
 				   struct pmemstream_entry *user_entry)
 {
@@ -132,19 +132,19 @@ int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iterator, s
 	 */
 	assert(entry.offset + srt.total_size <= iterator->region.offset + region_srt.total_size);
 
-	int region_recovered = region_is_recovered(iterator->region_context);
+	int region_initialize_append_offseted = region_is_append_offset_initialized(iterator->region_context);
 
-	if (region_recovered && srt.type == SPAN_EMPTY) {
-		/* If we found last entry and region is already recovered, just return -1. */
+	if (region_initialize_append_offseted && srt.type == SPAN_EMPTY) {
+		/* If we found last entry and append_offset is already initialized, just return -1. */
 		return -1;
-	} else if (!region_recovered && validate_entry(iterator->stream, entry) < 0) {
-		/* If region was not yet recovered, validate that entry is correct. If there is any problem, recover the
-		 * region. */
-		region_recover(iterator->stream, iterator->region, iterator->region_context, entry);
+	} else if (!region_initialize_append_offseted && validate_entry(iterator->stream, entry) < 0) {
+		/* If append_offset was not set yet, validate that entry is correct. If entry is not valid, set
+		 * append_offset to point to that entry. */
+		region_initialize_append_offset(iterator->stream, iterator->region, iterator->region_context, entry);
 		return -1;
 	}
 
-	/* Region is already recovered, and we did not encounter end of the data yet - span must be a valid entry */
+	/* append_offset is initialized, and we did not encounter end of the data yet - span must be a valid entry */
 	assert(validate_entry(iterator->stream, entry) == 0);
 
 	return 0;
