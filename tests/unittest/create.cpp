@@ -55,12 +55,12 @@ int main(int argc, char *argv[])
 			RC_ASSERT(pmemstream_region_free(stream.get(), region) == 0);
 		}
 
-		/* XXX: we don't check neither return any valuable return code for this case */
-		// ret += rc::check("verify if a region of size > stream_size cannot be created", [&]() {
-		// auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE, TEST_DEFAULT_STREAM_SIZE);
-		// struct pmemstream_region region;
-		// RC_ASSERT(pmemstream_region_allocate(stream.get(), TEST_DEFAULT_STREAM_SIZE + 1UL, &region) != 0);
-		// });
+		ret += rc::check("verify if a region of size > stream_size cannot be created", [&]() {
+			auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE, TEST_DEFAULT_STREAM_SIZE);
+			struct pmemstream_region region;
+			RC_ASSERT(pmemstream_region_allocate(stream.get(), TEST_DEFAULT_STREAM_SIZE + 1UL, &region) !=
+				  0);
+		});
 
 		ret += rc::check("verify if a stream of various sizes can be created", [&]() {
 			const auto stream_size =
@@ -77,11 +77,11 @@ int main(int argc, char *argv[])
 
 		ret += rc::check("verify if a stream of various block_sizes can be created", [&]() {
 			const auto block_size = *rc::gen::inRange<std::size_t>(
-				1UL, (TEST_DEFAULT_STREAM_SIZE - STREAM_METADATA_SIZE) / 2UL);
+				1UL, TEST_DEFAULT_STREAM_SIZE / 2UL - STREAM_METADATA_SIZE);
 
 			auto stream = make_pmemstream(path, block_size, TEST_DEFAULT_STREAM_SIZE);
 			/* and initialize this stream with a single region of */
-			auto region = initialize_stream_single_region(stream.get(), block_size, {});
+			auto region = initialize_stream_single_region(stream.get(), block_size / 2UL, {});
 			verify(stream.get(), region, {}, {});
 
 			RC_ASSERT(pmemstream_region_free(stream.get(), region) == 0);

@@ -95,6 +95,9 @@ int pmemstream_region_allocate(struct pmemstream *stream, size_t size, struct pm
 
 	size = ALIGN_UP(size, stream->block_size);
 
+	if (size > srt.empty.size)
+		return -1;
+
 	span_create_region(stream, offset, size);
 	region->offset = offset;
 
