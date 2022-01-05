@@ -43,6 +43,10 @@ static void pmemstream_init(struct pmemstream *stream)
 int pmemstream_from_map(struct pmemstream **stream, size_t block_size, struct pmem2_map *map)
 {
 	struct pmemstream *s = malloc(sizeof(struct pmemstream));
+	if (!s) {
+		return -1;
+	}
+
 	s->data = pmem2_map_get_address(map);
 	s->stream_size = pmem2_map_get_size(map);
 	s->usable_size = ALIGN_DOWN(s->stream_size - sizeof(struct pmemstream_data), block_size);

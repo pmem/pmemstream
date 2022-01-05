@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-/* Copyright 2021, Intel Corporation */
+/* Copyright 2021-2022, Intel Corporation */
 
 #include "unittest.h"
 
@@ -13,7 +13,7 @@ void test_stream_from_map(char *path, size_t file_size, size_t blk_size)
 	UT_ASSERTne(map, NULL);
 
 	struct pmemstream *s = NULL;
-	pmemstream_from_map(&s, blk_size, map);
+	UT_ASSERTeq(pmemstream_from_map(&s, blk_size, map), 0);
 	UT_ASSERTne(s, NULL);
 
 	pmemstream_delete(&s);
