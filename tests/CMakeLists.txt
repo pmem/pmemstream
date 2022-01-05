@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: BSD-3-Clause
-# Copyright 2019-2021, Intel Corporation
+# Copyright 2019-2022, Intel Corporation
 
 #
 # tests/CMakeLists.txt - prepares all tests; it specifies which tests are enabled based on options
@@ -102,6 +102,9 @@ if(TESTS_RAPIDCHECK)
 
 	build_test_ext(NAME get_region_context SRC_FILES unittest/get_region_context.cpp LIBS rapidcheck)
 	add_test_generic(NAME get_region_context TRACERS none)
+
+	build_test_ext(NAME concurrent_append_iterate SRC_FILES unittest/concurrent_append_iterate.cpp LIBS rapidcheck)
+	add_test_generic(NAME concurrent_append_iterate TRACERS none)
 endif()
 
 if(GDB AND DEBUG_BUILD)

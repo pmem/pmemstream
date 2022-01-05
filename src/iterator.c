@@ -93,11 +93,17 @@ err:
 	return ret;
 }
 
-static int validate_entry(struct pmemstream *stream, struct pmemstream_entry entry)
+static int validate_entry(struct pmemstream *stream, struct pmemstream_entry entry, struct pmemstream_region region)
 {
 	struct span_runtime srt = span_get_runtime(stream, entry.offset);
+	struct span_runtime region_rt = span_get_runtime(stream, region.offset);
+
+	size_t region_end_offset = region.offset + region_rt.total_size;
+	size_t remaining_size = region_end_offset - entry.offset;
+
 	void *entry_data = pmemstream_offset_to_ptr(stream, srt.data_offset);
-	if (srt.type == SPAN_ENTRY && util_popcount_memory(entry_data, srt.entry.size) == srt.entry.popcount) {
+	if (srt.type == SPAN_ENTRY && srt.total_size <= remaining_size &&
+	    util_popcount_memory(entry_data, srt.entry.size) == srt.entry.popcount) {
 		return 0;
 	}
 	return -1;
@@ -132,20 +138,22 @@ int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iterator, s
 	 */
 	assert(entry.offset + srt.total_size <= iterator->region.offset + region_srt.total_size);
 
-	int region_initialize_append_offseted = region_is_append_offset_initialized(iterator->region_context);
-
-	if (region_initialize_append_offseted && srt.type == SPAN_EMPTY) {
+	int append_offset_initialized = region_is_append_offset_initialized(iterator->region_context);
+	if (append_offset_initialized && srt.type == SPAN_EMPTY) {
 		/* If we found last entry and append_offset is already initialized, just return -1. */
-		return -1;
-	} else if (!region_initialize_append_offseted && validate_entry(iterator->stream, entry) < 0) {
-		/* If append_offset was not set yet, validate that entry is correct. If entry is not valid, set
-		 * append_offset to point to that entry. */
-		region_initialize_append_offset(iterator->stream, iterator->region, iterator->region_context, entry);
 		return -1;
 	}
 
-	/* append_offset is initialized, and we did not encounter end of the data yet - span must be a valid entry */
-	assert(validate_entry(iterator->stream, entry) == 0);
+	if (validate_entry(iterator->stream, entry, iterator->region) < 0) {
+		if (!append_offset_initialized) {
+			/* If append_offset was not set yet, validate that entry is correct. If entry is not valid, set
+			 * append_offset to point to that entry. */
+			region_initialize_append_offset(iterator->stream, iterator->region, iterator->region_context,
+							entry);
+		}
+
+		return -1;
+	}
 
 	return 0;
 }
