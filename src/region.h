@@ -40,6 +40,12 @@ struct pmemstream_region_runtime {
 	 * If PMEMSTREAM_OFFSET_DIRTY_BIT is set, append_offset points to a valid location but the memory from
 	 * 'append_offset & PMEMSTREAM_OFFSET_DIRTY_MASK' to the end of region was not yet cleared. */
 	uint64_t append_offset;
+
+	/*
+	 * All entries which start at offset < commited_offset can be treated as commited and safely read
+	 * from multiple threads.
+	 */
+	uint64_t commited_offset;
 };
 
 /*

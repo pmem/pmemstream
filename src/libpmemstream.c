@@ -157,15 +157,23 @@ static void pmemstream_clear_region_remaining(struct pmemstream *stream, struct 
 	struct span_runtime region_rt = span_get_region_runtime(stream, region.offset);
 	size_t region_end_offset = region.offset + region_rt.total_size;
 	size_t remaining_size = region_end_offset - tail;
-	span_create_empty(stream, tail, remaining_size - SPAN_EMPTY_METADATA_SIZE);
+
+	if (remaining_size != 0) {
+		span_create_empty(stream, tail, remaining_size - SPAN_EMPTY_METADATA_SIZE);
+	}
+}
+
+static size_t pmemstream_entry_total_size_aligned(size_t size)
+{
+	size_t entry_total_size = size + SPAN_ENTRY_METADATA_SIZE;
+	return ALIGN_UP(entry_total_size, sizeof(span_bytes));
 }
 
 int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region region,
 		       struct pmemstream_region_runtime *region_runtime, size_t size,
 		       struct pmemstream_entry *reserved_entry, void **data_addr)
 {
-	size_t entry_total_size = size + SPAN_ENTRY_METADATA_SIZE;
-	size_t entry_total_size_span_aligned = ALIGN_UP(entry_total_size, sizeof(span_bytes));
+	size_t entry_total_size_span_aligned = pmemstream_entry_total_size_aligned(size);
 	struct span_runtime region_srt = span_get_region_runtime(stream, region.offset);
 	int ret = 0;
 
@@ -182,6 +190,7 @@ int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region regio
 	}
 
 	uint64_t offset = __atomic_load_n(&region_runtime->append_offset, __ATOMIC_RELAXED);
+	assert(offset != PMEMSTREAM_OFFSET_UNINITIALIZED);
 	if (offset & PMEMSTREAM_OFFSET_DIRTY_BIT) {
 		offset &= PMEMSTREAM_OFFSET_DIRTY_MASK;
 		pmemstream_clear_region_remaining(stream, region, offset);
@@ -205,18 +214,33 @@ int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region regio
 	return ret;
 }
 
-static int pmemstream_internal_publish(struct pmemstream *stream, struct pmemstream_region region, const void *data,
-				       size_t size, struct pmemstream_entry *reserved_entry, int flags)
+static int pmemstream_internal_publish(struct pmemstream *stream, struct pmemstream_region region,
+				       struct pmemstream_region_runtime *region_runtime, const void *data, size_t size,
+				       struct pmemstream_entry *reserved_entry, int flags)
 {
+	assert(region_runtime);
+
 	span_create_entry(stream, reserved_entry->offset, data, size, util_popcount_memory(data, size), flags);
+
+	__atomic_fetch_add(&region_runtime->commited_offset, pmemstream_entry_total_size_aligned(size),
+			   __ATOMIC_RELEASE);
 
 	return 0;
 }
 
-int pmemstream_publish(struct pmemstream *stream, struct pmemstream_region region, const void *data, size_t size,
+int pmemstream_publish(struct pmemstream *stream, struct pmemstream_region region,
+		       struct pmemstream_region_runtime *region_runtime, const void *data, size_t size,
 		       struct pmemstream_entry *reserved_entry)
 {
-	return pmemstream_internal_publish(stream, region, data, size, reserved_entry, PMEMSTREAM_PUBLISH_PERSIST);
+	if (!region_runtime) {
+		int ret = pmemstream_get_region_runtime(stream, region, &region_runtime);
+		if (ret) {
+			return ret;
+		}
+	}
+
+	return pmemstream_internal_publish(stream, region, region_runtime, data, size, reserved_entry,
+					   PMEMSTREAM_PUBLISH_PERSIST);
 }
 
 // synchronously appends data buffer to the end of the region
@@ -224,6 +248,13 @@ int pmemstream_append(struct pmemstream *stream, struct pmemstream_region region
 		      struct pmemstream_region_runtime *region_runtime, const void *data, size_t size,
 		      struct pmemstream_entry *new_entry)
 {
+	if (!region_runtime) {
+		int ret = pmemstream_get_region_runtime(stream, region, &region_runtime);
+		if (ret) {
+			return ret;
+		}
+	}
+
 	struct pmemstream_entry reserved_entry;
 	void *reserved_dest;
 	int ret = pmemstream_reserve(stream, region, region_runtime, size, &reserved_entry, &reserved_dest);
@@ -232,7 +263,8 @@ int pmemstream_append(struct pmemstream *stream, struct pmemstream_region region
 	}
 
 	stream->memcpy(reserved_dest, data, size, PMEM2_F_MEM_NONTEMPORAL | PMEM2_F_MEM_NODRAIN);
-	ret = pmemstream_internal_publish(stream, region, data, size, &reserved_entry, PMEMSTREAM_PUBLISH_NOFLUSH_DATA);
+	ret = pmemstream_internal_publish(stream, region, region_runtime, data, size, &reserved_entry,
+					  PMEMSTREAM_PUBLISH_NOFLUSH_DATA);
 	if (ret) {
 		return ret;
 	}
