@@ -34,7 +34,7 @@ void reserve_and_publish(struct pmemstream *stream, struct pmemstream_region reg
 		memcpy(reserved_data, d.data(), d.size());
 
 		/* XXX: add tests as well for non-temporal memcpy and no persist */
-		ret = pmemstream_publish(stream, region, d.data(), d.size(), &reserved_entry);
+		ret = pmemstream_publish(stream, region, nullptr, d.data(), d.size(), &reserved_entry);
 		RC_ASSERT(ret == 0);
 	}
 }
