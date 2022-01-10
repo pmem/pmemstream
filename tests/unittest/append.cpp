@@ -37,6 +37,55 @@ int main(int argc, char *argv[])
 				RC_ASSERT(pmemstream_region_free(stream.get(), region) == 0);
 			});
 
+		/* verify if an entry of size = 0 can be appended and entry with size > region's size cannot */
+		{
+			const size_t max_size = 1024UL;
+			auto stream = make_pmemstream(path, max_size, TEST_DEFAULT_STREAM_SIZE);
+			auto region = initialize_stream_single_region(stream.get(), max_size, {});
+			verify(stream.get(), region, {}, {});
+
+			/* append an entry with size = 0 */
+			std::string entry;
+			auto ret =
+				pmemstream_append(stream.get(), region, nullptr, entry.data(), entry.size(), nullptr);
+			UT_ASSERTeq(ret, 0);
+			verify(stream.get(), region, {entry}, {});
+
+			/* and try to append entry with size bigger than region's size */
+			entry = std::string(max_size + 1, 'W');
+			ret = pmemstream_append(stream.get(), region, nullptr, entry.data(), entry.size(), nullptr);
+			UT_ASSERTeq(ret, -1);
+
+			UT_ASSERTeq(pmemstream_region_free(stream.get(), region), 0);
+		}
+
+		ret += rc::check("verify append will work until OOM", [&]() {
+			auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE, TEST_DEFAULT_STREAM_SIZE);
+			auto region = initialize_stream_single_region(stream.get(), TEST_DEFAULT_REGION_SIZE, {});
+
+			size_t elems = 10;
+			const auto c = *rc::gen::character<char>();
+			const size_t e_size = TEST_DEFAULT_REGION_SIZE / elems - TEST_DEFAULT_BLOCK_SIZE;
+			std::string e(e_size, c);
+
+			while (elems-- > 0) {
+				auto ret =
+					pmemstream_append(stream.get(), region, nullptr, e.data(), e.size(), nullptr);
+				RC_ASSERT(ret == 0);
+			}
+			/* next append should not fit */
+			auto ret = pmemstream_append(stream.get(), region, nullptr, e.data(), e.size(), nullptr);
+			/* XXX: should be updated with the real error code, when available */
+			RC_ASSERT(ret == -1);
+			e.resize(4);
+			/* ... but smaller entry should fit just in */
+			ret = pmemstream_append(stream.get(), region, nullptr, e.data(), e.size(), nullptr);
+			/* XXX: should be updated with the real error code, when available */
+			RC_ASSERT(ret == 0);
+
+			RC_ASSERT(pmemstream_region_free(stream.get(), region) == 0);
+		});
+
 		ret += rc::check("verify if iteration return proper elements after pmemstream reopen",
 				 [&](const std::vector<std::string> &data, const std::vector<std::string> &extra_data,
 				     bool user_created_context) {
