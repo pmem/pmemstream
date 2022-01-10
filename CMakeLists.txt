@@ -111,8 +111,8 @@ include_directories(${LIBPMEM2_INCLUDE_DIRS})
 link_directories(${LIBPMEM2_LIBRARY_DIRS})
 
 list(APPEND PKG_CONFIG_REQUIRES "libpmem2 >= ${LIBPMEM2_REQUIRED_VERSION}")
-list(APPEND RPM_DEPENDS "libpmem2 >= ${LIBPMEM2_REQUIRED_VERSION}")
-list(APPEND DEB_DEPENDS "libpmem2(>= ${LIBPMEM2_REQUIRED_VERSION})")
+list(APPEND RPM_DEPENDS "libpmem2-devel >= ${LIBPMEM2_REQUIRED_VERSION}")
+list(APPEND DEB_DEPENDS "libpmem2-dev(>= ${LIBPMEM2_REQUIRED_VERSION})")
 
 # Configure the ccache as compiler launcher
 find_program(CCACHE_FOUND ccache)
