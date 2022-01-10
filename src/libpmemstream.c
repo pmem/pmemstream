@@ -85,6 +85,7 @@ void pmemstream_delete(struct pmemstream **stream)
 
 // stream owns the region object - the user gets a reference, but it's not
 // necessary to hold on to it and explicitly delete it.
+/* XXX: add test for multiple regions, when supported */
 int pmemstream_region_allocate(struct pmemstream *stream, size_t size, struct pmemstream_region *region)
 {
 	const uint64_t offset = 0;
