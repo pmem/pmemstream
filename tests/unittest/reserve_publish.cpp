@@ -13,9 +13,8 @@
 #include "libpmemstream_internal.h"
 #include "unittest.hpp"
 
-static constexpr size_t FILE_SIZE = 1024ULL * 1024 * 1024;
-static constexpr size_t REGION_SIZE = FILE_SIZE - 16 * 1024;
-static constexpr size_t BLK_SIZE = 4096;
+/* use bigger than default stream size */
+static constexpr size_t STREAM_SIZE = 1024ULL * TEST_DEFAULT_STREAM_SIZE;
 
 namespace
 {
@@ -92,51 +91,48 @@ std::vector<std::string> get_elements_in_region(struct pmemstream *stream, struc
 static void test(int argc, char *argv[])
 {
 	if (argc != 2) {
-		UT_FATAL("usage: %s file-name", argv[0]);
+		UT_FATAL("usage: %s file-path", argv[0]);
 	}
 
-	const char *path = argv[1];
+	auto path = std::string(argv[1]);
+
 	std::vector<std::string> init_data;
 	init_data.emplace_back("1");
 	init_data.emplace_back("32");
 	init_data.emplace_back("1048576");
 	/* XXX: switch to RC test and make use of generated data instead */
 
-	try {
-		/* initialize stream with a single region and "regularly" append initial data */
-		auto s = make_pmemstream(path, BLK_SIZE, FILE_SIZE);
-		auto r = init_stream_single_region(s.get(), REGION_SIZE, init_data);
+	/* initialize stream with a single region and "regularly" append initial data */
+	auto s = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE, STREAM_SIZE);
+	auto r = init_stream_single_region(s.get(), TEST_DEFAULT_REGION_SIZE, init_data);
 
-		std::vector<std::string> data_to_reserve;
-		data_to_reserve.emplace_back("0");
-		data_to_reserve.emplace_back("1234");
-		data_to_reserve.emplace_back("ABCDEFGHIJKL");
-		data_to_reserve.emplace_back(512, 'A');
+	std::vector<std::string> data_to_reserve;
+	data_to_reserve.emplace_back("0");
+	data_to_reserve.emplace_back("1234");
+	data_to_reserve.emplace_back("ABCDEFGHIJKL");
+	data_to_reserve.emplace_back(512, 'A');
 
-		/* reserve and publish */
-		/* XXX: make this work with property based testing - should work with regular append as well */
-		reserve_and_publish(s.get(), r, data_to_reserve);
+	/* reserve and publish */
+	/* XXX: make this work with property based testing - should work with regular append as well */
+	reserve_and_publish(s.get(), r, data_to_reserve);
 
-		/* add one more "regular" append */
-		std::string extra_entry(1024, 'Z');
-		int ret = pmemstream_append(s.get(), r, nullptr, extra_entry.data(), extra_entry.size(), nullptr);
-		UT_ASSERTeq(ret, 0);
+	/* add one more "regular" append */
+	std::string extra_entry(1024, 'Z');
+	int ret = pmemstream_append(s.get(), r, nullptr, extra_entry.data(), extra_entry.size(), nullptr);
+	UT_ASSERTeq(ret, 0);
 
-		/* verify count of all appended/written entries */
-		/* XXX: make use of verify() in stream_helpers */
-		auto read_elements = get_elements_in_region(s.get(), &r);
-		auto cnt = read_elements.size();
-		auto expected_cnt = init_data.size() + data_to_reserve.size() + 1;
-		UT_ASSERTeq(cnt, expected_cnt);
+	/* verify count of all appended/written entries */
+	/* XXX: make use of verify() in stream_helpers */
+	auto read_elements = get_elements_in_region(s.get(), &r);
+	auto cnt = read_elements.size();
+	auto expected_cnt = init_data.size() + data_to_reserve.size() + 1;
+	UT_ASSERTeq(cnt, expected_cnt);
 
-		/* put all these entries into one vector and check if all data is written correctly */
-		init_data.insert(init_data.end(), data_to_reserve.begin(), data_to_reserve.end());
-		init_data.emplace_back(extra_entry);
-		for (size_t i = 0; i < cnt; ++i) {
-			UT_ASSERT(init_data[i] == read_elements[i]);
-		}
-	} catch (...) {
-		UT_FATAL("Something went wrong!");
+	/* put all these entries into one vector and check if all data is written correctly */
+	init_data.insert(init_data.end(), data_to_reserve.begin(), data_to_reserve.end());
+	init_data.emplace_back(extra_entry);
+	for (size_t i = 0; i < cnt; ++i) {
+		UT_ASSERT(init_data[i] == read_elements[i]);
 	}
 }
 
