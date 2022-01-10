@@ -20,6 +20,7 @@ void test_stream_from_map(char *path, size_t file_size, size_t blk_size)
 	pmem2_map_delete(&map);
 }
 
+
 int main(int argc, char *argv[])
 {
 	if (argc < 2) {
