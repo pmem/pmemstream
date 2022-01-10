@@ -96,8 +96,8 @@ if(TESTS_RAPIDCHECK)
 	build_test_rc(NAME concurrent_iterate SRC_FILES unittest/concurrent_iterate.cpp)
 	add_test_generic(NAME concurrent_iterate TRACERS none)
 
-	build_test_rc(NAME get_region_context SRC_FILES unittest/get_region_context.cpp)
-	add_test_generic(NAME get_region_context TRACERS none)
+	build_test_rc(NAME get_region_runtime SRC_FILES unittest/get_region_runtime.cpp)
+	add_test_generic(NAME get_region_runtime TRACERS none)
 
 	build_test_rc(NAME create SRC_FILES unittest/create.cpp)
 	add_test_generic(NAME create TRACERS none)

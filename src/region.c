@@ -8,9 +8,9 @@
 #include <assert.h>
 #include <errno.h>
 
-struct region_contexts_map *region_contexts_map_new(void)
+struct region_runtime_map *region_runtime_map_new(void)
 {
-	struct region_contexts_map *map = calloc(1, sizeof(*map));
+	struct region_runtime_map *map = calloc(1, sizeof(*map));
 	if (!map) {
 		return NULL;
 	}
@@ -41,15 +41,15 @@ err_container_lock:
 	return NULL;
 }
 
-static int free_region_context_cb(uintptr_t key, void *value, void *privdata)
+static int free_region_runtime_cb(uintptr_t key, void *value, void *privdata)
 {
 	free(value);
 	return 0;
 }
 
-void region_contexts_map_destroy(struct region_contexts_map *map)
+void region_runtime_map_destroy(struct region_runtime_map *map)
 {
-	critnib_iter(map->container, 0, (uint64_t)-1, free_region_context_cb, NULL);
+	critnib_iter(map->container, 0, (uint64_t)-1, free_region_runtime_cb, NULL);
 	critnib_delete(map->container);
 
 	/* XXX: Handle error */
@@ -59,13 +59,13 @@ void region_contexts_map_destroy(struct region_contexts_map *map)
 	free(map);
 }
 
-int region_contexts_map_get_or_create(struct region_contexts_map *map, struct pmemstream_region region,
-				      struct pmemstream_region_context **container_handle)
+int region_runtime_map_get_or_create(struct region_runtime_map *map, struct pmemstream_region region,
+				     struct pmemstream_region_runtime **container_handle)
 {
-	struct pmemstream_region_context *ctx = critnib_get(map->container, region.offset);
-	if (ctx) {
+	struct pmemstream_region_runtime *runtime = critnib_get(map->container, region.offset);
+	if (runtime) {
 		if (container_handle) {
-			*container_handle = ctx;
+			*container_handle = runtime;
 		}
 		return 0;
 	}
@@ -73,41 +73,41 @@ int region_contexts_map_get_or_create(struct region_contexts_map *map, struct pm
 	int ret = -1;
 
 	pthread_mutex_lock(&map->container_lock);
-	ctx = calloc(1, sizeof(*ctx));
-	if (ctx) {
-		ret = critnib_insert(map->container, region.offset, ctx, 0 /* no update */);
+	runtime = calloc(1, sizeof(*runtime));
+	if (runtime) {
+		ret = critnib_insert(map->container, region.offset, runtime, 0 /* no update */);
 	}
 	pthread_mutex_unlock(&map->container_lock);
 
 	if (ret) {
-		/* Insert failed, free the context. */
-		free(ctx);
+		/* Insert failed, free the runtime. */
+		free(runtime);
 
 		if (ret == EEXIST) {
 			/* Someone else inserted the region context - just get a pointer to it. */
-			ctx = critnib_get(map->container, region.offset);
-			assert(ctx);
+			runtime = critnib_get(map->container, region.offset);
+			assert(runtime);
 		} else {
 			return ret;
 		}
 	}
 
 	if (container_handle) {
-		*container_handle = ctx;
+		*container_handle = runtime;
 	}
 
 	return 0;
 }
 
-void region_contexts_map_remove(struct region_contexts_map *map, struct pmemstream_region region)
+void region_runtime_map_remove(struct region_runtime_map *map, struct pmemstream_region region)
 {
-	struct pmemstream_region_context *ctx = critnib_remove(map->container, region.offset);
-	free(ctx);
+	struct pmemstream_region_runtime *runtime = critnib_remove(map->container, region.offset);
+	free(runtime);
 }
 
-int region_is_append_offset_initialized(struct pmemstream_region_context *region_context)
+int region_is_runtime_initialized(struct pmemstream_region_runtime *region_runtime)
 {
-	return __atomic_load_n(&region_context->append_offset, __ATOMIC_ACQUIRE) != PMEMSTREAM_OFFSET_UNINITIALIZED;
+	return __atomic_load_n(&region_runtime->append_offset, __ATOMIC_ACQUIRE) != PMEMSTREAM_OFFSET_UNINITIALIZED;
 }
 
 /* Iterates over entire region. Might initialize append_offset. */
@@ -125,33 +125,33 @@ static int region_iterate_and_try_recover(struct pmemstream *stream, struct pmem
 	return 0;
 }
 
-int region_try_initialize_append_offset_locked(struct pmemstream *stream, struct pmemstream_region region,
-					       struct pmemstream_region_context *region_context)
+int region_try_runtime_initialize_locked(struct pmemstream *stream, struct pmemstream_region region,
+					 struct pmemstream_region_runtime *region_runtime)
 {
-	assert(region_context);
+	assert(region_runtime);
 	int ret = 0;
 
 	/* If append_offset is not set, iterate over region and set it after last valid entry.
 	 * Uses "double-checked locking". */
-	if (!region_is_append_offset_initialized(region_context)) {
-		pthread_mutex_lock(&stream->region_contexts_map->region_lock);
-		if (!region_is_append_offset_initialized(region_context)) {
+	if (!region_is_runtime_initialized(region_runtime)) {
+		pthread_mutex_lock(&stream->region_runtime_map->region_lock);
+		if (!region_is_runtime_initialized(region_runtime)) {
 			ret = region_iterate_and_try_recover(stream, region);
 		}
-		pthread_mutex_unlock(&stream->region_contexts_map->region_lock);
+		pthread_mutex_unlock(&stream->region_runtime_map->region_lock);
 	}
 
 	return ret;
 }
 
-void region_initialize_append_offset(struct pmemstream_region_context *region_context, struct pmemstream_entry tail)
+void region_runtime_initialize(struct pmemstream_region_runtime *region_runtime, struct pmemstream_entry tail)
 {
-	assert(region_context);
+	assert(region_runtime);
 	assert(tail.offset != PMEMSTREAM_OFFSET_UNINITIALIZED);
 
 	uint64_t expected_append_offset = PMEMSTREAM_OFFSET_UNINITIALIZED;
 	uint64_t desired = tail.offset | PMEMSTREAM_OFFSET_DIRTY_BIT;
 	int weak = 0; /* Use compare_exchange int strong variation. */
-	__atomic_compare_exchange_n(&region_context->append_offset, &expected_append_offset, desired, weak,
+	__atomic_compare_exchange_n(&region_runtime->append_offset, &expected_append_offset, desired, weak,
 				    __ATOMIC_RELEASE, __ATOMIC_RELAXED);
 }

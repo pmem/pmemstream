@@ -17,7 +17,7 @@ extern "C" {
 struct pmemstream_entry_iterator {
 	struct pmemstream *stream;
 	struct pmemstream_region region;
-	struct pmemstream_region_context *region_context;
+	struct pmemstream_region_runtime *region_runtime;
 	uint64_t offset;
 };
 

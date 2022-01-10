@@ -19,7 +19,7 @@ struct pmemstream;
 struct pmemstream_tx;
 struct pmemstream_entry_iterator;
 struct pmemstream_region_iterator;
-struct pmemstream_region_context;
+struct pmemstream_region_runtime;
 struct pmemstream_region {
 	uint64_t offset;
 };
@@ -41,21 +41,21 @@ int pmemstream_region_free(struct pmemstream *stream, struct pmemstream_region r
 
 size_t pmemstream_region_size(struct pmemstream *stream, struct pmemstream_region region);
 
-/* Returns pointer to pmemstream_region_context. The context is managed by libpmemstream - user does not
+/* Returns pointer to pmemstream_region_runtime. The context is managed by libpmemstream - user does not
  * have to explicitly delete/free it. Context becomes invalid after corresponding region is freed. */
-int pmemstream_get_region_context(struct pmemstream *stream, struct pmemstream_region region,
-				  struct pmemstream_region_context **ctx);
+int pmemstream_get_region_runtime(struct pmemstream *stream, struct pmemstream_region region,
+				  struct pmemstream_region_runtime **ctx);
 
-/* Reserve space (for a future, custom write) of a given size, in a region at offset pointed by region_context.
+/* Reserve space (for a future, custom write) of a given size, in a region at offset pointed by region_runtime.
  * Entry's data have to be copied into reserved space by the user and then published using pmemstream_publish.
  * For regular usage, pmemstream_append should be simpler and safer to use and provide better performance.
  *
- * region_context is an optional parameter which can be obtained from pmemstream_get_region_context.
+ * region_runtime is an optional parameter which can be obtained from pmemstream_get_region_runtime.
  * If it's NULL, it will be obtained from its internal structures (which might incur overhead).
  * reserved_entry is updated with offset of the reserved entry.
  * data is updated with a pointer to reserved space - this is a destination for, e.g., custom memcpy. */
 int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region region,
-		       struct pmemstream_region_context *region_context, size_t size,
+		       struct pmemstream_region_runtime *region_runtime, size_t size,
 		       struct pmemstream_entry *reserved_entry, void **data);
 
 /* Publish previously custom-written entry.
@@ -70,7 +70,7 @@ int pmemstream_publish(struct pmemstream *stream, struct pmemstream_region regio
 /* Synchronously appends data buffer after last valid entry in region.
  * Fails if no space is available.
  *
- * region_context is an optional parameter which can be obtained from pmemstream_get_region_context.
+ * region_runtime is an optional parameter which can be obtained from pmemstream_get_region_runtime.
  * If it's NULL, it will be obtained from its internal structures (which might incur overhead).
  *
  * data is a pointer to data to be appended
@@ -80,7 +80,7 @@ int pmemstream_publish(struct pmemstream *stream, struct pmemstream_region regio
  * appended entry.
  */
 int pmemstream_append(struct pmemstream *stream, struct pmemstream_region region,
-		      struct pmemstream_region_context *region_context, const void *data, size_t size,
+		      struct pmemstream_region_runtime *region_runtime, const void *data, size_t size,
 		      struct pmemstream_entry *new_entry);
 
 // returns pointer to the data of the entry

@@ -61,7 +61,7 @@ int entry_iterator_initialize(struct pmemstream_entry_iterator *iterator, struct
 	iter.region = region;
 	iter.stream = stream;
 
-	int ret = region_contexts_map_get_or_create(stream->region_contexts_map, region, &iter.region_context);
+	int ret = region_runtime_map_get_or_create(stream->region_runtime_map, region, &iter.region_runtime);
 	if (ret) {
 		return ret;
 	}
@@ -130,15 +130,15 @@ int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iterator, s
 	 */
 	assert(entry.offset + srt.total_size <= iterator->region.offset + region_srt.total_size);
 
-	int append_offset_initialized = region_is_append_offset_initialized(iterator->region_context);
+	int initialized = region_is_runtime_initialized(iterator->region_runtime);
 
-	if (append_offset_initialized && srt.type == SPAN_EMPTY) {
+	if (initialized && srt.type == SPAN_EMPTY) {
 		/* If we found last entry and append_offset is already initialized, just return -1. */
 		return -1;
-	} else if (!append_offset_initialized && validate_entry(iterator->stream, entry) < 0) {
+	} else if (!initialized && validate_entry(iterator->stream, entry) < 0) {
 		/* If append_offset was not set yet, validate that entry is correct. If entry is not valid, set
 		 * append_offset to point to that entry. */
-		region_initialize_append_offset(iterator->region_context, entry);
+		region_runtime_initialize(iterator->region_runtime, entry);
 		return -1;
 	}
 
