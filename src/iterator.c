@@ -125,8 +125,6 @@ int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iterator, s
 		return -1;
 	}
 
-	iterator->offset += srt.total_size;
-
 	/*
 	 * Verify that all metadata and data fits inside the region - this should not fail unless stream was corrupted.
 	 */
@@ -146,6 +144,8 @@ int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iterator, s
 
 	/* Region is already recovered, and we did not encounter end of the data yet - span must be a valid entry */
 	assert(validate_entry(iterator->stream, entry) == 0);
+
+	iterator->offset += srt.total_size;
 
 	return 0;
 }
