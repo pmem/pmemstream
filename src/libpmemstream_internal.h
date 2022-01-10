@@ -45,7 +45,7 @@ struct pmemstream {
 	pmem2_drain_fn drain;
 	pmem2_persist_fn persist;
 
-	struct region_contexts_map *region_contexts_map;
+	struct region_runtimes_map *region_runtimes_map;
 };
 
 static inline uint8_t *pmemstream_offset_to_ptr(struct pmemstream *stream, uint64_t offset)
