@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-/* Copyright 2021, Intel Corporation */
+/* Copyright 2021-2022, Intel Corporation */
 
 /* Internal Header */
 
@@ -17,7 +17,7 @@ extern "C" {
 struct pmemstream_entry_iterator {
 	struct pmemstream *stream;
 	struct pmemstream_region region;
-	struct pmemstream_region_context *region_context;
+	struct pmemstream_region_runtime *region_runtime;
 	uint64_t offset;
 };
 

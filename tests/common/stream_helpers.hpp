@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-/* Copyright 2021, Intel Corporation */
+/* Copyright 2021-2022, Intel Corporation */
 
 #ifndef LIBPMEMSTREAM_STREAM_HELPERS_HPP
 #define LIBPMEMSTREAM_STREAM_HELPERS_HPP
@@ -10,10 +10,10 @@
 #include <vector>
 
 void append(struct pmemstream *stream, struct pmemstream_region region,
-	    struct pmemstream_region_context *region_context, const std::vector<std::string> &data)
+	    struct pmemstream_region_runtime *region_runtime, const std::vector<std::string> &data)
 {
 	for (const auto &e : data) {
-		auto ret = pmemstream_append(stream, region, region_context, e.data(), e.size(), nullptr);
+		auto ret = pmemstream_append(stream, region, region_runtime, e.data(), e.size(), nullptr);
 		RC_ASSERT(ret == 0);
 	}
 }

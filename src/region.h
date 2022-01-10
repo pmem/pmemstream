@@ -29,11 +29,11 @@ extern "C" {
  * It contains all runtime data specific to a region.
  * It is always managed by the pmemstream (user can only obtain a non-owning pointer) and can be created
  * in few different ways:
- * - By explicitly calling pmemstream_get_region_context() for the first time
- * - By calling pmemstream_append (only if region_context does not exist yet)
- * - By advancing an entry iterator past last entry in a region (only if region_context does not exist yet)
+ * - By explicitly calling pmemstream_get_region_runtime() for the first time
+ * - By calling pmemstream_append (only if region_runtime does not exist yet)
+ * - By advancing an entry iterator past last entry in a region (only if region_runtime does not exist yet)
  */
-struct pmemstream_region_context {
+struct pmemstream_region_runtime {
 	/*
 	 * Offset at which new entries will be appended. Can be set to PMEMSTREAM_OFFSET_UNINITIALIZED.
 	 *
@@ -43,31 +43,31 @@ struct pmemstream_region_context {
 };
 
 /*
- * Holds mapping between region offset and region_context.
+ * Holds mapping between region offset and region_runtime.
  */
-struct region_contexts_map {
+struct region_runtimes_map {
 	critnib *container;
 	pthread_mutex_t container_lock;
 	pthread_mutex_t region_lock; /* XXX: for multiple regions, we might want to consider having more locks. */
 };
 
-struct region_contexts_map *region_contexts_map_new(void);
-void region_contexts_map_destroy(struct region_contexts_map *map);
+struct region_runtimes_map *region_runtimes_map_new(void);
+void region_runtimes_map_destroy(struct region_runtimes_map *map);
 
-/* Gets (or creates if missing) pointer to region_context associated with specified region. */
-int region_contexts_map_get_or_create(struct region_contexts_map *map, struct pmemstream_region region,
-				      struct pmemstream_region_context **container_handle);
+/* Gets (or creates if missing) pointer to region_runtime associated with specified region. */
+int region_runtimes_map_get_or_create(struct region_runtimes_map *map, struct pmemstream_region region,
+				      struct pmemstream_region_runtime **container_handle);
 
-void region_contexts_map_remove(struct region_contexts_map *map, struct pmemstream_region region);
+void region_runtimes_map_remove(struct region_runtimes_map *map, struct pmemstream_region region);
 
-int region_is_append_offset_initialized(struct pmemstream_region_context *region_context);
+int region_is_runtime_initialized(struct pmemstream_region_runtime *region_runtime);
 
 /* Recovers a region (under a global lock) if it is not yet recovered. */
-int region_try_initialize_append_offset_locked(struct pmemstream *stream, struct pmemstream_region region,
-					       struct pmemstream_region_context *region_context);
+int region_try_runtime_initialize_locked(struct pmemstream *stream, struct pmemstream_region region,
+					 struct pmemstream_region_runtime *region_runtime);
 
 /* Performs region recovery - initializes append_offset and clears all the data in the region after `tail` entry. */
-void region_initialize_append_offset(struct pmemstream_region_context *region_context, struct pmemstream_entry tail);
+void region_runtime_initialize(struct pmemstream_region_runtime *region_runtime, struct pmemstream_entry tail);
 
 #ifdef __cplusplus
 } /* end extern "C" */

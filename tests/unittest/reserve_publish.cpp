@@ -20,12 +20,12 @@ namespace
 {
 /* XXX: these helper methods are copy-pasted from "append_break.cpp" test. */
 
-/* append all data in the vector at the offset (pointed by region_context) */
+/* append all data in the vector at the offset (pointed by region_runtime) */
 void append(struct pmemstream *stream, struct pmemstream_region region,
-	    struct pmemstream_region_context *region_context, const std::vector<std::string> &data)
+	    struct pmemstream_region_runtime *region_runtime, const std::vector<std::string> &data)
 {
 	for (const auto &e : data) {
-		auto ret = pmemstream_append(stream, region, region_context, e.data(), e.size(), nullptr);
+		auto ret = pmemstream_append(stream, region, region_runtime, e.data(), e.size(), nullptr);
 		UT_ASSERTeq(ret, 0);
 	}
 }
