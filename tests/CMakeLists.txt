@@ -83,24 +83,24 @@ endif()
 build_test(stream_from_map api_c/stream_from_map.c)
 add_test_generic(NAME stream_from_map TRACERS none memcheck pmemcheck drd helgrind)
 
-build_test(reserve_publish unittest/reserve_publish.cpp)
-add_test_generic(NAME reserve_publish TRACERS none memcheck pmemcheck)
-
 if(TESTS_RAPIDCHECK)
-	build_test_rc(NAME util_popcount SRC_FILES unittest/util_popcount.cpp)
-	add_test_generic(NAME util_popcount TRACERS none)
-
 	build_test_rc(NAME append SRC_FILES unittest/append.cpp)
 	add_test_generic(NAME append TRACERS none)
 
 	build_test_rc(NAME concurrent_iterate SRC_FILES unittest/concurrent_iterate.cpp)
 	add_test_generic(NAME concurrent_iterate TRACERS none)
 
+	build_test_rc(NAME create SRC_FILES unittest/create.cpp)
+	add_test_generic(NAME create TRACERS none)
+
 	build_test_rc(NAME get_region_runtime SRC_FILES unittest/get_region_runtime.cpp)
 	add_test_generic(NAME get_region_runtime TRACERS none)
 
-	build_test_rc(NAME create SRC_FILES unittest/create.cpp)
-	add_test_generic(NAME create TRACERS none)
+	build_test_rc(NAME reserve_publish SRC_FILES unittest/reserve_publish.cpp)
+	add_test_generic(NAME reserve_publish TRACERS none memcheck pmemcheck)
+
+	build_test_rc(NAME util_popcount SRC_FILES unittest/util_popcount.cpp)
+	add_test_generic(NAME util_popcount TRACERS none)
 endif()
 
 if(GDB AND DEBUG_BUILD)
