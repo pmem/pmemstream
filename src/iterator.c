@@ -109,8 +109,8 @@ int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iterator, s
 {
 	struct span_runtime srt = span_get_runtime(iterator->stream, iterator->offset);
 	struct span_runtime region_srt = span_get_region_runtime(iterator->stream, iterator->region.offset);
-	struct pmemstream_entry entry;
-	entry.offset = iterator->offset;
+	struct pmemstream_entry entry = {.offset = iterator->offset};
+	const uint64_t region_end_offset = iterator->region.offset + region_srt.total_size;
 
 	// XXX: add test for NULL entry
 	if (user_entry) {
@@ -120,8 +120,23 @@ int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iterator, s
 		*region = iterator->region;
 	}
 
-	/* Make sure that we didn't go beyond region. */
-	if (iterator->offset >= iterator->region.offset + region_srt.total_size) {
+	int initialized = region_is_runtime_initialized(iterator->region_runtime);
+	if (initialized) {
+		/* Make sure that we didn't go beyond committed entires. */
+		uint64_t committed_offset =
+			__atomic_load_n(&iterator->region_runtime->committed_offset, __ATOMIC_ACQUIRE);
+		if (iterator->offset >= committed_offset) {
+			return -1;
+		}
+
+		/* committed_offset (and hence iterator->offset) should not be bigger than end of region offset. */
+		assert(committed_offset <= region_end_offset);
+		/* Region is already recovered, and we did not encounter end of the data yet - span must be a valid
+		 * entry */
+		assert(validate_entry(iterator->stream, entry) == 0);
+	} else if (iterator->offset >= region_end_offset || validate_entry(iterator->stream, entry) < 0) {
+		/* If we arrived at end of the region or entry is not valid. */
+		region_runtime_initialize(iterator->region_runtime, entry);
 		return -1;
 	}
 
@@ -129,21 +144,6 @@ int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iterator, s
 	 * Verify that all metadata and data fits inside the region - this should not fail unless stream was corrupted.
 	 */
 	assert(entry.offset + srt.total_size <= iterator->region.offset + region_srt.total_size);
-
-	int initialized = region_is_runtime_initialized(iterator->region_runtime);
-
-	if (initialized && srt.type == SPAN_EMPTY) {
-		/* If we found last entry and append_offset is already initialized, just return -1. */
-		return -1;
-	} else if (!initialized && validate_entry(iterator->stream, entry) < 0) {
-		/* If append_offset was not set yet, validate that entry is correct. If entry is not valid, set
-		 * append_offset to point to that entry. */
-		region_runtime_initialize(iterator->region_runtime, entry);
-		return -1;
-	}
-
-	/* Region is already recovered, and we did not encounter end of the data yet - span must be a valid entry */
-	assert(validate_entry(iterator->stream, entry) == 0);
 
 	iterator->offset += srt.total_size;
 

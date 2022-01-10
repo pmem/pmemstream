@@ -79,7 +79,7 @@ void reserve_and_publish(struct pmemstream *stream, struct pmemstream_region reg
 		/* write into the reserved space and publish (persist) it */
 		memcpy(reserved_data, d.data(), d.size());
 
-		ret = pmemstream_publish(stream, region, d.data(), d.size(), &reserved_entry);
+		ret = pmemstream_publish(stream, region, nullptr, d.data(), d.size(), &reserved_entry);
 		RC_ASSERT(ret == 0);
 	}
 }

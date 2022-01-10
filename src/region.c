@@ -151,9 +151,14 @@ void region_runtime_initialize(struct pmemstream_region_runtime *region_runtime,
 	assert(region_runtime);
 	assert(tail.offset != PMEMSTREAM_OFFSET_UNINITIALIZED);
 
+	/* We use relaxed here because of release fence at the end. */
+	__atomic_store_n(&region_runtime->committed_offset, tail.offset, __ATOMIC_RELAXED);
+
 	uint64_t expected_append_offset = PMEMSTREAM_OFFSET_UNINITIALIZED;
 	uint64_t desired = tail.offset | PMEMSTREAM_OFFSET_DIRTY_BIT;
 	int weak = 0; /* Use compare_exchange int strong variation. */
 	__atomic_compare_exchange_n(&region_runtime->append_offset, &expected_append_offset, desired, weak,
-				    __ATOMIC_RELEASE, __ATOMIC_RELAXED);
+				    __ATOMIC_RELAXED, __ATOMIC_RELAXED);
+
+	__atomic_thread_fence(__ATOMIC_RELEASE);
 }
