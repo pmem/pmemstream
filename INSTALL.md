@@ -22,6 +22,8 @@ In order to build libpmemstream, you need to have installed:
 		tool is recommended, but upstream/original [valgrind](https://valgrind.org/) is also compatible (package valgrind-devel is required).
 	* [**rapidcheck**](https://github.com/emil-e/rapidcheck) - some tests require this property based testing framework
 	* **gdb**
+	* **bash**, **awk**, **grep** - some tests require basic scripting tools.
+	* [GNU Binutils](https://www.gnu.org/software/binutils/) - some tests require this for testing generated binaries.
 * Used only for **development**:
 	* [**pandoc**](https://pandoc.org/) - markup converter to generate man pages
 	* [**perl**](https://www.perl.org/) - for whitespace checker script

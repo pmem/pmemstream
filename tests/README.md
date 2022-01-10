@@ -5,6 +5,7 @@ in C and some in C++. The latter ones are, in many cases, just easier to impleme
 hand C tests are checking usage in C applications, which are default for C API.
 
 Directories contains:
+- **abi** - tests for ABI,
 - **api_c** - plain tests for C API,
 - **cmake** - CMake and ctest helpers, including suppressions' files and CMake executions scripts,
 - **common** - shared functions and libraries for all tests,
