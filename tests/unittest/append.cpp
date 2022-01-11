@@ -68,20 +68,23 @@ int main(int argc, char *argv[])
 			const size_t e_size = TEST_DEFAULT_REGION_SIZE / elems - TEST_DEFAULT_BLOCK_SIZE;
 			std::string e(e_size, c);
 
+			struct pmemstream_entry ne = {0}, prev_ne = {0};
 			while (elems-- > 0) {
-				auto ret =
-					pmemstream_append(stream.get(), region, nullptr, e.data(), e.size(), nullptr);
+				auto ret = pmemstream_append(stream.get(), region, nullptr, e.data(), e.size(), &ne);
 				RC_ASSERT(ret == 0);
+				RC_ASSERT(ne.offset > prev_ne.offset);
+				prev_ne = ne;
 			}
 			/* next append should not fit */
-			auto ret = pmemstream_append(stream.get(), region, nullptr, e.data(), e.size(), nullptr);
+			auto ret = pmemstream_append(stream.get(), region, nullptr, e.data(), e.size(), &ne);
+			// RC_ASSERT(ne.offset == prev_ne.offset);
 			/* XXX: should be updated with the real error code, when available */
 			RC_ASSERT(ret == -1);
 			e.resize(4);
 			/* ... but smaller entry should fit just in */
-			ret = pmemstream_append(stream.get(), region, nullptr, e.data(), e.size(), nullptr);
-			/* XXX: should be updated with the real error code, when available */
-			RC_ASSERT(ret == 0);
+			// ret = pmemstream_append(stream.get(), region, nullptr, e.data(), e.size(), &ne);
+			// RC_ASSERT(ne.offset > prev_ne.offset);
+			// RC_ASSERT(ret == 0);
 
 			RC_ASSERT(pmemstream_region_free(stream.get(), region) == 0);
 		});
