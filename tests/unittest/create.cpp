@@ -40,6 +40,30 @@ int main(int argc, char *argv[])
 			RC_ASSERT(pmemstream_region_free(stream.get(), region) == 0);
 		});
 
+		ret += rc::check(
+			"verify if a region_iterator finds the only region created",
+			[&](const std::vector<std::string> &data) {
+				auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE, TEST_DEFAULT_STREAM_SIZE);
+				auto region =
+					initialize_stream_single_region(stream.get(), TEST_DEFAULT_REGION_SIZE, data);
+				verify(stream.get(), region, data, {});
+
+				struct pmemstream_region_iterator *riter;
+				auto ret = pmemstream_region_iterator_new(&riter, stream.get());
+				RC_ASSERT(ret == 0);
+
+				struct pmemstream_region r;
+				ret = pmemstream_region_iterator_next(riter, &r);
+				RC_ASSERT(ret == 0);
+				RC_ASSERT(region.offset == r.offset);
+				/* there should be no more regions */
+				ret = pmemstream_region_iterator_next(riter, &r);
+				RC_ASSERT(ret == -1);
+
+				pmemstream_region_iterator_delete(&riter);
+				RC_ASSERT(pmemstream_region_free(stream.get(), region) == 0);
+			});
+
 		/* verify if a single region of size = 0 can be created */
 		{
 			auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE, TEST_DEFAULT_STREAM_SIZE);
@@ -81,7 +105,7 @@ int main(int argc, char *argv[])
 
 			auto stream = make_pmemstream(path, block_size, TEST_DEFAULT_STREAM_SIZE);
 			/* and initialize this stream with a single region of */
-			auto region = initialize_stream_single_region(stream.get(), block_size / 2UL, {});
+			auto region = initialize_stream_single_region(stream.get(), block_size / 10UL, {});
 			verify(stream.get(), region, {}, {});
 
 			RC_ASSERT(pmemstream_region_free(stream.get(), region) == 0);
