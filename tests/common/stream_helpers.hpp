@@ -23,6 +23,7 @@ struct pmemstream_region initialize_stream_single_region(struct pmemstream *stre
 {
 	struct pmemstream_region new_region;
 	RC_ASSERT(pmemstream_region_allocate(stream, region_size, &new_region) == 0);
+	RC_ASSERT(pmemstream_region_size(stream, new_region) >= region_size);
 
 	append(stream, new_region, NULL, data);
 
@@ -37,7 +38,9 @@ std::vector<std::string> get_elements_in_region(struct pmemstream *stream, struc
 	RC_ASSERT(pmemstream_entry_iterator_new(&eiter, stream, region) == 0);
 
 	struct pmemstream_entry entry;
-	while (pmemstream_entry_iterator_next(eiter, NULL, &entry) == 0) {
+	struct pmemstream_region r;
+	while (pmemstream_entry_iterator_next(eiter, &r, &entry) == 0) {
+		RC_ASSERT(r.offset == region.offset);
 		auto data_ptr = reinterpret_cast<char *>(pmemstream_entry_data(stream, entry));
 		result.emplace_back(data_ptr, pmemstream_entry_length(stream, entry));
 	}
