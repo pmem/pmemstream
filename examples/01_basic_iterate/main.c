@@ -15,9 +15,7 @@ struct data_entry {
  * This example creates a stream from map2 source, prints its content,
  * and appends monotonically increasing values at the end.
  *
- * It accepts a path to an existing file.
- * File can be created, e.g., by command:
- *	dd if=/dev/zero of=file bs=1024 count=1024
+ * It creates a file at given path, with size = STREAM_SIZE.
  */
 int main(int argc, char *argv[])
 {
@@ -26,7 +24,7 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
-	struct pmem2_map *map = example_map_open(argv[1]);
+	struct pmem2_map *map = example_map_open(argv[1], EXAMPLE_STREAM_SIZE);
 	if (map == NULL) {
 		pmem2_perror("pmem2_map");
 		return -1;
