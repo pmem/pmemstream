@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-/* Copyright 2021, Intel Corporation */
+/* Copyright 2021-2022, Intel Corporation */
 
 #include "examples_helpers.h"
 #include "libpmemstream.h"
@@ -93,6 +93,7 @@ int main(int argc, char *argv[])
 			fprintf(stderr, "pmemstream_entry_iterator_new failed\n");
 			return ret;
 		}
+		pmemstream_entry_iterator_delete(&eiter);
 
 		ret = pmemstream_append(stream, new_region, NULL, &e, sizeof(e), &new_entry);
 		if (ret == -1) {
