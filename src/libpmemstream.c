@@ -47,6 +47,10 @@ int pmemstream_from_map(struct pmemstream **stream, size_t block_size, struct pm
 	}
 
 	struct pmemstream *s = malloc(sizeof(struct pmemstream));
+	if (!s) {
+		return -1;
+	}
+
 	s->data = pmem2_map_get_address(map);
 	s->stream_size = pmem2_map_get_size(map);
 	s->usable_size = ALIGN_DOWN(s->stream_size - sizeof(struct pmemstream_data), block_size);
@@ -226,7 +230,7 @@ int pmemstream_append(struct pmemstream *stream, struct pmemstream_region region
 		return ret;
 	}
 
-	stream->memcpy(reserved_dest, data, size, PMEM2_F_MEM_NONTEMPORAL);
+	stream->memcpy(reserved_dest, data, size, PMEM2_F_MEM_NONTEMPORAL | PMEM2_F_MEM_NODRAIN);
 	ret = pmemstream_internal_publish(stream, region, data, size, &reserved_entry, PMEMSTREAM_PUBLISH_NOFLUSH_DATA);
 	if (ret) {
 		return ret;
