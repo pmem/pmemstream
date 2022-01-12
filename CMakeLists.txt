@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: BSD-3-Clause
-# Copyright 2018-2021, Intel Corporation
+# Copyright 2018-2022, Intel Corporation
 
 cmake_minimum_required(VERSION 3.16)
 
@@ -210,17 +210,17 @@ endif()
 # ----------------------------------------------------------------- #
 add_subdirectory(src)
 
-if(BUILD_TESTS)
-	enable_testing()
-	add_subdirectory(tests)
-endif()
-
 if(BUILD_DOC)
 	add_subdirectory(doc)
 endif()
 
 if(BUILD_EXAMPLES)
 	add_subdirectory(examples)
+endif()
+
+if(BUILD_TESTS)
+	enable_testing()
+	add_subdirectory(tests)
 endif()
 
 # ----------------------------------------------------------------- #
