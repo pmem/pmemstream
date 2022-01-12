@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-/* Copyright 2021, Intel Corporation */
+/* Copyright 2021-2022, Intel Corporation */
 
 #include "iterator.h"
 #include "common/util.h"
@@ -61,7 +61,7 @@ int entry_iterator_initialize(struct pmemstream_entry_iterator *iterator, struct
 	iter.region = region;
 	iter.stream = stream;
 
-	int ret = region_contexts_map_get_or_create(stream->region_contexts_map, region, &iter.region_context);
+	int ret = region_runtimes_map_get_or_create(stream->region_runtimes_map, region, &iter.region_runtime);
 	if (ret) {
 		return ret;
 	}
@@ -103,7 +103,7 @@ static int validate_entry(struct pmemstream *stream, struct pmemstream_entry ent
 	return -1;
 }
 
-/* Advances entry iterator by one. Verifies entry integrity and recovers the region if necessary. */
+/* Advances entry iterator by one. Verifies entry integrity and sets append_offset if end of data is found. */
 int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iterator, struct pmemstream_region *region,
 				   struct pmemstream_entry *user_entry)
 {
@@ -125,27 +125,27 @@ int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iterator, s
 		return -1;
 	}
 
-	iterator->offset += srt.total_size;
-
 	/*
 	 * Verify that all metadata and data fits inside the region - this should not fail unless stream was corrupted.
 	 */
 	assert(entry.offset + srt.total_size <= iterator->region.offset + region_srt.total_size);
 
-	int region_recovered = region_is_recovered(iterator->region_context);
+	int initialized = region_is_runtime_initialized(iterator->region_runtime);
 
-	if (region_recovered && srt.type == SPAN_EMPTY) {
-		/* If we found last entry and region is already recovered, just return -1. */
+	if (initialized && srt.type == SPAN_EMPTY) {
+		/* If we found last entry and append_offset is already initialized, just return -1. */
 		return -1;
-	} else if (!region_recovered && validate_entry(iterator->stream, entry) < 0) {
-		/* If region was not yet recovered, validate that entry is correct. If there is any problem, recover the
-		 * region. */
-		region_recover(iterator->stream, iterator->region, iterator->region_context, entry);
+	} else if (!initialized && validate_entry(iterator->stream, entry) < 0) {
+		/* If append_offset was not set yet, validate that entry is correct. If entry is not valid, set
+		 * append_offset to point to that entry. */
+		region_runtime_initialize(iterator->region_runtime, entry);
 		return -1;
 	}
 
 	/* Region is already recovered, and we did not encounter end of the data yet - span must be a valid entry */
 	assert(validate_entry(iterator->stream, entry) == 0);
+
+	iterator->offset += srt.total_size;
 
 	return 0;
 }

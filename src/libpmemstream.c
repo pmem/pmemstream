@@ -62,8 +62,8 @@ int pmemstream_from_map(struct pmemstream **stream, size_t block_size, struct pm
 		pmemstream_init(s);
 	}
 
-	s->region_contexts_map = region_contexts_map_new();
-	if (!s->region_contexts_map) {
+	s->region_runtimes_map = region_runtimes_map_new();
+	if (!s->region_runtimes_map) {
 		goto err;
 	}
 
@@ -78,7 +78,7 @@ err:
 void pmemstream_delete(struct pmemstream **stream)
 {
 	struct pmemstream *s = *stream;
-	region_contexts_map_destroy(s->region_contexts_map);
+	region_runtimes_map_destroy(s->region_runtimes_map);
 	free(s);
 	*stream = NULL;
 }
@@ -120,7 +120,7 @@ int pmemstream_region_free(struct pmemstream *stream, struct pmemstream_region r
 
 	span_create_empty(stream, 0, stream->usable_size - SPAN_EMPTY_METADATA_SIZE);
 
-	region_contexts_map_remove(stream->region_contexts_map, region);
+	region_runtimes_map_remove(stream->region_runtimes_map, region);
 
 	return 0;
 }
@@ -141,14 +141,22 @@ size_t pmemstream_entry_length(struct pmemstream *stream, struct pmemstream_entr
 	return entry_srt.entry.size;
 }
 
-int pmemstream_get_region_context(struct pmemstream *stream, struct pmemstream_region region,
-				  struct pmemstream_region_context **region_context)
+int pmemstream_get_region_runtime(struct pmemstream *stream, struct pmemstream_region region,
+				  struct pmemstream_region_runtime **region_runtime)
 {
-	return region_contexts_map_get_or_create(stream->region_contexts_map, region, region_context);
+	return region_runtimes_map_get_or_create(stream->region_runtimes_map, region, region_runtime);
+}
+
+static void pmemstream_clear_region_remaining(struct pmemstream *stream, struct pmemstream_region region, uint64_t tail)
+{
+	struct span_runtime region_rt = span_get_region_runtime(stream, region.offset);
+	size_t region_end_offset = region.offset + region_rt.total_size;
+	size_t remaining_size = region_end_offset - tail;
+	span_create_empty(stream, tail, remaining_size - SPAN_EMPTY_METADATA_SIZE);
 }
 
 int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region region,
-		       struct pmemstream_region_context *region_context, size_t size,
+		       struct pmemstream_region_runtime *region_runtime, size_t size,
 		       struct pmemstream_entry *reserved_entry, void **data_addr)
 {
 	size_t entry_total_size = size + SPAN_ENTRY_METADATA_SIZE;
@@ -156,23 +164,25 @@ int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region regio
 	struct span_runtime region_srt = span_get_region_runtime(stream, region.offset);
 	int ret = 0;
 
-	if (!region_context) {
-		ret = pmemstream_get_region_context(stream, region, &region_context);
+	if (!region_runtime) {
+		ret = pmemstream_get_region_runtime(stream, region, &region_runtime);
 		if (ret) {
 			return ret;
 		}
 	}
 
-	ret = region_try_recover_locked(stream, region, region_context);
+	ret = region_try_runtime_initialize_locked(stream, region, region_runtime);
 	if (ret) {
 		return ret;
 	}
 
-	uint64_t offset =
-		__atomic_fetch_add(&region_context->append_offset, entry_total_size_span_aligned, __ATOMIC_RELEASE);
+	uint64_t offset = __atomic_load_n(&region_runtime->append_offset, __ATOMIC_RELAXED);
+	if (offset & PMEMSTREAM_OFFSET_DIRTY_BIT) {
+		offset &= PMEMSTREAM_OFFSET_DIRTY_MASK;
+		pmemstream_clear_region_remaining(stream, region, offset);
+		__atomic_store_n(&region_runtime->append_offset, offset, __ATOMIC_RELEASE);
+	}
 
-	/* XXX: should we revert this fetch_add if no space left? What about concurrent appends? */
-	/* region overflow (no space left) or offset outside of region. */
 	if (offset + entry_total_size_span_aligned > region.offset + region_srt.total_size) {
 		return -1;
 	}
@@ -181,8 +191,10 @@ int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region regio
 		return -1;
 	}
 
+	region_runtime->append_offset += entry_total_size_span_aligned;
+
 	reserved_entry->offset = offset;
-	/* data are right next after the entry metadata */
+	/* data is right after the entry metadata */
 	*data_addr = span_offset_to_span_ptr(stream, offset + SPAN_ENTRY_METADATA_SIZE);
 
 	return ret;
@@ -204,12 +216,12 @@ int pmemstream_publish(struct pmemstream *stream, struct pmemstream_region regio
 
 // synchronously appends data buffer to the end of the region
 int pmemstream_append(struct pmemstream *stream, struct pmemstream_region region,
-		      struct pmemstream_region_context *region_context, const void *data, size_t size,
+		      struct pmemstream_region_runtime *region_runtime, const void *data, size_t size,
 		      struct pmemstream_entry *new_entry)
 {
 	struct pmemstream_entry reserved_entry;
 	void *reserved_dest;
-	int ret = pmemstream_reserve(stream, region, region_context, size, &reserved_entry, &reserved_dest);
+	int ret = pmemstream_reserve(stream, region, region_runtime, size, &reserved_entry, &reserved_dest);
 	if (ret) {
 		return ret;
 	}
