@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-/* Copyright 2021, Intel Corporation */
+/* Copyright 2021-2022, Intel Corporation */
 
 /*
  * Helper, common functions for examples.
@@ -12,15 +12,26 @@
 #include <libpmem2.h>
 #include <unistd.h>
 
-static inline struct pmem2_map *example_map_open(const char *file)
+/* example file size = 10MiB */
+#define EXAMPLE_STREAM_SIZE (1024UL * 1024 * 10)
+
+static inline struct pmem2_map *example_map_open(const char *file, const size_t size)
 {
+	const mode_t FILE_MODE = 0644;
 	struct pmem2_source *source;
 	struct pmem2_config *config;
 	struct pmem2_map *map = NULL;
 
-	int fd = open(file, O_RDWR);
+	/* open or create file */
+	int fd = open(file, O_CREAT | O_RDWR, FILE_MODE);
 	if (fd < 0)
 		return NULL;
+
+	/* if given size is non-zero we want to extend (most likely just created) file */
+	if (size > 0) {
+		if (ftruncate(fd, (off_t)size) != 0)
+			goto err_fd;
+	}
 
 	if (pmem2_source_from_fd(&source, fd) != 0)
 		goto err_fd;
