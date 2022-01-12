@@ -101,6 +101,9 @@ if(TESTS_RAPIDCHECK)
 
 	build_test_rc(NAME create SRC_FILES unittest/create.cpp)
 	add_test_generic(NAME create TRACERS none)
+
+	build_test_rc(NAME id_manager SRC_FILES unittest/id_manager.cpp ../src/id_manager.c ../src/critnib/critnib.c)
+	add_test_generic(NAME id_manager TRACERS none)
 endif()
 
 if(GDB AND DEBUG_BUILD)
