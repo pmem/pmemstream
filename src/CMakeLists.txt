@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: BSD-3-Clause
-# Copyright 2020-2021, Intel Corporation
+# Copyright 2020-2022, Intel Corporation
 
 add_cppstyle(src
 	${CMAKE_CURRENT_SOURCE_DIR}/*.[chp]
@@ -14,6 +14,7 @@ add_check_whitespace(src
 	${CMAKE_CURRENT_SOURCE_DIR}/critnib/*.[chp])
 
 set(SOURCES critnib/critnib.c
+			id_manager.c
 			iterator.c
 			region.c
 			span.c
