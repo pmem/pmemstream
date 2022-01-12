@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: BSD-3-Clause
-# Copyright 2018-2021, Intel Corporation
+# Copyright 2018-2022, Intel Corporation
 
 #
 # functions.cmake - generic helper functions for other CMake files
@@ -78,24 +78,29 @@ macro(add_common_flag flag)
 	add_cxx_flag(${flag} ${ARGV1})
 endmacro()
 
-# Add sanitizer flag, if it is supported, for C compiler
-# XXX: perhaps we should also extend it for CXX compiler
+# Add sanitizer flag, if it is supported, for both C and C++ compiler
 macro(add_sanitizer_flag flag)
 	set(SAVED_CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES})
 	set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES} -fsanitize=${flag}")
 
 	if(${flag} STREQUAL "address")
-		set(check_name "C_HAS_ASAN")
+		set(check_name "HAS_ASAN")
 	elseif(${flag} STREQUAL "undefined")
-		set(check_name "C_HAS_UBSAN")
+		set(check_name "HAS_UBSAN")
 	endif()
 
-	check_c_compiler_flag("-fsanitize=${flag}" ${check_name})
-	if (${${check_name}})
-		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=${flag} -fno-sanitize-recover=all")
+	check_c_compiler_flag("-fsanitize=${flag}" "C_${check_name}")
+	check_cxx_compiler_flag("-fsanitize=${flag}" "CXX_${check_name}")
+	if (${C_${check_name}} OR ${CXX_${check_name}})
 		set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=${flag} -fno-sanitize-recover=all")
+		if (${C_${check_name}})
+			set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=${flag} -fno-sanitize-recover=all")
+		endif()
+		if (${CXX_${check_name}})
+			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=${flag} -fno-sanitize-recover=all")
+		endif()
 	else()
-		message(STATUS "  ${flag} sanitizer is not supported")
+		message(STATUS "  ${flag} sanitizer is not supported (neither by C nor CXX compiler)")
 	endif()
 
 	set(CMAKE_REQUIRED_LIBRARIES ${SAVED_CMAKE_REQUIRED_LIBRARIES})
