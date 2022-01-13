@@ -101,6 +101,10 @@ static int pmemstream_validate_sizes(size_t block_size, struct pmem2_map *map)
 
 int pmemstream_from_map(struct pmemstream **stream, size_t block_size, struct pmem2_map *map)
 {
+	if (!stream) {
+		return -1;
+	}
+
 	if (pmemstream_validate_sizes(block_size, map)) {
 		return -1;
 	}
@@ -142,6 +146,9 @@ err:
 
 void pmemstream_delete(struct pmemstream **stream)
 {
+	if (!stream) {
+		return;
+	}
 	struct pmemstream *s = *stream;
 	region_runtimes_map_destroy(s->region_runtimes_map);
 	free(s);
@@ -153,6 +160,10 @@ void pmemstream_delete(struct pmemstream **stream)
 /* XXX: add test for multiple regions, when supported */
 int pmemstream_region_allocate(struct pmemstream *stream, size_t size, struct pmemstream_region *region)
 {
+	if (!stream) {
+		return -1;
+	}
+
 	const uint64_t offset = 0;
 	assert(offset % stream->block_size == 0);
 	const struct span_base *span_base = span_offset_to_span_ptr(&stream->data, offset);
@@ -175,6 +186,13 @@ int pmemstream_region_allocate(struct pmemstream *stream, size_t size, struct pm
 	span_region.span_base = span_base_create(total_size - sizeof(struct span_region), SPAN_REGION);
 
 	stream->data.memcpy((void *)span_base, &span_region, sizeof(struct span_region), 0);
+
+	if (!region) {
+		region = (struct pmemstream_region *)calloc(1, sizeof(*region));
+		if (!region) {
+			return -1;
+		}
+	}
 	region->offset = offset;
 
 #ifndef NDEBUG
@@ -188,6 +206,11 @@ int pmemstream_region_allocate(struct pmemstream *stream, size_t size, struct pm
 
 size_t pmemstream_region_size(struct pmemstream *stream, struct pmemstream_region region)
 {
+	int ret = pmemstream_validate_stream_and_offset(stream, region.offset);
+	if (ret) {
+		return 0;
+	}
+
 	const struct span_base *span_region = span_offset_to_span_ptr(&stream->data, region.offset);
 	assert(span_get_type(span_region) == SPAN_REGION);
 	return span_get_size(span_region);
@@ -195,6 +218,11 @@ size_t pmemstream_region_size(struct pmemstream *stream, struct pmemstream_regio
 
 int pmemstream_region_free(struct pmemstream *stream, struct pmemstream_region region)
 {
+	int ret = pmemstream_validate_stream_and_offset(stream, region.offset);
+	if (ret) {
+		return ret;
+	}
+
 	struct span_region *span_region = (struct span_region *)span_offset_to_span_ptr(&stream->data, region.offset);
 
 	if (span_get_type(&span_region->span_base) != SPAN_REGION)
@@ -214,6 +242,11 @@ int pmemstream_region_free(struct pmemstream *stream, struct pmemstream_region r
 // returns pointer to the data of the entry
 const void *pmemstream_entry_data(struct pmemstream *stream, struct pmemstream_entry entry)
 {
+	int ret = pmemstream_validate_stream_and_offset(stream, entry.offset);
+	if (ret) {
+		return NULL;
+	}
+
 	struct span_entry *span_entry = (struct span_entry *)span_offset_to_span_ptr(&stream->data, entry.offset);
 	return span_entry->data;
 }
@@ -221,6 +254,10 @@ const void *pmemstream_entry_data(struct pmemstream *stream, struct pmemstream_e
 // returns the size of the entry
 size_t pmemstream_entry_length(struct pmemstream *stream, struct pmemstream_entry entry)
 {
+	int ret = pmemstream_validate_stream_and_offset(stream, entry.offset);
+	if (ret) {
+		return 0;
+	}
 	struct span_entry *span_entry = (struct span_entry *)span_offset_to_span_ptr(&stream->data, entry.offset);
 	return span_get_size(&span_entry->span_base);
 }
@@ -228,7 +265,12 @@ size_t pmemstream_entry_length(struct pmemstream *stream, struct pmemstream_entr
 int pmemstream_region_runtime_initialize(struct pmemstream *stream, struct pmemstream_region region,
 					 struct pmemstream_region_runtime **region_runtime)
 {
-	int ret = region_runtimes_map_get_or_create(stream->region_runtimes_map, region, region_runtime);
+	int ret = pmemstream_validate_stream_and_offset(stream, region.offset);
+	if (ret) {
+		return ret;
+	}
+
+	ret = region_runtimes_map_get_or_create(stream->region_runtimes_map, region, region_runtime);
 	if (ret) {
 		return ret;
 	}
@@ -248,10 +290,14 @@ int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region regio
 		       struct pmemstream_region_runtime *region_runtime, size_t size,
 		       struct pmemstream_entry *reserved_entry, void **data_addr)
 {
+	int ret = pmemstream_validate_stream_and_offset(stream, region.offset);
+	if (ret) {
+		return ret;
+	}
+
 	size_t entry_total_size_span_aligned = pmemstream_entry_total_size_aligned(size);
 	const struct span_base *span_region = span_offset_to_span_ptr(&stream->data, region.offset);
 	assert(span_get_type(span_region) == SPAN_REGION);
-	int ret = 0;
 
 	if (!reserved_entry) {
 		return -1;
@@ -283,8 +329,16 @@ int pmemstream_publish(struct pmemstream *stream, struct pmemstream_region regio
 		       struct pmemstream_region_runtime *region_runtime, const void *data, size_t size,
 		       struct pmemstream_entry reserved_entry)
 {
+	int ret = pmemstream_validate_stream_and_offset(stream, region.offset);
+	if (ret) {
+		return ret;
+	}
+	if (stream->header->stream_size <= reserved_entry.offset) {
+		return -1;
+	}
+
 	if (!region_runtime) {
-		int ret = pmemstream_region_runtime_initialize(stream, region, &region_runtime);
+		ret = pmemstream_region_runtime_initialize(stream, region, &region_runtime);
 		if (ret) {
 			return ret;
 		}

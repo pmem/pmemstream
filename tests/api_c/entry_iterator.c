@@ -92,17 +92,16 @@ void invalid_region_test(char *path)
 	struct pmem2_map *map = map_open(path, TEST_DEFAULT_STREAM_SIZE, true);
 	struct pmemstream *stream;
 	pmemstream_from_map(&stream, TEST_DEFAULT_BLOCK_SIZE, map);
-	struct pmemstream_entry_iterator *eiter;
+	struct pmemstream_entry_iterator *eiter = NULL;
 	struct pmemstream_entry entry;
 	struct pmemstream_region region;
 	struct pmemstream_region invalid_region = {.offset = invalid_offset};
 	ret = pmemstream_region_allocate(stream, TEST_DEFAULT_REGION_SIZE, &region);
 	UT_ASSERTeq(ret, 0);
 
-	// https://github.com/pmem/pmemstream/issues/99
-	// ret = pmemstream_entry_iterator_new(&eiter, stream, invalid_region);
-	// UT_ASSERTeq(ret, -1);
-	// UT_ASSERTeq(eiter, NULL);
+	ret = pmemstream_entry_iterator_new(&eiter, stream, invalid_region);
+	UT_ASSERTeq(ret, -1);
+	UT_ASSERTeq(eiter, NULL);
 
 	ret = pmemstream_entry_iterator_new(&eiter, stream, region);
 	UT_ASSERTeq(ret, 0);
@@ -122,7 +121,7 @@ void null_stream_test(char *path)
 	struct pmem2_map *map = map_open(path, TEST_DEFAULT_STREAM_SIZE, true);
 	struct pmemstream *stream;
 	pmemstream_from_map(&stream, TEST_DEFAULT_BLOCK_SIZE, map);
-	struct pmemstream_entry_iterator *eiter;
+	struct pmemstream_entry_iterator *eiter = NULL;
 	struct pmemstream_region region;
 	ret = pmemstream_region_allocate(stream, TEST_DEFAULT_REGION_SIZE, &region);
 	UT_ASSERTeq(ret, 0);
@@ -138,7 +137,7 @@ void null_stream_test(char *path)
 
 void null_stream_and_invalid_region_test(char *path)
 {
-	struct pmemstream_entry_iterator *eiter;
+	struct pmemstream_entry_iterator *eiter = NULL;
 	struct pmemstream_region invalid_region = {.offset = ALIGN_DOWN(UINT64_MAX, sizeof(span_bytes))};
 	int ret;
 
@@ -202,13 +201,9 @@ int main(int argc, char *argv[])
 
 	valid_input_test(path);
 	test_get_last_entry(path);
-	valid_input_test(path);
 	invalid_region_test(path);
-	// https://github.com/pmem/pmemstream/issues/98
-	// null_stream_test(path);
-	// https://github.com/pmem/pmemstream/issues/98
-	// https://github.com/pmem/pmemstream/issues/99
-	// null_stream_and_invalid_region_test(path);
+	null_stream_test(path);
+	null_stream_and_invalid_region_test(path);
 	// https://github.com/pmem/pmemstream/issues/137
 	// null_entry_iterator_test(path);
 	null_entry_test(path);

@@ -59,13 +59,12 @@ void invalid_region_test(char *path)
 	struct pmemstream_region invalid_region = {.offset = ALIGN_DOWN(UINT64_MAX, sizeof(span_bytes))};
 	int ret;
 
-	// XXX: to be verified, we should not get a proper size here
-	UT_ASSERT(pmemstream_region_size(stream, invalid_region) >= TEST_DEFAULT_REGION_SIZE);
+	UT_ASSERT(pmemstream_region_size(stream, invalid_region) == 0);
 
 	struct pmemstream_region_runtime *rtm = NULL;
 	ret = pmemstream_region_runtime_initialize(stream, invalid_region, &rtm);
-	UT_ASSERTeq(ret, 0);
-	UT_ASSERTne(rtm, NULL);
+	UT_ASSERTeq(ret, -1);
+	UT_ASSERTeq(rtm, NULL);
 
 	ret = pmemstream_region_free(stream, invalid_region);
 	UT_ASSERTeq(ret, -1);
@@ -85,8 +84,7 @@ int main(int argc, char *argv[])
 
 	valid_input_test(path);
 	zero_size_test(path);
-	// https://github.com/pmem/pmemstream/issues/99
-	// invalid_region_test(path);
+	invalid_region_test(path);
 
 	return 0;
 }
