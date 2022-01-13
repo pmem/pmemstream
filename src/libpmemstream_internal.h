@@ -50,6 +50,17 @@ struct pmemstream {
 	struct region_runtimes_map *region_runtimes_map;
 };
 
+static inline int pmemstream_validate_stream_and_offset(struct pmemstream *stream, uint64_t offset)
+{
+	if (!stream) {
+		return -1;
+	}
+	if (stream->header->stream_size <= offset) {
+		return -1;
+	}
+	return 0;
+}
+
 static inline const uint8_t *pmemstream_offset_to_ptr(const struct pmemstream_data_runtime *data, uint64_t offset)
 {
 	return (const uint8_t *)data->spans + offset;

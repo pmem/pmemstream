@@ -41,6 +41,33 @@ void valid_input_test(char *path)
 	pmem2_map_delete(&map);
 }
 
+void null_iterator_test(char *path)
+{
+	int ret;
+
+	struct pmem2_map *map = map_open(path, TEST_DEFAULT_STREAM_SIZE, true);
+	struct pmemstream *stream;
+	ret = pmemstream_from_map(&stream, TEST_DEFAULT_BLOCK_SIZE, map);
+	UT_ASSERTeq(ret, 0);
+
+	struct pmemstream_region region;
+	ret = pmemstream_region_allocate(stream, TEST_DEFAULT_REGION_SIZE, &region);
+	UT_ASSERTeq(ret, 0);
+
+	ret = pmemstream_region_iterator_new(NULL, stream);
+	UT_ASSERTeq(ret, -1);
+
+	ret = pmemstream_region_iterator_next(NULL, &region);
+	UT_ASSERTeq(ret, -1);
+
+	ret = pmemstream_region_iterator_next(NULL, &region);
+	UT_ASSERTeq(ret, -1);
+
+	pmemstream_region_free(stream, region);
+	pmemstream_delete(&stream);
+	pmem2_map_delete(&map);
+}
+
 void invalid_region_test(char *path)
 {
 	const uint64_t invalid_offset = ALIGN_DOWN(UINT64_MAX, sizeof(span_bytes));
@@ -70,8 +97,8 @@ void null_stream_test()
 	int ret;
 
 	ret = pmemstream_region_iterator_new(&riter, NULL);
-	UT_ASSERTeq(ret, 0);
-	UT_ASSERTne(riter, NULL);
+	UT_ASSERTeq(ret, -1);
+	UT_ASSERTeq(riter, NULL);
 
 	pmemstream_region_iterator_delete(&riter);
 }
@@ -87,6 +114,7 @@ int main(int argc, char *argv[])
 	char *path = argv[1];
 
 	valid_input_test(path);
+	null_iterator_test(path);
 	invalid_region_test(path);
 	null_stream_test();
 

@@ -72,6 +72,34 @@ void valid_input_test_with_memcpy(char *path)
 	pmem2_map_delete(&map);
 }
 
+void null_stream_test(char *path)
+{
+	int ret;
+	void *data_address = NULL;
+	struct entry_data data;
+	data.data = 128;
+	struct pmemstream_entry entry;
+	struct pmem2_map *map = map_open(path, TEST_DEFAULT_STREAM_SIZE, true);
+	struct pmemstream *stream;
+	ret = pmemstream_from_map(&stream, TEST_DEFAULT_BLOCK_SIZE, map);
+	UT_ASSERTeq(ret, 0);
+
+	struct pmemstream_region region;
+	ret = pmemstream_region_allocate(stream, TEST_DEFAULT_REGION_SIZE, &region);
+	UT_ASSERTeq(ret, 0);
+
+	ret = pmemstream_reserve(NULL, region, NULL, sizeof(data), &entry, &data_address);
+	UT_ASSERTeq(ret, -1);
+	UT_ASSERTeq(data_address, NULL);
+
+	ret = pmemstream_publish(NULL, region, NULL, &data, sizeof(data), entry);
+	UT_ASSERTeq(ret, -1);
+
+	pmemstream_region_free(stream, region);
+	pmemstream_delete(&stream);
+	pmem2_map_delete(&map);
+}
+
 void invalid_region_test(char *path)
 {
 	int ret;
@@ -185,8 +213,8 @@ int main(int argc, char *argv[])
 
 	valid_input_test(path);
 	valid_input_test_with_memcpy(path);
-	// https://github.com/pmem/pmemstream/issues/99
-	// invalid_region_test(path);
+	null_stream_test(path);
+	invalid_region_test(path);
 	null_data_test(path);
 	zero_size_test(path);
 	null_entry_test(path);
