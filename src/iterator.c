@@ -12,6 +12,10 @@
 
 int pmemstream_region_iterator_new(struct pmemstream_region_iterator **iterator, struct pmemstream *stream)
 {
+	if (!stream || !iterator) {
+		return -1;
+	}
+
 	struct pmemstream_region_iterator *iter = malloc(sizeof(*iter));
 	if (!iter) {
 		return -1;
@@ -27,6 +31,10 @@ int pmemstream_region_iterator_new(struct pmemstream_region_iterator **iterator,
 
 int pmemstream_region_iterator_next(struct pmemstream_region_iterator *it, struct pmemstream_region *region)
 {
+	if (!it) {
+		return -1;
+	}
+
 	while (it->region.offset < it->stream->usable_size) {
 		const struct span_base *span_base = span_offset_to_span_ptr(&it->stream->data, it->region.offset);
 
@@ -40,7 +48,6 @@ int pmemstream_region_iterator_next(struct pmemstream_region_iterator *it, struc
 		assert(span_get_type(span_base) == SPAN_EMPTY);
 		it->region.offset += span_get_total_size(span_base);
 	}
-
 	return -1;
 }
 
@@ -56,10 +63,15 @@ int entry_iterator_initialize(struct pmemstream_entry_iterator *iterator, struct
 			      struct pmemstream_region region,
 			      region_runtime_initialize_fn_type region_runtime_initialize_fn)
 {
+	int ret = pmemstream_validate_stream_and_offset(stream, region.offset);
+	if (ret) {
+		return ret;
+	}
+
 	assert(span_get_type(span_offset_to_span_ptr(&stream->data, region.offset)) == SPAN_REGION);
 
 	struct pmemstream_region_runtime *region_rt;
-	int ret = region_runtimes_map_get_or_create(stream->region_runtimes_map, region, &region_rt);
+	ret = region_runtimes_map_get_or_create(stream->region_runtimes_map, region, &region_rt);
 	if (ret) {
 		return ret;
 	}
@@ -204,6 +216,10 @@ static int pmemstream_entry_iterator_next_when_region_not_initialized(struct pme
 int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iterator, struct pmemstream_region *region,
 				   struct pmemstream_entry *user_entry)
 {
+	if (!iterator) {
+		return -1;
+	}
+
 	if (region) {
 		*region = iterator->region;
 	}

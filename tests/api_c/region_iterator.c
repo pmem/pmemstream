@@ -70,8 +70,8 @@ void null_stream_test()
 	int ret;
 
 	ret = pmemstream_region_iterator_new(&riter, NULL);
-	UT_ASSERTeq(ret, 0);
-	UT_ASSERTne(riter, NULL);
+	UT_ASSERTeq(ret, -1);
+	UT_ASSERTeq(riter, NULL);
 
 	pmemstream_region_iterator_delete(&riter);
 }
