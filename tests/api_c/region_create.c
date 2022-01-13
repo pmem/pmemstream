@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /* Copyright 2021-2022, Intel Corporation */
 
+#include "libpmemstream_internal.h"
 #include "unittest.h"
+#include <common/util.h>
 
 /**
  * region_create - unit test for pmemstream_region_allocate, pmemstream_region_free,
  *					pmemstream_region_size, pmemstream_get_region_runtime
  */
 
-void test_region_create(char *path)
+void valid_input_test(char *path)
 {
 	int ret;
 	struct pmem2_map *map = map_open(path, TEST_DEFAULT_STREAM_SIZE, true);
@@ -36,6 +38,47 @@ void test_region_create(char *path)
 	pmem2_map_delete(&map);
 }
 
+void null_size_test(char *path)
+{
+	struct pmem2_map *map = map_open(path, TEST_DEFAULT_STREAM_SIZE, true);
+	struct pmemstream *stream;
+	pmemstream_from_map(&stream, TEST_DEFAULT_BLOCK_SIZE, map);
+	size_t zero_size = 0;
+	int ret;
+
+	struct pmemstream_region region;
+	ret = pmemstream_region_allocate(stream, zero_size, &region);
+	UT_ASSERTeq(ret, 0);
+
+	ret = pmemstream_region_free(stream, region);
+	UT_ASSERTeq(ret, 0);
+
+	pmemstream_delete(&stream);
+	pmem2_map_delete(&map);
+}
+
+void invalid_region_test(char *path)
+{
+	struct pmem2_map *map = map_open(path, TEST_DEFAULT_STREAM_SIZE, true);
+	struct pmemstream *stream;
+	pmemstream_from_map(&stream, TEST_DEFAULT_BLOCK_SIZE, map);
+	struct pmemstream_region invalid_region = {.offset = ALIGN_DOWN(UINT64_MAX, sizeof(span_bytes))};
+	int ret;
+
+	UT_ASSERTeq(pmemstream_region_size(stream, invalid_region), 0);
+
+	struct pmemstream_region_runtime *rtm = NULL;
+	ret = pmemstream_get_region_runtime(stream, invalid_region, &rtm);
+	UT_ASSERTeq(ret, 0);
+	UT_ASSERTne(rtm, NULL);
+
+	ret = pmemstream_region_free(stream, invalid_region);
+	UT_ASSERTeq(ret, -1);
+
+	pmemstream_delete(&stream);
+	pmem2_map_delete(&map);
+}
+
 int main(int argc, char *argv[])
 {
 	if (argc < 2) {
@@ -45,7 +88,9 @@ int main(int argc, char *argv[])
 	START();
 	char *path = argv[1];
 
-	test_region_create(path);
+	valid_input_test(path);
+	null_size_test(path);
+	invalid_region_test(path);
 
 	return 0;
 }
