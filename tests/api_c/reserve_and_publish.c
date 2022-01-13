@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /* Copyright 2021-2022, Intel Corporation */
 
+#include "common/util.h"
+#include "span.h"
 #include "unittest.h"
 #include <string.h>
 
@@ -12,7 +14,7 @@ struct entry_data {
 	uint64_t data;
 };
 
-void test_reserve_and_publish(char *path)
+void valid_input_test(char *path)
 {
 	int ret;
 	void *data_address = NULL;
@@ -40,7 +42,7 @@ void test_reserve_and_publish(char *path)
 	pmem2_map_delete(&map);
 }
 
-void test_reserve_and_publish_with_memcpy(char *path)
+void valid_input_test_with_memcpy(char *path)
 {
 	int ret;
 	void *data_address = NULL;
@@ -70,6 +72,30 @@ void test_reserve_and_publish_with_memcpy(char *path)
 	pmem2_map_delete(&map);
 }
 
+void invalid_region_test(char *path)
+{
+	int ret;
+	void *data_address = NULL;
+	struct entry_data data;
+	struct pmemstream_entry entry;
+	struct pmem2_map *map = map_open(path, TEST_DEFAULT_STREAM_SIZE, true);
+	struct pmemstream *stream;
+	ret = pmemstream_from_map(&stream, TEST_DEFAULT_BLOCK_SIZE, map);
+	UT_ASSERTeq(ret, 0);
+
+	struct pmemstream_region invalid_region = {.offset = ALIGN_DOWN(UINT64_MAX, sizeof(span_bytes))};
+
+	ret = pmemstream_reserve(stream, invalid_region, NULL, sizeof(data), &entry, &data_address);
+	UT_ASSERTeq(ret, -1);
+	UT_ASSERTeq(data_address, NULL);
+
+	ret = pmemstream_publish(stream, invalid_region, NULL, &data, sizeof(data), entry);
+	UT_ASSERTeq(ret, -1);
+
+	pmemstream_delete(&stream);
+	pmem2_map_delete(&map);
+}
+
 int main(int argc, char *argv[])
 {
 	if (argc < 2) {
@@ -80,8 +106,9 @@ int main(int argc, char *argv[])
 
 	char *path = argv[1];
 
-	test_reserve_and_publish(path);
-	test_reserve_and_publish_with_memcpy(path);
+	valid_input_test(path);
+	valid_input_test_with_memcpy(path);
+	invalid_region_test(path);
 
 	return 0;
 }
