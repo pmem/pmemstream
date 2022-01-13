@@ -89,6 +89,10 @@ int entry_iterator_initialize(struct pmemstream_entry_iterator *iterator, struct
 int pmemstream_entry_iterator_new(struct pmemstream_entry_iterator **iterator, struct pmemstream *stream,
 				  struct pmemstream_region region)
 {
+	if (!iterator) {
+		return -1;
+	}
+
 	struct pmemstream_entry_iterator *iter = malloc(sizeof(*iter));
 	if (!iter) {
 		return -1;

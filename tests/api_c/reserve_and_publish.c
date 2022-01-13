@@ -21,8 +21,7 @@ void valid_input_test(char *path)
 
 	int ret;
 	void *data_address = NULL;
-	struct entry_data data;
-	data.data = 128;
+	struct entry_data data = {.data = 128};
 	struct pmemstream_entry entry;
 	struct pmemstream_region region;
 
@@ -37,7 +36,6 @@ void valid_input_test(char *path)
 	UT_ASSERTeq(ret, 0);
 
 	pmemstream_region_free(env.stream, region);
-
 	pmemstream_test_teardown(env);
 }
 
@@ -47,8 +45,7 @@ void valid_input_test_with_memcpy(char *path)
 
 	int ret;
 	void *data_address = NULL;
-	struct entry_data data;
-	data.data = 1024;
+	struct entry_data data = {.data = 1024};
 	struct pmemstream_entry entry;
 
 	struct pmemstream_region region;
@@ -65,7 +62,30 @@ void valid_input_test_with_memcpy(char *path)
 	UT_ASSERTeq(ret, 0);
 
 	pmemstream_region_free(env.stream, region);
+	pmemstream_test_teardown(env);
+}
 
+void null_stream_test(char *path)
+{
+	pmemstream_test_env env = pmemstream_test_make_default(path);
+
+	int ret;
+	void *data_address = NULL;
+	struct entry_data data = {.data = 128};
+	struct pmemstream_entry entry;
+
+	struct pmemstream_region region;
+	ret = pmemstream_region_allocate(env.stream, TEST_DEFAULT_REGION_SIZE, &region);
+	UT_ASSERTeq(ret, 0);
+
+	ret = pmemstream_reserve(NULL, region, NULL, sizeof(data), &entry, &data_address);
+	UT_ASSERTeq(ret, -1);
+	UT_ASSERTeq(data_address, NULL);
+
+	ret = pmemstream_publish(NULL, region, NULL, &data, sizeof(data), entry);
+	UT_ASSERTeq(ret, -1);
+
+	pmemstream_region_free(env.stream, region);
 	pmemstream_test_teardown(env);
 }
 
@@ -109,7 +129,6 @@ void null_data_test(char *path)
 	UT_ASSERTeq(ret, 0);
 
 	pmemstream_region_free(env.stream, region);
-
 	pmemstream_test_teardown(env);
 }
 
@@ -118,8 +137,7 @@ void zero_size_test(char *path)
 	pmemstream_test_env env = pmemstream_test_make_default(path);
 
 	void *data_address = NULL;
-	struct entry_data data;
-	data.data = PTRDIFF_MAX;
+	struct entry_data data = {.data = PTRDIFF_MAX};
 	struct pmemstream_entry entry;
 
 	struct pmemstream_region region;
@@ -134,7 +152,6 @@ void zero_size_test(char *path)
 	UT_ASSERTeq(ret, 0);
 
 	pmemstream_region_free(env.stream, region);
-
 	pmemstream_test_teardown(env);
 }
 
@@ -153,7 +170,6 @@ void null_entry_test(char *path)
 	UT_ASSERTeq(data_address, NULL);
 
 	pmemstream_region_free(env.stream, region);
-
 	pmemstream_test_teardown(env);
 }
 
@@ -169,6 +185,7 @@ int main(int argc, char *argv[])
 
 	valid_input_test(path);
 	valid_input_test_with_memcpy(path);
+	null_stream_test(path);
 	invalid_region_test(path);
 	null_data_test(path);
 	zero_size_test(path);
