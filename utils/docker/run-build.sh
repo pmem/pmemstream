@@ -242,6 +242,10 @@ function tests_package() {
 	compile_example_standalone 02_visual_iterator
 	run_binary_standalone 02_visual_iterator ${WORKDIR}/build/testfile
 
+	echo "C++ example using reserve-publish (with emplace new) instead of append:"
+	compile_example_standalone 03_reserve_publish
+	run_binary_standalone 03_reserve_publish ${WORKDIR}/build/testfile2
+
 	echo "Basic append benchmark"
 	compile_benchmark_standalone append
 	run_binary_standalone benchmark-append --path ${WORKDIR}/build/testfile
