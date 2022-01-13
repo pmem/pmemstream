@@ -70,6 +70,7 @@ set(CMAKE_NO_SYSTEM_FROM_IMPORTED 1)
 option(BUILD_EXAMPLES "build examples" ON)
 option(BUILD_TESTS "build tests" ON)
 option(BUILD_DOC "build documentation" ON)
+option(BUILD_BENCHMARKS "build benchmarks" OFF)
 
 option(USE_CCACHE "use ccache if it is available in the system" ON)
 option(COVERAGE "enable collecting of coverage data" OFF)
@@ -221,6 +222,10 @@ endif()
 if(BUILD_TESTS)
 	enable_testing()
 	add_subdirectory(tests)
+endif()
+
+if(BUILD_BENCHMARKS)
+	add_subdirectory(benchmarks)
 endif()
 
 # ----------------------------------------------------------------- #
