@@ -191,7 +191,6 @@ static int pmemstream_entry_iterator_next_when_region_not_initialized(struct pme
 int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iterator, struct pmemstream_region *region,
 				   struct pmemstream_entry *user_entry)
 {
-	// XXX: add test for NULL entry
 	if (user_entry) {
 		user_entry->offset = iterator->offset;
 	}
