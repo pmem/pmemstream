@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-/* Copyright 2021, Intel Corporation */
+/* Copyright 2021-2022, Intel Corporation */
 
 #include "examples_helpers.h"
 #include "libpmemstream.h"
@@ -15,9 +15,7 @@ struct data_entry {
  * This example creates a stream from map2 source, prints its content,
  * and appends monotonically increasing values at the end.
  *
- * It accepts a path to an existing file.
- * File can be created, e.g., by command:
- *	dd if=/dev/zero of=file bs=1024 count=1024
+ * It creates a file at given path, with size = STREAM_SIZE.
  */
 int main(int argc, char *argv[])
 {
@@ -26,7 +24,7 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
-	struct pmem2_map *map = example_map_open(argv[1]);
+	struct pmem2_map *map = example_map_open(argv[1], EXAMPLE_STREAM_SIZE);
 	if (map == NULL) {
 		pmem2_perror("pmem2_map");
 		return -1;
@@ -93,6 +91,7 @@ int main(int argc, char *argv[])
 			fprintf(stderr, "pmemstream_entry_iterator_new failed\n");
 			return ret;
 		}
+		pmemstream_entry_iterator_delete(&eiter);
 
 		ret = pmemstream_append(stream, new_region, NULL, &e, sizeof(e), &new_entry);
 		if (ret == -1) {

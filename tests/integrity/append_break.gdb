@@ -3,6 +3,7 @@ set height 0
 set verbose off
 set confirm off
 set breakpoint pending on
+set disable-randomization off
 
 # go to memcpy in append
 b pmemstream_reserve

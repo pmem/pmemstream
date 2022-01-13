@@ -229,8 +229,8 @@ function tests_package() {
 	fi
 
 	echo "Verify installed package:"
-	# prepare file with size > 0
-	dd if=/dev/urandom of=${WORKDIR}/build/testfile bs=1024 count=1024
+	# prepare file with size > 0 (4MiB)
+	dd if=/dev/urandom of=${WORKDIR}/build/testfile bs=1024 count=4096
 
 	echo "Basic C example, run it twice for more entries:"
 	compile_example_standalone 01_basic_iterate
