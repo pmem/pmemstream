@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: BSD-3-Clause
-# Copyright 2021, Intel Corporation
+# Copyright 2021-2022, Intel Corporation
 
 #
 # examples/CMakeLists.txt - CMake file for building all examples along with
@@ -30,11 +30,13 @@ endfunction()
 # ----------------------------------------------------------------- #
 add_cppstyle(examples ${CMAKE_CURRENT_SOURCE_DIR}/*.[ch]
 					${CMAKE_CURRENT_SOURCE_DIR}/01_basic_iterate/*.[ch]
-					${CMAKE_CURRENT_SOURCE_DIR}/02_visual_iterator/*.[ch]pp)
+					${CMAKE_CURRENT_SOURCE_DIR}/02_visual_iterator/*.[ch]pp
+					${CMAKE_CURRENT_SOURCE_DIR}/03_reserve_publish/*.[ch]pp)
 
 add_check_whitespace(examples ${CMAKE_CURRENT_SOURCE_DIR}/*.*
 							${CMAKE_CURRENT_SOURCE_DIR}/01_basic_iterate/*.*
-							${CMAKE_CURRENT_SOURCE_DIR}/02_visual_iterator/*.*)
+							${CMAKE_CURRENT_SOURCE_DIR}/02_visual_iterator/*.*
+							${CMAKE_CURRENT_SOURCE_DIR}/03_reserve_publish/*.*)
 
 # ----------------------------------------------------------------- #
 ## Add examples
@@ -44,3 +46,6 @@ target_link_libraries(example-01_basic_iterate ${LIBPMEM2_LIBRARIES})
 
 add_example(02_visual_iterator 02_visual_iterator/main.cpp)
 target_link_libraries(example-02_visual_iterator ${LIBPMEM2_LIBRARIES})
+
+add_example(03_reserve_publish 03_reserve_publish/main.cpp)
+target_link_libraries(example-03_reserve_publish ${LIBPMEM2_LIBRARIES})

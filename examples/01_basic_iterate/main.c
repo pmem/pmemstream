@@ -15,7 +15,7 @@ struct data_entry {
  * This example creates a stream from map2 source, prints its content,
  * and appends monotonically increasing values at the end.
  *
- * It creates a file at given path, with size = STREAM_SIZE.
+ * It creates a file at given path, with size = EXAMPLE_STREAM_SIZE.
  */
 int main(int argc, char *argv[])
 {
