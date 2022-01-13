@@ -241,6 +241,10 @@ function tests_package() {
 	compile_example_standalone 02_visual_iterator
 	run_example_standalone 02_visual_iterator ${WORKDIR}/build/testfile
 
+	echo "C++ example using reserve-publish (with emplace new) instead of append:"
+	compile_example_standalone 03_reserve_publish
+	run_example_standalone 03_reserve_publish ${WORKDIR}/build/testfile2
+
 	popd
 	workspace_cleanup
 
