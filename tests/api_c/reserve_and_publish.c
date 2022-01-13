@@ -185,8 +185,7 @@ int main(int argc, char *argv[])
 
 	valid_input_test(path);
 	valid_input_test_with_memcpy(path);
-	// https://github.com/pmem/pmemstream/issues/99
-	// invalid_region_test(path);
+	invalid_region_test(path);
 	null_data_test(path);
 	zero_size_test(path);
 	// https://github.com/pmem/pmemstream/issues/101
