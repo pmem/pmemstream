@@ -83,6 +83,19 @@ endif()
 build_test(stream_from_map api_c/stream_from_map.c)
 add_test_generic(NAME stream_from_map TRACERS none memcheck pmemcheck drd helgrind)
 
+build_test(reserve_publish unittest/reserve_publish.cpp)
+add_test_generic(NAME reserve_publish TRACERS none memcheck pmemcheck)
+
+build_test(region_allocate api_c/region_allocate.c)
+add_test_generic(NAME region_allocate TRACERS none memcheck pmemcheck drd helgrind)
+
+build_test(region_iterator api_c/region_iterator.c)
+add_test_generic(NAME region_iterator TRACERS none memcheck pmemcheck drd helgrind)
+
+build_test(entry_iterator api_c/entry_iterator.c)
+add_test_generic(NAME entry_iterator TRACERS none memcheck pmemcheck drd helgrind)
+
+
 if(TESTS_RAPIDCHECK)
 	build_test_rc(NAME append SRC_FILES unittest/append.cpp)
 	add_test_generic(NAME append TRACERS none)
