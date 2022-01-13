@@ -56,10 +56,15 @@ int entry_iterator_initialize(struct pmemstream_entry_iterator *iterator, struct
 			      struct pmemstream_region region,
 			      region_runtime_initialize_fn_type region_runtime_initialize_fn)
 {
+	int ret = pmemstream_validate_stream_and_offset(stream, region.offset);
+	if (ret) {
+		return ret;
+	}
+
 	assert(span_get_type(span_offset_to_span_ptr(&stream->data, region.offset)) == SPAN_REGION);
 
 	struct pmemstream_region_runtime *region_rt;
-	int ret = region_runtimes_map_get_or_create(stream->region_runtimes_map, region, &region_rt);
+	ret = region_runtimes_map_get_or_create(stream->region_runtimes_map, region, &region_rt);
 	if (ret) {
 		return ret;
 	}
