@@ -29,8 +29,7 @@ void span_create_empty(struct pmemstream *stream, uint64_t offset, size_t data_s
  *
  * flags may be used to adjust behavior of persisting the data; use 0 for default persist.
  */
-void span_create_entry(struct pmemstream *stream, uint64_t offset, const void *data, size_t data_size, size_t popcount,
-		       int flags)
+void span_create_entry(struct pmemstream *stream, uint64_t offset, size_t data_size, size_t popcount, int flags)
 {
 	span_bytes *span = (span_bytes *)span_offset_to_span_ptr(stream, offset);
 	assert((data_size & SPAN_TYPE_MASK) == 0);
