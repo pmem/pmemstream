@@ -11,6 +11,7 @@ Directories contains:
 - **common** - shared functions and libraries for all tests,
 - **integrity** - data integrity tests (using e.g. gdb or pmreorder),
 - **unittest** - unit tests for various (e.g. internal) functionalities.
+- **layout** - tests which require knowledge about stream layout
 
 # Tests execution
 
