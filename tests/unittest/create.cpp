@@ -29,8 +29,8 @@ int main(int argc, char *argv[])
 
 			if (region_size > REGION_METADATA_SIZE) {
 				/* if possible, append a single value of size = almost whole region_size */
-				const auto c = *rc::gen::character<char>();
-				data.emplace_back(region_size - REGION_METADATA_SIZE, c);
+				data.emplace_back(*rc::gen::container<std::string>(region_size - REGION_METADATA_SIZE,
+										   rc::gen::character<char>()));
 			}
 
 			auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE, TEST_DEFAULT_STREAM_SIZE);

@@ -64,9 +64,8 @@ int main(int argc, char *argv[])
 			auto region = initialize_stream_single_region(stream.get(), TEST_DEFAULT_REGION_SIZE, {});
 
 			size_t elems = 10;
-			const auto c = *rc::gen::character<char>();
 			const size_t e_size = TEST_DEFAULT_REGION_SIZE / elems - TEST_DEFAULT_BLOCK_SIZE;
-			std::string e(e_size, c);
+			std::string e = *rc::gen::container<std::string>(e_size, rc::gen::character<char>());
 
 			struct pmemstream_entry ne = {0}, prev_ne = {0};
 			while (elems-- > 0) {
