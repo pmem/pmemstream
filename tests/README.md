@@ -9,6 +9,7 @@ Directories contains:
 - **api_c** - plain tests for C API,
 - **cmake** - CMake and ctest helpers, including suppressions' files and CMake executions scripts,
 - **common** - shared functions and libraries for all tests,
+- **layout** - tests which require knowledge about stream layout.
 - **integrity** - data integrity tests (using e.g. gdb or pmreorder),
 - **unittest** - unit tests for various (e.g. internal) functionalities.
 
