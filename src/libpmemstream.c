@@ -208,7 +208,7 @@ int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region regio
 static int pmemstream_internal_publish(struct pmemstream *stream, struct pmemstream_region region, const void *data,
 				       size_t size, struct pmemstream_entry *reserved_entry, int flags)
 {
-	span_create_entry(stream, reserved_entry->offset, data, size, util_popcount_memory(data, size), flags);
+	span_create_entry(stream, reserved_entry->offset, size, util_popcount_memory(data, size), flags);
 
 	return 0;
 }

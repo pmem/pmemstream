@@ -64,8 +64,7 @@ const span_bytes *span_offset_to_span_ptr(const struct pmemstream *stream, uint6
 
 /* Those functions create appropriate span at specified offset. offset must be 8-bytes aligned. */
 void span_create_empty(struct pmemstream *stream, uint64_t offset, size_t data_size);
-void span_create_entry(struct pmemstream *stream, uint64_t offset, const void *data, size_t data_size, size_t popcount,
-		       int flags);
+void span_create_entry(struct pmemstream *stream, uint64_t offset, size_t data_size, size_t popcount, int flags);
 void span_create_region(struct pmemstream *stream, uint64_t offset, size_t size);
 
 uint64_t span_get_size(const span_bytes *span);
