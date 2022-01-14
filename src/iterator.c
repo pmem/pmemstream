@@ -107,7 +107,6 @@ static int validate_entry(const struct pmemstream *stream, struct pmemstream_ent
 int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iterator, struct pmemstream_region *region,
 				   struct pmemstream_entry *user_entry)
 {
-	struct span_runtime srt = span_get_runtime(iterator->stream, iterator->offset);
 	struct span_runtime region_srt = span_get_region_runtime(iterator->stream, iterator->region.offset);
 	struct pmemstream_entry entry = {.offset = iterator->offset};
 	const uint64_t region_end_offset = iterator->region.offset + region_srt.total_size;
@@ -143,6 +142,7 @@ int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iterator, s
 	/*
 	 * Verify that all metadata and data fits inside the region - this should not fail unless stream was corrupted.
 	 */
+	struct span_runtime srt = span_get_runtime(iterator->stream, iterator->offset);
 	assert(entry.offset + srt.total_size <= iterator->region.offset + region_srt.total_size);
 
 	iterator->offset += srt.total_size;
