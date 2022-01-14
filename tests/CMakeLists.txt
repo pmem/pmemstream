@@ -85,7 +85,7 @@ add_test_generic(NAME stream_from_map TRACERS none memcheck pmemcheck drd helgri
 
 if(TESTS_RAPIDCHECK)
 	build_test_rc(NAME append SRC_FILES unittest/append.cpp)
-	add_test_generic(NAME append TRACERS none)
+	add_test_generic(NAME append TRACERS none memcheck pmemcheck)
 
 	build_test_rc(NAME concurrent_iterate SRC_FILES unittest/concurrent_iterate.cpp)
 	add_test_generic(NAME concurrent_iterate TRACERS none)

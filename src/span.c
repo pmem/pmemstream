@@ -47,7 +47,7 @@ void span_create_entry(struct pmemstream *stream, uint64_t offset, const void *d
 	}
 
 	if (persist_size != 0) {
-		stream->persist(span, SPAN_ENTRY_METADATA_SIZE);
+		stream->persist(span, persist_size);
 	}
 }
 
