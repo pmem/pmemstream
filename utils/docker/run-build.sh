@@ -44,7 +44,8 @@ function tests_clang_debug_cpp17_no_valgrind() {
 		-DTEST_DIR=${TEST_DIR} \
 		-DTESTS_USE_FORCED_PMEM=${TESTS_USE_FORCED_PMEM} \
 		-DUSE_ASAN=${TESTS_ASAN} \
-		-DUSE_UBSAN=${TESTS_UBSAN}
+		-DUSE_UBSAN=${TESTS_UBSAN} \
+		-DBUILD_BENCHMARKS=1
 
 	make -j$(nproc)
 	ctest --output-on-failure --timeout ${TEST_TIMEOUT}
@@ -234,12 +235,16 @@ function tests_package() {
 
 	echo "Basic C example, run it twice for more entries:"
 	compile_example_standalone 01_basic_iterate
-	run_example_standalone 01_basic_iterate ${WORKDIR}/build/testfile
-	run_example_standalone 01_basic_iterate ${WORKDIR}/build/testfile
+	run_binary_standalone 01_basic_iterate ${WORKDIR}/build/testfile
+	run_binary_standalone 01_basic_iterate ${WORKDIR}/build/testfile
 
 	echo "C++ example, should print data from previous example:"
 	compile_example_standalone 02_visual_iterator
-	run_example_standalone 02_visual_iterator ${WORKDIR}/build/testfile
+	run_binary_standalone 02_visual_iterator ${WORKDIR}/build/testfile
+
+	echo "Basic append benchmark"
+	compile_benchmark_standalone append
+	run_binary_standalone benchmark-append --path ${WORKDIR}/build/testfile
 
 	popd
 	workspace_cleanup
