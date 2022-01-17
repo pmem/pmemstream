@@ -48,9 +48,9 @@ struct pmemstream {
 	struct region_runtimes_map *region_runtimes_map;
 };
 
-static inline uint8_t *pmemstream_offset_to_ptr(struct pmemstream *stream, uint64_t offset)
+static inline const uint8_t *pmemstream_offset_to_ptr(const struct pmemstream *stream, uint64_t offset)
 {
-	return (uint8_t *)stream->data->spans + offset;
+	return (const uint8_t *)stream->data->spans + offset;
 }
 
 #ifdef __cplusplus
