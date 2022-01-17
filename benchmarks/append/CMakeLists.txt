@@ -4,6 +4,7 @@
 cmake_minimum_required(VERSION 3.3)
 project(benchmark-pmemstream_append)
 
+find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBPMEMSTREAM REQUIRED libpmemstream)
 
 include_directories(${LIBPMEMSTREAM_INCLUDE_DIRS} . ..)

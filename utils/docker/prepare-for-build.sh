@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: BSD-3-Clause
-# Copyright 2019-2021, Intel Corporation
+# Copyright 2019-2022, Intel Corporation
 
 #
 # prepare-for-build.sh - prepares environment for the build
@@ -11,7 +11,7 @@
 set -e
 
 INSTALL_DIR=/tmp/pmemstream
-EXAMPLE_TEST_DIR=/tmp/build_example
+STANDALONE_TEST_DIR=/tmp/build_example
 TEST_DIR=${PMEMSTREAM_TEST_DIR:-${DEFAULT_TEST_DIR}}
 
 ### Helper functions, used in run-*.sh scripts
@@ -24,7 +24,7 @@ function workspace_cleanup() {
 
 	pushd ${WORKDIR}
 	rm -rf ${WORKDIR}/build
-	rm -rf ${EXAMPLE_TEST_DIR}
+	rm -rf ${STANDALONE_TEST_DIR}
 	rm -rf ${INSTALL_DIR}
 }
 
@@ -54,15 +54,15 @@ function upload_codecov() {
 	printf "$(tput setaf 1)$(tput setab 7)COVERAGE ${FUNCNAME[0]} END$(tput sgr 0)\n\n"
 }
 
-function compile_example_standalone() {
-	example_name=${1}
-	echo "Compile standalone example: ${example_name}"
+function compile_binary_standalone() {
+	binary_name=${1}
+	directory=${2}
 
-	rm -rf ${EXAMPLE_TEST_DIR}
-	mkdir ${EXAMPLE_TEST_DIR}
-	pushd ${EXAMPLE_TEST_DIR}
+	rm -rf ${STANDALONE_TEST_DIR}
+	mkdir ${STANDALONE_TEST_DIR}
+	pushd ${STANDALONE_TEST_DIR}
 
-	cmake ${WORKDIR}/examples/${example_name}
+	cmake ${WORKDIR}/${directory}/${binary_name}
 
 	# exit on error
 	if [[ $? != 0 ]]; then
@@ -74,15 +74,14 @@ function compile_example_standalone() {
 	popd
 }
 
-function run_example_standalone() {
-	example_name=${1}
-	file_path=${2}
-	optional_args=${@:3}
-	echo "Run standalone example: ${example_name} with file path: ${file_path}"
+function run_binary_standalone() {
+	binary_name=${1}
+	optional_args=${@:2}
+	echo "Run standalone application: ${binary_name} with arguments: ${optional_args}"
 
-	pushd ${EXAMPLE_TEST_DIR}
+	pushd ${STANDALONE_TEST_DIR}
 
-	PMEM_IS_PMEM_FORCE=${TESTS_USE_FORCED_PMEM} ./${example_name} ${file_path} ${optional_args}
+	PMEM_IS_PMEM_FORCE=${TESTS_USE_FORCED_PMEM} ./${binary_name} ${optional_args}
 
 	# exit on error
 	if [[ $? != 0 ]]; then
@@ -91,6 +90,18 @@ function run_example_standalone() {
 	fi
 
 	popd
+}
+
+function compile_example_standalone() {
+	example_name=${1}
+	echo "Compile standalone example: ${example_name}"
+	compile_binary_standalone ${example_name} examples
+}
+
+function compile_benchmark_standalone() {
+	benchmark_name=${1}
+	echo "Compile standalone benchmark: ${benchmark_name}"
+	compile_binary_standalone ${benchmark_name} benchmarks
 }
 
 ### Additional checks, to be run, when this file is sourced
