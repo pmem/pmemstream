@@ -59,44 +59,57 @@ void region_runtimes_map_destroy(struct region_runtimes_map *map)
 	free(map);
 }
 
-int region_runtimes_map_get_or_create(struct region_runtimes_map *map, struct pmemstream_region region,
-				      struct pmemstream_region_runtime **container_handle)
+static int region_runtimes_map_create_or_fail(struct region_runtimes_map *map, struct pmemstream_region region,
+					      struct pmemstream_region_runtime **container_handle)
 {
-	struct pmemstream_region_runtime *runtime = critnib_get(map->container, region.offset);
-	if (runtime) {
-		if (container_handle) {
-			*container_handle = runtime;
-		}
-		return 0;
-	}
+	assert(container_handle);
 
 	int ret = -1;
-
+	struct pmemstream_region_runtime *runtime = NULL;
 	pthread_mutex_lock(&map->container_lock);
-	runtime = calloc(1, sizeof(*runtime));
-	if (runtime) {
-		ret = critnib_insert(map->container, region.offset, runtime, 0 /* no update */);
+	{
+		runtime = (struct pmemstream_region_runtime *)calloc(1, sizeof(*runtime));
+		if (runtime) {
+			ret = critnib_insert(map->container, region.offset, runtime, 0 /* no update */);
+			if (ret) {
+				free(runtime);
+			}
+		}
 	}
 	pthread_mutex_unlock(&map->container_lock);
 
-	if (ret) {
-		/* Insert failed, free the runtime. */
-		free(runtime);
+	*container_handle = runtime;
+	return ret;
+}
 
-		if (ret == EEXIST) {
-			/* Someone else inserted the region runtime - just get a pointer to it. */
-			runtime = critnib_get(map->container, region.offset);
-			assert(runtime);
-		} else {
-			return ret;
-		}
+static int region_runtimes_map_create(struct region_runtimes_map *map, struct pmemstream_region region,
+				      struct pmemstream_region_runtime **container_handle)
+{
+	assert(container_handle);
+	int ret = region_runtimes_map_create_or_fail(map, region, container_handle);
+	if (ret == EEXIST) {
+		/* Someone else inserted the region runtime - just get a pointer to it. */
+		*container_handle = critnib_get(map->container, region.offset);
+		assert(*container_handle);
+
+		return 0;
 	}
 
-	if (container_handle) {
+	return ret;
+}
+
+int region_runtimes_map_get_or_create(struct region_runtimes_map *map, struct pmemstream_region region,
+				      struct pmemstream_region_runtime **container_handle)
+{
+	assert(container_handle);
+
+	struct pmemstream_region_runtime *runtime = critnib_get(map->container, region.offset);
+	if (runtime) {
 		*container_handle = runtime;
+		return 0;
 	}
 
-	return 0;
+	return region_runtimes_map_create(map, region, container_handle);
 }
 
 void region_runtimes_map_remove(struct region_runtimes_map *map, struct pmemstream_region region)
