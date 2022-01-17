@@ -114,7 +114,7 @@ static bool pmemstream_entry_iterator_offset_is_inside_region(struct pmemstream_
 /* Precondition: region_runtime is initialized. */
 static bool pmemstream_entry_iterator_offset_is_below_committed(struct pmemstream_entry_iterator *iterator)
 {
-	assert(region_is_runtime_initialized(iterator->region_runtime));
+	assert(region_runtime_is_initialized(iterator->region_runtime));
 
 	/* Make sure that we didn't go beyond committed entries. */
 	uint64_t committed_offset = region_runtime_get_committed_offset_acquire(iterator->region_runtime);
@@ -191,7 +191,7 @@ int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iterator, s
 		*region = iterator->region;
 	}
 
-	if (region_is_runtime_initialized(iterator->region_runtime)) {
+	if (region_runtime_is_initialized(iterator->region_runtime)) {
 		return pmemstream_entry_iterator_next_when_region_initialized(iterator);
 	}
 

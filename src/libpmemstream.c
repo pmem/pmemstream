@@ -184,7 +184,7 @@ int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region regio
 		}
 	}
 
-	ret = region_try_runtime_initialize_locked(stream, region, region_runtime);
+	ret = region_runtime_try_initialize_locked(stream, region, region_runtime);
 	if (ret) {
 		return ret;
 	}
