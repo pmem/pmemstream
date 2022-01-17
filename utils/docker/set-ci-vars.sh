@@ -9,6 +9,7 @@
 
 set -e
 
+# XXX: extract "get_last_merge" to separate function
 function get_commit_range_from_last_merge {
 	# get commit id of the last merge
 	LAST_MERGE=$(git log --merges --pretty=%H -1)
