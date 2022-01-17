@@ -66,10 +66,10 @@ int region_runtimes_map_get_or_create(struct region_runtimes_map *map, struct pm
 
 void region_runtimes_map_remove(struct region_runtimes_map *map, struct pmemstream_region region);
 
-int region_is_runtime_initialized(const struct pmemstream_region_runtime *region_runtime);
+int region_runtime_is_initialized(const struct pmemstream_region_runtime *region_runtime);
 
 /* Recovers a region (under a global lock) if it is not yet recovered. */
-int region_try_runtime_initialize_locked(struct pmemstream *stream, struct pmemstream_region region,
+int region_runtime_try_initialize_locked(struct pmemstream *stream, struct pmemstream_region region,
 					 struct pmemstream_region_runtime *region_runtime);
 
 /* Performs region recovery - initializes append_offset and clears all the data in the region after `tail` entry. */

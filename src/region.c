@@ -105,7 +105,7 @@ void region_runtimes_map_remove(struct region_runtimes_map *map, struct pmemstre
 	free(runtime);
 }
 
-int region_is_runtime_initialized(const struct pmemstream_region_runtime *region_runtime)
+int region_runtime_is_initialized(const struct pmemstream_region_runtime *region_runtime)
 {
 	return __atomic_load_n(&region_runtime->append_offset, __ATOMIC_ACQUIRE) != PMEMSTREAM_OFFSET_UNINITIALIZED;
 }
@@ -125,7 +125,7 @@ static int region_iterate_and_try_recover(struct pmemstream *stream, struct pmem
 	return 0;
 }
 
-int region_try_runtime_initialize_locked(struct pmemstream *stream, struct pmemstream_region region,
+int region_runtime_try_initialize_locked(struct pmemstream *stream, struct pmemstream_region region,
 					 struct pmemstream_region_runtime *region_runtime)
 {
 	assert(region_runtime);
@@ -133,9 +133,9 @@ int region_try_runtime_initialize_locked(struct pmemstream *stream, struct pmems
 
 	/* If append_offset is not set, iterate over region and set it after last valid entry.
 	 * Uses "double-checked locking". */
-	if (!region_is_runtime_initialized(region_runtime)) {
+	if (!region_runtime_is_initialized(region_runtime)) {
 		pthread_mutex_lock(&stream->region_runtimes_map->region_lock);
-		if (!region_is_runtime_initialized(region_runtime)) {
+		if (!region_runtime_is_initialized(region_runtime)) {
 			ret = region_iterate_and_try_recover(stream, region);
 		}
 		pthread_mutex_unlock(&stream->region_runtimes_map->region_lock);
