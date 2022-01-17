@@ -117,7 +117,7 @@ static bool pmemstream_entry_iterator_offset_is_below_commited(struct pmemstream
 	assert(region_runtime_is_initialized(iterator->region_runtime));
 
 	/* Make sure that we didn't go beyond committed entires. */
-	uint64_t commited_offset = __atomic_load_n(&iterator->region_runtime->commited_offset, __ATOMIC_ACQUIRE);
+	uint64_t commited_offset = region_runtime_get_commited_offset_acquire(iterator->region_runtime);
 	if (iterator->offset >= commited_offset) {
 		return false;
 	}
