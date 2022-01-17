@@ -11,6 +11,7 @@
 #include "span.h"
 
 #include <pthread.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 #ifdef __cplusplus
@@ -18,62 +19,60 @@ extern "C" {
 #endif
 
 /**
- * Functions for manipulating regions.
+ * Functions for manipulating regions and region_runtime.
+ *
+ * Region_runtime can be in 3 different states:
+ * - uninitialized: append_offset and commited_offset are invalid
+ * - dirty: append_offset and commited_offsets are known but region was not yet cleared (appendind
+ *   to such region might lead to data corruption)
+ * - clear: append_offset and commited_offsets are known, append is safe
  */
 
-#define PMEMSTREAM_OFFSET_UNINITIALIZED 0ULL
-#define PMEMSTREAM_OFFSET_DIRTY_BIT (1ULL << 63)
-#define PMEMSTREAM_OFFSET_DIRTY_MASK (~PMEMSTREAM_OFFSET_DIRTY_BIT)
-
-/*
- * It contains all runtime data specific to a region.
- * It is always managed by the pmemstream (user can only obtain a non-owning pointer) and can be created
- * in few different ways:
- * - By explicitly calling pmemstream_get_region_runtime() for the first time
- * - By calling pmemstream_append (only if region_runtime does not exist yet)
- * - By advancing an entry iterator past last entry in a region (only if region_runtime does not exist yet)
- */
-struct pmemstream_region_runtime {
-	/*
-	 * Offset at which new entries will be appended. Can be set to PMEMSTREAM_OFFSET_UNINITIALIZED.
-	 *
-	 * If PMEMSTREAM_OFFSET_DIRTY_BIT is set, append_offset points to a valid location but the memory from
-	 * 'append_offset & PMEMSTREAM_OFFSET_DIRTY_MASK' to the end of region was not yet cleared. */
-	uint64_t append_offset;
-
-	/*
-	 * All entries which start at offset < commited_offset can be treated as commited and safely read
-	 * from multiple threads.
-	 */
-	uint64_t commited_offset;
-};
-
-/*
- * Holds mapping between region offset and region_runtime.
- */
-struct region_runtimes_map {
-	critnib *container;
-	pthread_mutex_t container_lock;
-	pthread_mutex_t region_lock; /* XXX: for multiple regions, we might want to consider having more locks. */
-};
+struct pmemstream_region_runtime;
+struct region_runtimes_map;
 
 struct region_runtimes_map *region_runtimes_map_new(void);
 void region_runtimes_map_destroy(struct region_runtimes_map *map);
 
-/* Gets (or creates if missing) pointer to region_runtime associated with specified region. */
+/*
+ * Gets (or creates if missing) pointer to region_runtime associated with specified region.
+ *
+ * Returned region_runtime might be in all 3 states (uninitialized, dirty o clear).
+ */
 int region_runtimes_map_get_or_create(struct region_runtimes_map *map, struct pmemstream_region region,
 				      struct pmemstream_region_runtime **container_handle);
-
 void region_runtimes_map_remove(struct region_runtimes_map *map, struct pmemstream_region region);
 
-int region_runtime_is_initialized(struct pmemstream_region_runtime *region_runtime);
+bool region_runtime_is_initialized(struct pmemstream_region_runtime *region_runtime);
+bool region_runtime_is_dirty(struct pmemstream_region_runtime *region_runtime);
+
+/* Precondition: region_runtime_is_initialized() == true */
+uint64_t region_runtime_get_append_offset_acquire(struct pmemstream_region_runtime *region_runtime);
+/* Precondition: region_runtime_is_initialized() == true */
+uint64_t region_runtime_get_commited_offset_acquire(struct pmemstream_region_runtime *region_runtime);
+
+void region_runtime_increase_append_offset(struct pmemstream_region_runtime *region_runtime, uint64_t diff);
+void region_runtime_increase_commited_offset(struct pmemstream_region_runtime *region_runtime, uint64_t diff);
 
 /* Recovers a region (under a global lock) if it is not yet recovered. */
 int region_runtime_try_initialize_locked(struct pmemstream *stream, struct pmemstream_region region,
 					 struct pmemstream_region_runtime *region_runtime);
 
-/* Performs region recovery - initializes append_offset and clears all the data in the region after `tail` entry. */
+/*
+ * Performs region recovery - initializes append_offset and clears all the data in the region after `tail` entry.
+ *
+ * After this call, region_runtime is in "dirty" state.
+ */
 void region_runtime_initialize(struct pmemstream_region_runtime *region_runtime, struct pmemstream_entry tail);
+
+/*
+ * Clears data in region starting from tail offset if region_runtime is in "dirty" state, does nothing otherwise.
+ * After this call, region_runtime is in "clear" state.
+ *
+ * Returns current append_offset.
+ */
+uint64_t region_runtime_try_clear_from_tail(struct pmemstream *stream, struct pmemstream_region region,
+					    struct pmemstream_region_runtime *region_runtime);
 
 #ifdef __cplusplus
 } /* end extern "C" */
