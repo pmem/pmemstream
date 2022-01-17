@@ -125,4 +125,12 @@ auto make_pmemstream(const std::string &file, size_t block_size, size_t size, bo
 	return std::unique_ptr<struct pmemstream, decltype(stream_delete)>(stream, std::move(stream_delete));
 }
 
+template <typename Ctor, typename Dtor>
+auto make_instance_ctor(Ctor &&ctor, Dtor &&dtor)
+{
+	return [&] {
+		return std::unique_ptr<std::remove_reference_t<decltype(*ctor())>, decltype(&dtor)>(ctor(), &dtor);
+	};
+}
+
 #endif /* LIBPMEMSTREAM_UNITTEST_HPP */

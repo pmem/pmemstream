@@ -20,10 +20,7 @@ namespace
 {
 static constexpr size_t max_num_id_requests = 1024;
 
-auto make_id_manager()
-{
-	return std::unique_ptr<id_manager, decltype(&id_manager_destroy)>(id_manager_new(), &id_manager_destroy);
-}
+auto make_id_manager = make_instance_ctor(id_manager_new, id_manager_destroy);
 
 template <typename It>
 void release_ids(id_manager *manager, size_t size, It &&it)
