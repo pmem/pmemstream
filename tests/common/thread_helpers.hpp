@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-/* Copyright 2020-2021, Intel Corporation */
+/* Copyright 2020-2022, Intel Corporation */
 
 #ifndef LIBPMEMSTREAM_THREAD_HELPERS_HPP
 #define LIBPMEMSTREAM_THREAD_HELPERS_HPP
@@ -10,19 +10,69 @@
 #include <thread>
 #include <vector>
 
+static inline std::string get_msg_from_exception_ptr(std::exception_ptr ptr)
+{
+	try {
+		std::rethrow_exception(ptr);
+	} catch (std::exception &e) {
+		return e.what();
+	} catch (...) {
+		return "Unknown exception";
+	}
+}
+
+/* Prints number of active exceptions inside exception_ptrs and and error message
+ * concatenated from all of exception error messages.
+ *
+ * Rethrows first active exception from the vector.
+ */
+static inline void handle_exceptions(const std::vector<std::exception_ptr> &exception_ptrs)
+{
+	size_t exception_thrown_count = 0;
+	std::string errormsg;
+	for (auto &e : exception_ptrs) {
+		if (e) {
+			exception_thrown_count++;
+			errormsg += get_msg_from_exception_ptr(e) + "\n";
+		}
+	}
+
+	if (exception_thrown_count) {
+		std::cerr << std::to_string(exception_thrown_count) + " exception(s) thrown! " << std::endl;
+		std::cerr << errormsg << std::endl;
+
+		for (auto &e : exception_ptrs) {
+			if (e) {
+				std::rethrow_exception(e);
+			}
+		}
+	}
+}
+
 template <typename Function>
 void parallel_exec(size_t threads_number, Function f)
 {
 	std::vector<std::thread> threads;
 	threads.reserve(threads_number);
 
+	std::vector<std::exception_ptr> exception_ptrs(threads_number);
 	for (size_t i = 0; i < threads_number; ++i) {
-		threads.emplace_back(f, i);
+		threads.emplace_back(
+			[&](size_t id) {
+				try {
+					f(id);
+				} catch (...) {
+					exception_ptrs[id] = std::current_exception();
+				}
+			},
+			i);
 	}
 
 	for (auto &t : threads) {
 		t.join();
 	}
+
+	handle_exceptions(exception_ptrs);
 }
 
 class latch {
