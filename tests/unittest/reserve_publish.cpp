@@ -12,6 +12,7 @@
 
 #include <rapidcheck.h>
 
+#include "libpmemstream_internal.h"
 #include "stream_helpers.hpp"
 #include "unittest.hpp"
 
@@ -105,6 +106,34 @@ int main(int argc, char *argv[])
 								      rp_data.end()));
 
 						 RC_ASSERT(pmemstream_region_free(stream.get(), region) == 0);
+					 }
+				 });
+
+		ret += rc::check("verify if not calling publish does not result in data being visible",
+				 [&](const std::vector<std::string> &data, const std::string &extra_entry) {
+					 pmemstream_region region;
+					 {
+						 auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE,
+									       TEST_DEFAULT_STREAM_SIZE);
+						 region = initialize_stream_single_region(
+							 stream.get(), TEST_DEFAULT_REGION_SIZE, data);
+
+						 void *reserved_data;
+						 pmemstream_entry reserved_entry;
+						 int ret = pmemstream_reserve(stream.get(), region, nullptr,
+									      extra_entry.size(), &reserved_entry,
+									      &reserved_data);
+						 RC_ASSERT(ret == 0);
+
+						 std::memcpy(reinterpret_cast<char *>(reserved_data),
+							     extra_entry.data(), extra_entry.size());
+						 stream->persist(reserved_data, extra_entry.size());
+						 verify(stream.get(), region, data, {});
+					 }
+					 {
+						 auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE,
+									       TEST_DEFAULT_STREAM_SIZE, false);
+						 verify(stream.get(), region, data, {});
 					 }
 				 });
 	});
