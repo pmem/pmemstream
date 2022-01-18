@@ -15,12 +15,7 @@ struct region_runtimes_map *region_runtimes_map_new(void)
 		return NULL;
 	}
 
-	int ret = pthread_mutex_init(&map->container_lock, NULL);
-	if (ret) {
-		goto err_container_lock;
-	}
-
-	ret = pthread_mutex_init(&map->region_lock, NULL);
+	int ret = pthread_mutex_init(&map->region_lock, NULL);
 	if (ret) {
 		goto err_region_lock;
 	}
@@ -35,8 +30,6 @@ struct region_runtimes_map *region_runtimes_map_new(void)
 err_critnib:
 	pthread_mutex_destroy(&map->region_lock);
 err_region_lock:
-	pthread_mutex_destroy(&map->container_lock);
-err_container_lock:
 	free(map);
 	return NULL;
 }
@@ -54,7 +47,6 @@ void region_runtimes_map_destroy(struct region_runtimes_map *map)
 
 	/* XXX: Handle error */
 	pthread_mutex_destroy(&map->region_lock);
-	pthread_mutex_destroy(&map->container_lock);
 
 	free(map);
 }
@@ -64,19 +56,16 @@ static int region_runtimes_map_create_or_fail(struct region_runtimes_map *map, s
 {
 	assert(container_handle);
 
-	int ret = -1;
-	struct pmemstream_region_runtime *runtime = NULL;
-	pthread_mutex_lock(&map->container_lock);
-	{
-		runtime = (struct pmemstream_region_runtime *)calloc(1, sizeof(*runtime));
-		if (runtime) {
-			ret = critnib_insert(map->container, region.offset, runtime, 0 /* no update */);
-			if (ret) {
-				free(runtime);
-			}
-		}
+	struct pmemstream_region_runtime *runtime = (struct pmemstream_region_runtime *)calloc(1, sizeof(*runtime));
+	if (!runtime) {
+		return -1;
 	}
-	pthread_mutex_unlock(&map->container_lock);
+
+	int ret = critnib_insert(map->container, region.offset, runtime, 0 /* no update */);
+	if (ret) {
+		free(runtime);
+		return ret;
+	}
 
 	*container_handle = runtime;
 	return ret;

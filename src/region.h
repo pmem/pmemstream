@@ -47,7 +47,6 @@ struct pmemstream_region_runtime {
  */
 struct region_runtimes_map {
 	critnib *container;
-	pthread_mutex_t container_lock;
 	pthread_mutex_t region_lock; /* XXX: for multiple regions, we might want to consider having more locks. */
 };
 
