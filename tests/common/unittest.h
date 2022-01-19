@@ -78,6 +78,9 @@ static inline void UT_FATAL(const char *format, ...)
 			  (unsigned long long)(rhs), pmem2_errormsg()),                                                \
 		 0)))
 
+/* assert two pointers points to the same address at runtime */
+#define UT_ASSERTeq_ptr(lhs, rhs) UT_ASSERTeq((intptr_t)lhs, (intptr_t)rhs)
+
 // XXX: use pmemstream_errormsg()
 /* assert two integer values are not equal at runtime */
 #define UT_ASSERTne(lhs, rhs)                                                                                          \
