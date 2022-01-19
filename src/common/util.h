@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-/* Copyright 2021, Intel Corporation */
+/* Copyright 2021-2022, Intel Corporation */
 
 /* Common, internal utils */
 
@@ -13,6 +13,14 @@
 #define ALIGN_DOWN(size, align) ((size) & ~((align)-1))
 
 #define MEMBER_SIZE(type, member) sizeof(((struct type *)NULL)->member)
+
+#if defined(__x86_64) || defined(_M_X64) || defined(__aarch64__) || defined(__riscv)
+#define CACHELINE_SIZE 64ULL
+#elif defined(__PPC64__)
+#define CACHELINE_SIZE 128ULL
+#else
+#error unable to recognize architecture at compile time
+#endif
 
 static inline unsigned char util_popcount64(uint64_t value)
 {
