@@ -28,6 +28,11 @@ set(C_STANDARD 11 CACHE STRING "C language standard")
 set(C_STANDARD_REQUIRED ON)
 set(CMAKE_C_STANDARD ${C_STANDARD})
 
+set(CXX_STANDARD 14 CACHE STRING "C++ language standard")
+
+set(CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_STANDARD ${CXX_STANDARD})
+
 # Specify and print the build type
 set(DEFAULT_BUILD_TYPE "RelWithDebInfo")
 set(predefined_build_types
