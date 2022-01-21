@@ -103,7 +103,8 @@ struct return_check {
 	bool status = true;
 };
 
-auto make_pmemstream(const std::string &file, size_t block_size, size_t size, bool truncate = true)
+std::unique_ptr<struct pmemstream, std::function<void(struct pmemstream *)>>
+make_pmemstream(const std::string &file, size_t block_size, size_t size, bool truncate = true)
 {
 	struct pmem2_map *map = map_open(file.c_str(), size, truncate);
 	if (map == NULL) {
@@ -122,7 +123,11 @@ auto make_pmemstream(const std::string &file, size_t block_size, size_t size, bo
 	auto stream_delete = [map_uptr = std::move(map_uptr)](struct pmemstream *stream) {
 		pmemstream_delete(&stream);
 	};
-	return std::unique_ptr<struct pmemstream, decltype(stream_delete)>(stream, std::move(stream_delete));
+
+	auto stream_deleter = std::make_shared<decltype(stream_delete)>(std::move(stream_delete));
+
+	return std::unique_ptr<struct pmemstream, std::function<void(struct pmemstream *)>>(
+		stream, [stream_deleter = stream_deleter](struct pmemstream *stream) { (*stream_deleter)(stream); });
 }
 
 #endif /* LIBPMEMSTREAM_UNITTEST_HPP */
