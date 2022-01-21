@@ -28,12 +28,9 @@ void span_create_empty(struct pmemstream *stream, uint64_t offset, size_t size)
 	stream->persist(span, SPAN_EMPTY_METADATA_SIZE);
 }
 
-/* Creates entry span at given offset.
- * It sets entry's metadata: type, size of the data and popcount.
- * flags may be used to adjust behavior of persisting the data; use 0 for default persist.
- * If any data is requested to be flushed, it's followed by a drain.
- */
-void span_create_entry(struct pmemstream *stream, uint64_t offset, size_t data_size, size_t popcount, int flags)
+/* Internal helper for span_create_entry. */
+static void span_create_entry_internal(struct pmemstream *stream, uint64_t offset, size_t data_size, size_t popcount,
+				       size_t flush_size)
 {
 	span_bytes *span = (span_bytes *)span_offset_to_span_ptr(stream, offset);
 	assert((data_size & SPAN_TYPE_MASK) == 0);
@@ -42,16 +39,25 @@ void span_create_entry(struct pmemstream *stream, uint64_t offset, size_t data_s
 	span[0] = data_size | SPAN_ENTRY;
 	span[1] = popcount;
 
-	size_t persist_size = data_size + SPAN_ENTRY_METADATA_SIZE;
-	if (flags & PMEMSTREAM_PUBLISH_NOFLUSH_DATA) {
-		persist_size = SPAN_ENTRY_METADATA_SIZE;
-	} else if (flags & PMEMSTREAM_PUBLISH_NOFLUSH) {
-		persist_size = 0;
-	}
+	stream->persist(span, flush_size);
+}
 
-	if (persist_size != 0) {
-		stream->persist(span, persist_size);
-	}
+/* Creates entry span at given offset.
+ * It sets entry's metadata: type, size of the data and popcount.
+ * It flushes metadata along with the data (of given 'data_size'), which are stored in the spans following metadata.
+ */
+void span_create_entry(struct pmemstream *stream, uint64_t offset, size_t data_size, size_t popcount)
+{
+	span_create_entry_internal(stream, offset, data_size, popcount, SPAN_ENTRY_METADATA_SIZE + data_size);
+}
+
+/* Creates entry span at given offset.
+ * It sets entry's metadata: type, size of the data and popcount.
+ * It flushes only the metadata.
+ */
+void span_create_entry_no_flush_data(struct pmemstream *stream, uint64_t offset, size_t data_size, size_t popcount)
+{
+	span_create_entry_internal(stream, offset, data_size, popcount, SPAN_ENTRY_METADATA_SIZE);
 }
 
 /* Creates region span at given offset.
