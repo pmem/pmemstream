@@ -2,7 +2,6 @@
 /* Copyright 2022, Intel Corporation */
 
 #include <algorithm>
-#include <cassert>
 #include <chrono>
 #include <cmath>
 #include <iterator>
@@ -32,32 +31,23 @@ auto measure(size_t iterations, F &&func)
 	return results;
 }
 
-static inline auto generate_data(size_t count)
+/* Generate vector<uint64_t> which contains byte_count rounded up to 64 bits*/
+static inline std::vector<uint64_t> generate_data(size_t bytes_count)
 {
+	size_t count = bytes_count / 8 + (bytes_count % 8 != 0);
+	std::vector<uint64_t> ret;
+	ret.reserve(count);
+
 	static std::mt19937_64 generator = []() {
 		std::random_device rd;
 		auto seed = rd();
 		return std::mt19937_64(seed);
 	}();
-	size_t gen_size = sizeof(std::mt19937_64::result_type);
-	std::vector<uint8_t> ret;
-	ret.reserve(count);
-	for (size_t i = 0; i < count / gen_size; ++i) {
-		auto entry = generator();
-		uint8_t *entry_slices = reinterpret_cast<uint8_t *>(&entry);
 
-		for (size_t j = 0; j < gen_size; j++) {
-			ret.push_back(entry_slices[j]);
-		}
+	for (size_t i = 0; i < count; ++i) {
+		ret.push_back(generator());
 	}
 
-	auto last_entry = generator();
-	uint8_t *last_entry_slices = reinterpret_cast<uint8_t *>(&last_entry);
-
-	for (size_t i = 0; i < count % gen_size; i++) {
-		ret.push_back(last_entry_slices[i]);
-	}
-	assert(ret.size() == count);
 	return ret;
 }
 
