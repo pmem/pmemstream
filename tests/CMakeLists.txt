@@ -97,7 +97,10 @@ if(TESTS_RAPIDCHECK)
 	add_test_generic(NAME get_region_runtime TRACERS none)
 
 	build_test_rc(NAME reserve_publish SRC_FILES unittest/reserve_publish.cpp)
-	add_test_generic(NAME reserve_publish TRACERS none memcheck pmemcheck)
+	add_test_generic(NAME reserve_publish TRACERS none memcheck)
+
+	build_test_rc(NAME reserve_publish_integrity SRC_FILES integrity/reserve_publish.cpp)
+	add_test_generic(NAME reserve_publish_integrity TRACERS none pmemcheck)
 
 	build_test_rc(NAME util_popcount SRC_FILES unittest/util_popcount.cpp)
 	add_test_generic(NAME util_popcount TRACERS none)
