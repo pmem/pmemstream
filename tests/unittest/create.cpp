@@ -64,8 +64,7 @@ int main(int argc, char *argv[])
 				UT_ASSERT(pmemstream_region_free(stream.get(), region) == 0);
 			});
 
-		/* verify if a single region of size = 0 can be created */
-		{
+		ret += rc::check("verify if region of region_size = 0 cannot be created", [&]() {
 			auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE, TEST_DEFAULT_STREAM_SIZE);
 			auto region = initialize_stream_single_region(stream.get(), 0, {});
 			verify(stream.get(), region, {}, {});

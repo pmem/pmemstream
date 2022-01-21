@@ -40,9 +40,35 @@ static void pmemstream_init(struct pmemstream *stream)
 		       PMEM2_F_MEM_NONTEMPORAL);
 }
 
-int pmemstream_from_map(struct pmemstream **stream, size_t block_size, struct pmem2_map *map)
+static size_t pmemstream_usable_size(size_t stream_size, size_t block_size)
+{
+	assert(stream_size >= sizeof(struct pmemstream_data));
+	return ALIGN_DOWN(stream_size - sizeof(struct pmemstream_data), block_size);
+}
+
+static int pmemstream_validate_sizes(size_t block_size, struct pmem2_map *map)
 {
 	if (block_size == 0) {
+		return -1;
+	}
+
+	if (map == NULL) {
+		return -1;
+	}
+
+	if (pmem2_map_get_size(map) < sizeof(struct pmemstream_data)) {
+		return -1;
+	}
+
+	if (pmemstream_usable_size(pmem2_map_get_size(map), block_size) == 0) {
+		return -1;
+	}
+	return 0;
+}
+
+int pmemstream_from_map(struct pmemstream **stream, size_t block_size, struct pmem2_map *map)
+{
+	if (pmemstream_validate_sizes(block_size, map)) {
 		return -1;
 	}
 
@@ -51,11 +77,15 @@ int pmemstream_from_map(struct pmemstream **stream, size_t block_size, struct pm
 		return -1;
 	}
 
-	s->data = pmem2_map_get_address(map);
-	s->stream_size = pmem2_map_get_size(map);
-	s->usable_size = ALIGN_DOWN(s->stream_size - sizeof(struct pmemstream_data), block_size);
-	s->block_size = block_size;
+	size_t stream_size = pmem2_map_get_size(map);
+	if (stream_size > PTRDIFF_MAX) {
+		return -1;
+	}
 
+	s->data = pmem2_map_get_address(map);
+	s->stream_size = stream_size;
+	s->usable_size = pmemstream_usable_size(s->stream_size, block_size);
+	s->block_size = block_size;
 	s->memcpy = pmem2_get_memcpy_fn(map);
 	s->memset = pmem2_get_memset_fn(map);
 	s->persist = pmem2_get_persist_fn(map);
@@ -98,6 +128,9 @@ int pmemstream_region_allocate(struct pmemstream *stream, size_t size, struct pm
 	if (srt.type != SPAN_EMPTY)
 		return -1;
 
+	if (size == 0) {
+		return -1;
+	}
 	size = ALIGN_UP(size, stream->block_size);
 
 	if (size > srt.empty.size)
