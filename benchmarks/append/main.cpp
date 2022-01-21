@@ -124,7 +124,7 @@ int main(int argc, char *argv[])
 
 	auto bytes_to_generate = config.element_count * config.element_size;
 
-	std::vector<uint8_t> data;
+	std::vector<uint64_t> data;
 	auto input_generation_time =
 		benchmark::measure<std::chrono::seconds>([&] { data = benchmark::generate_data(bytes_to_generate); });
 
@@ -145,9 +145,9 @@ int main(int argc, char *argv[])
 
 	/* XXX: Add initialization phase whith separate measurement */
 	auto results = benchmark::measure<std::chrono::nanoseconds>(config.iterations, [&] {
-		for (auto it = data.begin(); it != data.end(); std::advance(it, config.element_size)) {
-
-			pmemstream_append(stream.get(), region, region_runtime_ptr, &it, config.element_size, NULL);
+		for (size_t i = 0; i < data.size(); i += config.element_size) {
+			pmemstream_append(stream.get(), region, region_runtime_ptr, data.data() + i,
+					  config.element_size, NULL);
 		}
 	});
 
