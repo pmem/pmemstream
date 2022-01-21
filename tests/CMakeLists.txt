@@ -80,6 +80,15 @@ endif()
 # ----------------------------------------------------------------- #
 ## All tests
 # ----------------------------------------------------------------- #
+build_test(entry_iterator api_c/entry_iterator.c)
+add_test_generic(NAME entry_iterator TRACERS none memcheck pmemcheck drd helgrind)
+
+build_test(region_create api_c/region_create.c)
+add_test_generic(NAME region_create TRACERS none memcheck pmemcheck drd helgrind)
+
+build_test(region_iterator api_c/region_iterator.c)
+add_test_generic(NAME region_iterator TRACERS none memcheck pmemcheck drd helgrind)
+
 build_test(stream_from_map api_c/stream_from_map.c)
 add_test_generic(NAME stream_from_map TRACERS none memcheck pmemcheck drd helgrind)
 
