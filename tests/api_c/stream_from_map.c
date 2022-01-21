@@ -20,6 +20,18 @@ void test_stream_from_map(char *path, size_t file_size, size_t blk_size)
 	pmem2_map_delete(&map);
 }
 
+void test_stream_from_map_invalid_size(char *path, size_t file_size, size_t blk_size)
+{
+	struct pmem2_map *map = map_open(path, file_size, true);
+	UT_ASSERTne(map, NULL);
+
+	struct pmemstream *s = NULL;
+	UT_ASSERTne(pmemstream_from_map(&s, blk_size, map), 0);
+
+	pmemstream_delete(&s);
+	pmem2_map_delete(&map);
+}
+
 int main(int argc, char *argv[])
 {
 	if (argc < 2) {
@@ -31,6 +43,8 @@ int main(int argc, char *argv[])
 
 	test_stream_from_map(path, 4096 * 1024, 4096);
 	test_stream_from_map(path, 10240, 64);
+	test_stream_from_map_invalid_size(path, 10240, 0);
+	test_stream_from_map_invalid_size(path, 10240, 10240);
 
 	return 0;
 }
