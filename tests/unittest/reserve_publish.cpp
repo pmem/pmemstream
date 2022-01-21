@@ -16,30 +16,6 @@
 #include "stream_helpers.hpp"
 #include "unittest.hpp"
 
-namespace
-{
-/* Reserve space, write data, and publish (persist) them, within the given region.
- * Do this for all data in the vector. */
-void reserve_and_publish(struct pmemstream *stream, struct pmemstream_region region,
-			 const std::vector<std::string> &data_to_write)
-{
-	for (const auto &d : data_to_write) {
-		/* reserve space for given data */
-		struct pmemstream_entry reserved_entry;
-		void *reserved_data;
-		int ret = pmemstream_reserve(stream, region, nullptr, d.size(), &reserved_entry, &reserved_data);
-		RC_ASSERT(ret == 0);
-
-		/* write into the reserved space and publish (persist) it */
-		memcpy(reserved_data, d.data(), d.size());
-
-		/* XXX: add tests as well for non-temporal memcpy and no persist */
-		ret = pmemstream_publish(stream, region, d.data(), d.size(), &reserved_entry);
-		RC_ASSERT(ret == 0);
-	}
-}
-} /* namespace */
-
 int main(int argc, char *argv[])
 {
 	if (argc != 2) {
