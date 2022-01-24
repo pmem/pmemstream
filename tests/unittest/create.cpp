@@ -8,6 +8,7 @@
 
 #include <rapidcheck.h>
 
+#include "common/util.h"
 #include "stream_helpers.hpp"
 #include "unittest.hpp"
 
@@ -83,6 +84,9 @@ int main(int argc, char *argv[])
 				*rc::gen::inRange<std::size_t>(STREAM_METADATA_SIZE, TEST_DEFAULT_STREAM_SIZE);
 			const auto region_size = stream_size - STREAM_METADATA_SIZE;
 
+			RC_PRE(ALIGN_UP(region_size, TEST_DEFAULT_BLOCK_SIZE) <= stream_size);
+			RC_PRE(ALIGN_UP(region_size, TEST_DEFAULT_BLOCK_SIZE) > 0);
+
 			auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE, stream_size);
 			/* and initialize this stream with a single region of */
 			auto region = initialize_stream_single_region(stream.get(), region_size, {});
@@ -95,9 +99,12 @@ int main(int argc, char *argv[])
 			const auto block_size = *rc::gen::inRange<std::size_t>(
 				1UL, TEST_DEFAULT_STREAM_SIZE / 2UL - STREAM_METADATA_SIZE);
 
+			auto region_size = block_size / 10UL;
+			RC_PRE(region_size > 0);
+
 			auto stream = make_pmemstream(path, block_size, TEST_DEFAULT_STREAM_SIZE);
 			/* and initialize this stream with a single region of */
-			auto region = initialize_stream_single_region(stream.get(), block_size / 10UL, {});
+			auto region = initialize_stream_single_region(stream.get(), region_size, {});
 			verify(stream.get(), region, {}, {});
 
 			RC_ASSERT(pmemstream_region_free(stream.get(), region) == 0);
