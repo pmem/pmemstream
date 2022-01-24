@@ -80,6 +80,9 @@ endif()
 # ----------------------------------------------------------------- #
 ## All tests
 # ----------------------------------------------------------------- #
+build_test(append_entry api_c/append_entry.c)
+add_test_generic(NAME append_entry TRACERS none memcheck pmemcheck drd helgrind)
+
 build_test(entry_iterator api_c/entry_iterator.c)
 add_test_generic(NAME entry_iterator TRACERS none memcheck pmemcheck drd helgrind)
 

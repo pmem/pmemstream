@@ -4,15 +4,20 @@
 #include "unittest.h"
 
 /**
- * entry_iterator - unit test for pmemstream_entry_iterator_new,
- *					pmemstream_entry_iterator_next, pmemstream_entry_iterator_delete
+ * append_entry - unit test for pmemstream_append, pmemstream_entry_data,
+ *					pmemstream_entry_length
  */
+
+struct entry_data {
+	uint64_t data;
+};
 
 void test_entry_iterator(char *path)
 {
 	int ret;
+    struct entry_data data;
+	const struct entry_data *entry_data;
 	struct pmemstream_entry entry;
-	struct pmemstream_entry_iterator *eiter;
 
 	struct pmem2_map *map = map_open(path, TEST_DEFAULT_STREAM_SIZE, true);
 	struct pmemstream *stream;
@@ -24,15 +29,15 @@ void test_entry_iterator(char *path)
 	UT_ASSERTeq(ret, 0);
 	UT_ASSERTne(&region, NULL);
 
-	ret = pmemstream_entry_iterator_new(&eiter, stream, region);
-	UT_ASSERTeq(ret, 0);
-	UT_ASSERTne(eiter, NULL);
+	ret = pmemstream_append(stream, region, NULL, &data, sizeof(data), &entry);
+    UT_ASSERTeq(ret, 0);
+    UT_ASSERTne(&entry, NULL);
 
-	ret = pmemstream_entry_iterator_next(eiter, &region, &entry);
-	UT_ASSERTeq(ret, -1);
+	entry_data = pmemstream_entry_data(stream, entry);
+	UT_ASSERTne(entry_data, NULL);
 
-	pmemstream_entry_iterator_delete(&eiter);
-	UT_ASSERTeq(eiter, NULL);
+	UT_ASSERTeq(pmemstream_entry_length(stream, entry), sizeof(data));
+
 	pmemstream_region_free(stream, region);
 	pmemstream_delete(&stream);
 	pmem2_map_delete(&map);
