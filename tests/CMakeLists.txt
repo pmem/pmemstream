@@ -124,3 +124,13 @@ if(BUILD_EXAMPLES)
 	add_test_generic(NAME example-01_basic_iterate TRACERS none)
 	add_test_generic(NAME example-02_visual_iterator TRACERS none)
 endif()
+
+# ----------------------------------------------------------------- #
+## Tests using benchmarks
+# ----------------------------------------------------------------- #
+if(BUILD_BENCHMARKS)
+	add_dependencies(tests
+				benchmark-append)
+	add_test_generic(NAME benchmark-append SCRIPT benchmarks/append.cmake  TRACERS none)
+endif()
+
