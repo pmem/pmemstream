@@ -103,6 +103,40 @@ struct return_check {
 	bool status = true;
 };
 
+/* Sets environmental variable in its ctor - restores previous value (or unset)
+ * the variable in its dtor. If replace is set to true, old value will be overwritten. */
+struct env_setter {
+	env_setter(const std::string &key, const std::string &value, bool replace) : key(key)
+	{
+		auto old_val_c_str = getenv(key.c_str());
+		if (old_val_c_str && !replace) {
+			std::cout << "No replacing env var: " << key << " with value " << old_val_c_str << std::endl;
+			return;
+		}
+
+		if (old_val_c_str) {
+			old_value = std::string(old_val_c_str);
+			std::cout << "Replacing env var:" << key << " with " << value << std::endl;
+		}
+
+		int r = setenv(key.c_str(), value.c_str(), replace);
+		UT_ASSERT(r == 0);
+	}
+
+	~env_setter()
+	{
+		if (!old_value) {
+			int r = unsetenv(key.c_str());
+			UT_ASSERT(r == 0);
+		} else {
+			setenv(key.c_str(), old_value->c_str(), 1);
+		}
+	}
+
+	std::string key;
+	std::optional<std::string> old_value = std::nullopt;
+};
+
 auto make_pmemstream(const std::string &file, size_t block_size, size_t size, bool truncate = true)
 {
 	struct pmem2_map *map = map_open(file.c_str(), size, truncate);

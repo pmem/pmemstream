@@ -56,10 +56,9 @@ int main(int argc, char *argv[])
 		return_check ret;
 
 		/* Disable shrinking and set max_size of entries. */
-		/* XXX: can we do though rapidcheck API? */
+		/* XXX: can we do this via rapidcheck API? */
 		std::string rapidcheck_config = "noshrink=1 max_size=" + std::to_string(max_size);
-		int r = setenv("RC_PARAMS", rapidcheck_config.data(), 0);
-		UT_ASSERT(r == 0);
+		env_setter setter("RC_PARAMS", rapidcheck_config, false);
 
 		ret += rc::check(
 			"verify if iterators concurrent to append work do not return garbage (no preinitialization)",
