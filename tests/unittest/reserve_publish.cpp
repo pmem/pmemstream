@@ -23,6 +23,12 @@ namespace
 void reserve_and_publish(struct pmemstream *stream, struct pmemstream_region region,
 			 const std::vector<std::string> &data_to_write)
 {
+	pmemstream_region_runtime *runtime = nullptr;
+	if (*rc::gen::arbitrary<bool>()) {
+		int ret = pmemstream_get_region_runtime(stream, region, &runtime);
+		RC_ASSERT(ret == 0);
+	}
+
 	for (const auto &d : data_to_write) {
 		/* reserve space for given data */
 		struct pmemstream_entry reserved_entry;
