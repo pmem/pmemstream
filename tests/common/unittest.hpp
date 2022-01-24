@@ -13,6 +13,7 @@
 #include <functional>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <type_traits>
 
 static inline void UT_EXCEPTION(std::exception &e)
