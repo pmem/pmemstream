@@ -4,10 +4,11 @@
 #ifndef LIBPMEMSTREAM_STREAM_HELPERS_HPP
 #define LIBPMEMSTREAM_STREAM_HELPERS_HPP
 
-#include "unittest.hpp"
-
 #include <algorithm>
+#include <cstring>
 #include <vector>
+
+#include "unittest.hpp"
 
 void append(struct pmemstream *stream, struct pmemstream_region region,
 	    struct pmemstream_region_runtime *region_runtime, const std::vector<std::string> &data)
@@ -63,4 +64,23 @@ void verify(pmemstream *stream, pmemstream_region region, const std::vector<std:
 	RC_ASSERT(std::equal(extra_data_start, all_elements.end(), extra_data.begin()));
 }
 
+/* Reserve space, write data, and publish (persist) them, within the given region.
+ * Do this for all data in the vector. */
+void reserve_and_publish(struct pmemstream *stream, struct pmemstream_region region,
+			 const std::vector<std::string> &data_to_write)
+{
+	for (const auto &d : data_to_write) {
+		/* reserve space for given data */
+		struct pmemstream_entry reserved_entry;
+		void *reserved_data;
+		int ret = pmemstream_reserve(stream, region, nullptr, d.size(), &reserved_entry, &reserved_data);
+		RC_ASSERT(ret == 0);
+
+		/* write into the reserved space and publish (persist) it */
+		memcpy(reserved_data, d.data(), d.size());
+
+		ret = pmemstream_publish(stream, region, d.data(), d.size(), &reserved_entry);
+		RC_ASSERT(ret == 0);
+	}
+}
 #endif /* LIBPMEMSTREAM_STREAM_HELPERS_HPP */

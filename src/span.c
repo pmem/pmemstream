@@ -14,23 +14,23 @@ const span_bytes *span_offset_to_span_ptr(const struct pmemstream *stream, uint6
 	return (const span_bytes *)pmemstream_offset_to_ptr(stream, offset);
 }
 
-void span_create_empty(struct pmemstream *stream, uint64_t offset, size_t data_size)
+/* Creates empty span at given offset.
+ * It sets empty's type and size, and zeros out the whole span.
+ */
+void span_create_empty(struct pmemstream *stream, uint64_t offset, size_t size)
 {
 	span_bytes *span = (span_bytes *)span_offset_to_span_ptr(stream, offset);
-	assert((data_size & SPAN_TYPE_MASK) == 0);
-	span[0] = data_size | SPAN_EMPTY;
+	assert((size & SPAN_TYPE_MASK) == 0);
+	span[0] = size | SPAN_EMPTY;
 
 	void *dest = ((uint8_t *)span) + SPAN_EMPTY_METADATA_SIZE;
-	stream->memset(dest, 0, data_size, PMEM2_F_MEM_NONTEMPORAL | PMEM2_F_MEM_NODRAIN);
+	stream->memset(dest, 0, size, PMEM2_F_MEM_NONTEMPORAL | PMEM2_F_MEM_NODRAIN);
 	stream->persist(span, SPAN_EMPTY_METADATA_SIZE);
 }
 
-/* XXX: add descr
- *
- * flags may be used to adjust behavior of persisting the data; use 0 for default persist.
- */
-void span_create_entry(struct pmemstream *stream, uint64_t offset, const void *data, size_t data_size, size_t popcount,
-		       int flags)
+/* Internal helper for span_create_entry. */
+static void span_create_entry_internal(struct pmemstream *stream, uint64_t offset, size_t data_size, size_t popcount,
+				       size_t flush_size)
 {
 	span_bytes *span = (span_bytes *)span_offset_to_span_ptr(stream, offset);
 	assert((data_size & SPAN_TYPE_MASK) == 0);
@@ -39,18 +39,30 @@ void span_create_entry(struct pmemstream *stream, uint64_t offset, const void *d
 	span[0] = data_size | SPAN_ENTRY;
 	span[1] = popcount;
 
-	size_t persist_size = data_size + SPAN_ENTRY_METADATA_SIZE;
-	if (flags & PMEMSTREAM_PUBLISH_NOFLUSH_DATA) {
-		persist_size = SPAN_ENTRY_METADATA_SIZE;
-	} else if (flags & PMEMSTREAM_PUBLISH_NOFLUSH) {
-		persist_size = 0;
-	}
-
-	if (persist_size != 0) {
-		stream->persist(span, SPAN_ENTRY_METADATA_SIZE);
-	}
+	stream->persist(span, flush_size);
 }
 
+/* Creates entry span at given offset.
+ * It sets entry's metadata: type, size of the data and popcount.
+ * It flushes metadata along with the data (of given 'data_size'), which are stored in the spans following metadata.
+ */
+void span_create_entry(struct pmemstream *stream, uint64_t offset, size_t data_size, size_t popcount)
+{
+	span_create_entry_internal(stream, offset, data_size, popcount, SPAN_ENTRY_METADATA_SIZE + data_size);
+}
+
+/* Creates entry span at given offset.
+ * It sets entry's metadata: type, size of the data and popcount.
+ * It flushes only the metadata.
+ */
+void span_create_entry_no_flush_data(struct pmemstream *stream, uint64_t offset, size_t data_size, size_t popcount)
+{
+	span_create_entry_internal(stream, offset, data_size, popcount, SPAN_ENTRY_METADATA_SIZE);
+}
+
+/* Creates region span at given offset.
+ * It only sets region's type and size.
+ */
 void span_create_region(struct pmemstream *stream, uint64_t offset, size_t size)
 {
 	span_bytes *span = (span_bytes *)span_offset_to_span_ptr(stream, offset);

@@ -205,18 +205,12 @@ int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region regio
 	return ret;
 }
 
-static int pmemstream_internal_publish(struct pmemstream *stream, struct pmemstream_region region, const void *data,
-				       size_t size, struct pmemstream_entry *reserved_entry, int flags)
-{
-	span_create_entry(stream, reserved_entry->offset, data, size, util_popcount_memory(data, size), flags);
-
-	return 0;
-}
-
 int pmemstream_publish(struct pmemstream *stream, struct pmemstream_region region, const void *data, size_t size,
 		       struct pmemstream_entry *reserved_entry)
 {
-	return pmemstream_internal_publish(stream, region, data, size, reserved_entry, PMEMSTREAM_PUBLISH_PERSIST);
+	span_create_entry(stream, reserved_entry->offset, size, util_popcount_memory(data, size));
+
+	return 0;
 }
 
 // synchronously appends data buffer to the end of the region
@@ -232,10 +226,7 @@ int pmemstream_append(struct pmemstream *stream, struct pmemstream_region region
 	}
 
 	stream->memcpy(reserved_dest, data, size, PMEM2_F_MEM_NONTEMPORAL | PMEM2_F_MEM_NODRAIN);
-	ret = pmemstream_internal_publish(stream, region, data, size, &reserved_entry, PMEMSTREAM_PUBLISH_NOFLUSH_DATA);
-	if (ret) {
-		return ret;
-	}
+	span_create_entry_no_flush_data(stream, reserved_entry.offset, size, util_popcount_memory(data, size));
 
 	if (new_entry) {
 		new_entry->offset = reserved_entry.offset;
