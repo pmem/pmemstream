@@ -103,7 +103,18 @@ struct return_check {
 	bool status = true;
 };
 
-auto make_pmemstream(const std::string &file, size_t block_size, size_t size, bool truncate = true)
+/* From: https://stackoverflow.com/a/20846873/5935594
+ * CC BY-SA 3.0 */
+template <class F>
+auto make_copyable_function(F &&f)
+{
+	using dF = std::decay_t<F>;
+	auto spf = std::make_shared<dF>(std::forward<F>(f));
+	return [spf](auto &&... args) { return (*spf)(decltype(args)(args)...); };
+}
+
+std::unique_ptr<struct pmemstream, std::function<void(struct pmemstream *)>>
+make_pmemstream(const std::string &file, size_t block_size, size_t size, bool truncate = true)
 {
 	struct pmem2_map *map = map_open(file.c_str(), size, truncate);
 	if (map == NULL) {
@@ -122,7 +133,8 @@ auto make_pmemstream(const std::string &file, size_t block_size, size_t size, bo
 	auto stream_delete = [map_uptr = std::move(map_uptr)](struct pmemstream *stream) {
 		pmemstream_delete(&stream);
 	};
-	return std::unique_ptr<struct pmemstream, decltype(stream_delete)>(stream, std::move(stream_delete));
+	return std::unique_ptr<struct pmemstream, std::function<void(struct pmemstream *)>>(
+		stream, make_copyable_function(std::move(stream_delete)));
 }
 
 #endif /* LIBPMEMSTREAM_UNITTEST_HPP */
