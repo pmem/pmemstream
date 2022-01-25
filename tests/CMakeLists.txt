@@ -92,6 +92,9 @@ add_test_generic(NAME region_create TRACERS none memcheck pmemcheck drd helgrind
 build_test(region_iterator api_c/region_iterator.c)
 add_test_generic(NAME region_iterator TRACERS none memcheck pmemcheck drd helgrind)
 
+build_test(reserve_and_publish api_c/reserve_and_publish.c)
+add_test_generic(NAME reserve_and_publish TRACERS none memcheck pmemcheck drd helgrind)
+
 build_test(stream_from_map api_c/stream_from_map.c)
 add_test_generic(NAME stream_from_map TRACERS none memcheck pmemcheck drd helgrind)
 
