@@ -7,6 +7,7 @@
 #include "region.h"
 
 #include <assert.h>
+#include <stdbool.h>
 #include <string.h>
 
 int pmemstream_region_iterator_new(struct pmemstream_region_iterator **iterator, struct pmemstream *stream)
@@ -103,51 +104,98 @@ static int validate_entry(const struct pmemstream *stream, struct pmemstream_ent
 	return -1;
 }
 
-/* Advances entry iterator by one. Verifies entry integrity and sets append_offset if end of data is found. */
+static bool pmemstream_entry_iterator_offset_is_inside_region(struct pmemstream_entry_iterator *iterator)
+{
+	struct span_runtime region_srt = span_get_region_runtime(iterator->stream, iterator->region.offset);
+	uint64_t region_end_offset = iterator->region.offset + region_srt.total_size;
+	return iterator->offset >= iterator->region.offset && iterator->offset <= region_end_offset;
+}
+
+/* Precondition: region_runtime is initialized. */
+static bool pmemstream_entry_iterator_offset_is_below_committed(struct pmemstream_entry_iterator *iterator)
+{
+	assert(region_runtime_is_initialized(iterator->region_runtime));
+
+	/* Make sure that we didn't go beyond committed entries. */
+	uint64_t committed_offset = region_runtime_get_committed_offset_acquire(iterator->region_runtime);
+	if (iterator->offset >= committed_offset) {
+		return false;
+	}
+
+#ifndef NDEBUG
+	assert(pmemstream_entry_iterator_offset_is_inside_region(iterator));
+	/* Region is already recovered, and we did not encounter end of the data yet.
+	 * Span must be a valid entry. */
+	struct pmemstream_entry entry = {.offset = iterator->offset};
+	assert(validate_entry(iterator->stream, entry) == 0);
+#endif
+
+	return true;
+}
+
+static bool pmemstream_entry_iterator_offset_at_valid_entry(struct pmemstream_entry_iterator *iterator)
+{
+	assert(pmemstream_entry_iterator_offset_is_inside_region(iterator));
+
+	struct span_runtime region_srt = span_get_region_runtime(iterator->stream, iterator->region.offset);
+	uint64_t region_end_offset = iterator->region.offset + region_srt.total_size;
+	struct pmemstream_entry entry = {.offset = iterator->offset};
+
+	return iterator->offset < region_end_offset && validate_entry(iterator->stream, entry) == 0;
+}
+
+static void pmemstream_entry_iterator_advance(struct pmemstream_entry_iterator *iterator)
+{
+	/* Verify that all metadata and data fits inside the region before and after iterator
+	 * increment - those checks should not fail unless stream was corrupted. */
+	assert(pmemstream_entry_iterator_offset_is_inside_region(iterator));
+
+	struct span_runtime entry_srt = span_get_entry_runtime(iterator->stream, iterator->offset);
+	iterator->offset += entry_srt.total_size;
+
+	assert(pmemstream_entry_iterator_offset_is_inside_region(iterator));
+}
+
+static int pmemstream_entry_iterator_next_when_region_initialized(struct pmemstream_entry_iterator *iterator)
+{
+	if (pmemstream_entry_iterator_offset_is_below_committed(iterator)) {
+		pmemstream_entry_iterator_advance(iterator);
+		return 0;
+	}
+
+	return -1;
+}
+
+static int pmemstream_entry_iterator_next_when_region_not_initialized(struct pmemstream_entry_iterator *iterator)
+{
+	if (pmemstream_entry_iterator_offset_at_valid_entry(iterator)) {
+		pmemstream_entry_iterator_advance(iterator);
+		return 0;
+	}
+
+	/* Lazy (re-)initialization of region, when needed. */
+	struct pmemstream_entry entry = {.offset = iterator->offset};
+	region_runtime_initialize(iterator->region_runtime, entry);
+	return -1;
+}
+
+/* Advances entry iterator by one. Verifies entry integrity and initializes region runtime if end of data is found. */
 int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iterator, struct pmemstream_region *region,
 				   struct pmemstream_entry *user_entry)
 {
-	struct span_runtime srt = span_get_runtime(iterator->stream, iterator->offset);
-	struct span_runtime region_srt = span_get_region_runtime(iterator->stream, iterator->region.offset);
-	struct pmemstream_entry entry;
-	entry.offset = iterator->offset;
-
 	// XXX: add test for NULL entry
 	if (user_entry) {
-		*user_entry = entry;
+		user_entry->offset = iterator->offset;
 	}
 	if (region) {
 		*region = iterator->region;
 	}
 
-	/* Make sure that we didn't go beyond region. */
-	if (iterator->offset >= iterator->region.offset + region_srt.total_size) {
-		return -1;
+	if (region_runtime_is_initialized(iterator->region_runtime)) {
+		return pmemstream_entry_iterator_next_when_region_initialized(iterator);
 	}
 
-	/*
-	 * Verify that all metadata and data fits inside the region - this should not fail unless stream was corrupted.
-	 */
-	assert(entry.offset + srt.total_size <= iterator->region.offset + region_srt.total_size);
-
-	int initialized = region_is_runtime_initialized(iterator->region_runtime);
-
-	if (initialized && srt.type == SPAN_EMPTY) {
-		/* If we found last entry and append_offset is already initialized, just return -1. */
-		return -1;
-	} else if (!initialized && validate_entry(iterator->stream, entry) < 0) {
-		/* If append_offset was not set yet, validate that entry is correct. If entry is not valid, set
-		 * append_offset to point to that entry. */
-		region_runtime_initialize(iterator->region_runtime, entry);
-		return -1;
-	}
-
-	/* Region is already recovered, and we did not encounter end of the data yet - span must be a valid entry */
-	assert(validate_entry(iterator->stream, entry) == 0);
-
-	iterator->offset += srt.total_size;
-
-	return 0;
+	return pmemstream_entry_iterator_next_when_region_not_initialized(iterator);
 }
 
 void pmemstream_entry_iterator_delete(struct pmemstream_entry_iterator **iterator)

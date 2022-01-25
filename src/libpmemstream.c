@@ -152,20 +152,17 @@ int pmemstream_get_region_runtime(struct pmemstream *stream, struct pmemstream_r
 	return region_runtimes_map_get_or_create(stream->region_runtimes_map, region, region_runtime);
 }
 
-static void pmemstream_clear_region_remaining(struct pmemstream *stream, struct pmemstream_region region, uint64_t tail)
+static size_t pmemstream_entry_total_size_aligned(size_t size)
 {
-	struct span_runtime region_rt = span_get_region_runtime(stream, region.offset);
-	size_t region_end_offset = region.offset + region_rt.total_size;
-	size_t remaining_size = region_end_offset - tail;
-	span_create_empty(stream, tail, remaining_size - SPAN_EMPTY_METADATA_SIZE);
+	size_t entry_total_size = size + SPAN_ENTRY_METADATA_SIZE;
+	return ALIGN_UP(entry_total_size, sizeof(span_bytes));
 }
 
 int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region region,
 		       struct pmemstream_region_runtime *region_runtime, size_t size,
 		       struct pmemstream_entry *reserved_entry, void **data_addr)
 {
-	size_t entry_total_size = size + SPAN_ENTRY_METADATA_SIZE;
-	size_t entry_total_size_span_aligned = ALIGN_UP(entry_total_size, sizeof(span_bytes));
+	size_t entry_total_size_span_aligned = pmemstream_entry_total_size_aligned(size);
 	struct span_runtime region_srt = span_get_region_runtime(stream, region.offset);
 	int ret = 0;
 
@@ -176,17 +173,12 @@ int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region regio
 		}
 	}
 
-	ret = region_try_runtime_initialize_locked(stream, region, region_runtime);
+	ret = region_runtime_try_initialize_locked(stream, region, region_runtime);
 	if (ret) {
 		return ret;
 	}
 
-	uint64_t offset = __atomic_load_n(&region_runtime->append_offset, __ATOMIC_RELAXED);
-	if (offset & PMEMSTREAM_OFFSET_DIRTY_BIT) {
-		offset &= PMEMSTREAM_OFFSET_DIRTY_MASK;
-		pmemstream_clear_region_remaining(stream, region, offset);
-		__atomic_store_n(&region_runtime->append_offset, offset, __ATOMIC_RELEASE);
-	}
+	uint64_t offset = region_runtime_try_clear_from_tail(stream, region, region_runtime);
 
 	if (offset + entry_total_size_span_aligned > region.offset + region_srt.total_size) {
 		return -1;
@@ -196,7 +188,7 @@ int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region regio
 		return -1;
 	}
 
-	region_runtime->append_offset += entry_total_size_span_aligned;
+	region_runtime_increase_append_offset(region_runtime, entry_total_size_span_aligned);
 
 	reserved_entry->offset = offset;
 	/* data is right after the entry metadata */
@@ -205,10 +197,19 @@ int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region regio
 	return ret;
 }
 
-int pmemstream_publish(struct pmemstream *stream, struct pmemstream_region region, const void *data, size_t size,
+int pmemstream_publish(struct pmemstream *stream, struct pmemstream_region region,
+		       struct pmemstream_region_runtime *region_runtime, const void *data, size_t size,
 		       struct pmemstream_entry *reserved_entry)
 {
+	if (!region_runtime) {
+		int ret = pmemstream_get_region_runtime(stream, region, &region_runtime);
+		if (ret) {
+			return ret;
+		}
+	}
+
 	span_create_entry(stream, reserved_entry->offset, size, util_popcount_memory(data, size));
+	region_runtime_increase_committed_offset(region_runtime, pmemstream_entry_total_size_aligned(size));
 
 	return 0;
 }
@@ -218,6 +219,13 @@ int pmemstream_append(struct pmemstream *stream, struct pmemstream_region region
 		      struct pmemstream_region_runtime *region_runtime, const void *data, size_t size,
 		      struct pmemstream_entry *new_entry)
 {
+	if (!region_runtime) {
+		int ret = pmemstream_get_region_runtime(stream, region, &region_runtime);
+		if (ret) {
+			return ret;
+		}
+	}
+
 	struct pmemstream_entry reserved_entry;
 	void *reserved_dest;
 	int ret = pmemstream_reserve(stream, region, region_runtime, size, &reserved_entry, &reserved_dest);
@@ -227,6 +235,7 @@ int pmemstream_append(struct pmemstream *stream, struct pmemstream_region region
 
 	stream->memcpy(reserved_dest, data, size, PMEM2_F_MEM_NONTEMPORAL | PMEM2_F_MEM_NODRAIN);
 	span_create_entry_no_flush_data(stream, reserved_entry.offset, size, util_popcount_memory(data, size));
+	region_runtime_increase_committed_offset(region_runtime, pmemstream_entry_total_size_aligned(size));
 
 	if (new_entry) {
 		new_entry->offset = reserved_entry.offset;
