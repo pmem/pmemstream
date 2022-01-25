@@ -27,8 +27,8 @@ void test_stream_from_map_invalid_size(char *path, size_t file_size, size_t blk_
 
 	struct pmemstream *s = NULL;
 	UT_ASSERTne(pmemstream_from_map(&s, blk_size, map), 0);
+	UT_ASSERTeq(s, NULL);
 
-	pmemstream_delete(&s);
 	pmem2_map_delete(&map);
 }
 
