@@ -119,7 +119,7 @@ int main(int argc, char *argv[])
 				}
 
 				auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE, stream_size, false);
-				std::vector parallel_exec(concurrency, [&](size_t tid) {
+				parallel_exec(concurrency, [&](size_t tid) {
 					if (tid == 0) {
 						/* appender */
 						pmemstream_region_runtime *region_runtime = nullptr;
