@@ -138,9 +138,11 @@ endif()
 if(BUILD_EXAMPLES)
 	add_dependencies(tests
 				example-01_basic_iterate
-				example-02_visual_iterator)
+				example-02_visual_iterator
+				example-03_reserve_publish)
 	add_test_generic(NAME example-01_basic_iterate TRACERS none)
 	add_test_generic(NAME example-02_visual_iterator TRACERS none)
+	add_test_generic(NAME example-03_reserve_publish TRACERS none)
 endif()
 
 # ----------------------------------------------------------------- #
