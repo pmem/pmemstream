@@ -86,6 +86,9 @@ add_test_generic(NAME id_manager_multithreaded TRACERS none memcheck drd helgrin
 build_test_ext(NAME thread_id SRC_FILES unittest/thread_id.cpp ../src/id_manager.c ../src/thread_id.c ../src/critnib/critnib.c)
 add_test_generic(NAME thread_id TRACERS none memcheck drd helgrind)
 
+build_test_ext(NAME region_initialize SRC_FILES unittest/region_initialize.cpp ../src/region.c ../src/critnib/critnib.c ../src/span.c ../src/iterator.c)
+add_test_generic(NAME region_initialize TRACERS none memcheck drd helgrind)
+
 build_test(stream_from_map api_c/stream_from_map.c)
 add_test_generic(NAME stream_from_map TRACERS none memcheck pmemcheck drd helgrind)
 

@@ -164,7 +164,9 @@ void region_runtimes_map_remove(struct region_runtimes_map *map, struct pmemstre
 
 bool region_runtime_is_initialized(const struct pmemstream_region_runtime *region_runtime)
 {
-	return __atomic_load_n(&region_runtime->append_offset, __ATOMIC_ACQUIRE) != PMEMSTREAM_OFFSET_UNINITIALIZED;
+	bool ret = __atomic_load_n(&region_runtime->append_offset, __ATOMIC_ACQUIRE) != PMEMSTREAM_OFFSET_UNINITIALIZED;
+	/* XXX: ANNOTATE_HAPPENS_AFTER(&region_runtime->append_offset); */
+	return ret;
 }
 
 bool region_runtime_is_dirty(const struct pmemstream_region_runtime *region_runtime)
@@ -216,28 +218,34 @@ int region_runtime_try_initialize_locked(struct pmemstream *stream, struct pmems
 	return ret;
 }
 
-/* Initializes append_offset to DIRTY(desired_offset) */
-static bool region_runtime_try_initialize_append_offset_relaxed(struct pmemstream_region_runtime *region_runtime,
-								uint64_t desired_offset)
+/* Initializes committed_offset to desired_offset. */
+static bool region_runtime_try_initialize_committed_offset_relaxed(struct pmemstream_region_runtime *region_runtime,
+								   uint64_t desired_offset)
 {
-	uint64_t expected_append_offset = PMEMSTREAM_OFFSET_UNINITIALIZED;
-	uint64_t desired = desired_offset | PMEMSTREAM_OFFSET_DIRTY_BIT;
+	uint64_t expected_committed_offset = PMEMSTREAM_OFFSET_UNINITIALIZED;
+	uint64_t desired = desired_offset;
 	int weak = 0; /* Use compare_exchange strong variation. */
-	return __atomic_compare_exchange_n(&region_runtime->append_offset, &expected_append_offset, desired, weak,
+	return __atomic_compare_exchange_n(&region_runtime->committed_offset, &expected_committed_offset, desired, weak,
 					   __ATOMIC_RELAXED, __ATOMIC_RELAXED);
 }
 
+/* Concurrency note: since append_offset is used by region_runtime_is_initialized, we must first set committed_offset.
+ * Otherwise we could have a race: if one thread would set append_offset and was preempted before setting
+ * committed_offset, region_runtime_is_initialized would still return true (which means that using both append_offset
+ * and committed_offset is OK).
+ */
 void region_runtime_initialize(struct pmemstream_region_runtime *region_runtime, struct pmemstream_entry tail)
 {
 	assert(region_runtime);
 	assert(tail.offset != PMEMSTREAM_OFFSET_UNINITIALIZED);
 
 	/* We use relaxed here because of release fence at the end. */
-	if (region_runtime_try_initialize_append_offset_relaxed(region_runtime, tail.offset)) {
-		__atomic_store_n(&region_runtime->committed_offset, tail.offset, __ATOMIC_RELAXED);
+	if (region_runtime_try_initialize_committed_offset_relaxed(region_runtime, tail.offset)) {
+		/* XXX: ANNOTATE_HAPPENS_BEFORE(&region_runtime->append_offset); */
+		uint64_t prev_append_offset = __atomic_exchange_n(
+			&region_runtime->append_offset, tail.offset | PMEMSTREAM_OFFSET_DIRTY_BIT, __ATOMIC_RELAXED);
+		assert(prev_append_offset == PMEMSTREAM_OFFSET_UNINITIALIZED);
 	}
-
-	__atomic_thread_fence(__ATOMIC_RELEASE);
 }
 
 static void region_runtime_clear_from_tail(struct pmemstream *stream, struct pmemstream_region region,

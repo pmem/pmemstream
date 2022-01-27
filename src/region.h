@@ -26,6 +26,8 @@ extern "C" {
  * - dirty: append_offset and committed_offsets are known but region was not yet cleared (appending
  *   to such region might lead to data corruption)
  * - clear: append_offset and committed_offset are known, append is safe
+ *
+ * XXX: All function except for region_runtime_try_clear_from_tail are thread-safe.
  */
 
 struct pmemstream_region_runtime;
@@ -43,7 +45,10 @@ int region_runtimes_map_get_or_create(struct region_runtimes_map *map, struct pm
 				      struct pmemstream_region_runtime **container_handle);
 void region_runtimes_map_remove(struct region_runtimes_map *map, struct pmemstream_region region);
 
+/* Returns true if region is initialized. This means that append_offset and committed_offset are set. */
 bool region_runtime_is_initialized(const struct pmemstream_region_runtime *region_runtime);
+
+/* Return true if region is initialized but still in 'dirty' state. */
 bool region_runtime_is_dirty(const struct pmemstream_region_runtime *region_runtime);
 
 /* Precondition: region_runtime_is_initialized() == true */
@@ -59,7 +64,7 @@ int region_runtime_try_initialize_locked(struct pmemstream *stream, struct pmems
 					 struct pmemstream_region_runtime *region_runtime);
 
 /*
- * Performs region recovery - initializes append_offset and clears all the data in the region after `tail` entry.
+ * Performs region recovery - initializes append_offset and committed_offset.
  *
  * After this call, region_runtime is in "dirty" state.
  */
@@ -70,6 +75,8 @@ void region_runtime_initialize(struct pmemstream_region_runtime *region_runtime,
  * After this call, region_runtime is in "clear" state.
  *
  * Returns current append_offset.
+ *
+ * This function is NOT thread safe.
  */
 uint64_t region_runtime_try_clear_from_tail(struct pmemstream *stream, struct pmemstream_region region,
 					    struct pmemstream_region_runtime *region_runtime);
