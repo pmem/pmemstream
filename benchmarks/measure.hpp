@@ -9,6 +9,7 @@
 
 namespace benchmark
 {
+
 template <typename TimeUnit, typename F>
 typename TimeUnit::rep measure(F &&func)
 {
@@ -20,14 +21,20 @@ typename TimeUnit::rep measure(F &&func)
 	return duration.count();
 }
 
-template <typename TimeUnit, typename F>
-auto measure(size_t iterations, F &&func)
+/* Measure time of execution of run_workload function. init() and clean()
+ * functions are executed respectively before and after each iteration */
+template <typename TimeUnit, typename InitFunc, typename WorkloadFunc, typename CleanupFunc>
+auto measure(size_t iterations, InitFunc &&init, WorkloadFunc &&run_workload, CleanupFunc &&clean)
 {
 	std::vector<typename TimeUnit::rep> results;
 	results.reserve(iterations);
+
 	for (size_t i = 0; i < iterations; i++) {
-		results.push_back(measure<TimeUnit>(func));
+		init();
+		results.push_back(measure<TimeUnit>(run_workload));
+		clean();
 	}
+
 	return results;
 }
 
