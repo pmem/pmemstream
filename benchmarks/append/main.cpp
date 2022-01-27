@@ -166,12 +166,11 @@ class workload_base {
 	virtual ~workload_base(){};
 	virtual void perform() = 0;
 	virtual void initialize() = 0;
+	virtual void clean() = 0;
 
 	void prepare_data(size_t bytes_to_generate)
 	{
-		auto input_generation_time = benchmark::measure<std::chrono::seconds>(
-			[&] { data = benchmark::generate_data(bytes_to_generate); });
-		std::cout << "input generation time: " << input_generation_time << "s" << std::endl;
+		data = benchmark::generate_data(bytes_to_generate);
 	}
 	uint8_t *get_data_chunks()
 	{
@@ -188,7 +187,7 @@ class pmemlog_workload : public workload_base {
 	{
 	}
 
-	virtual void perform() override
+	void perform() override
 	{
 		auto data_chunks = get_data_chunks();
 		for (size_t i = 0; i < data.size() * sizeof(uint64_t); i += cfg.element_size) {
@@ -199,7 +198,7 @@ class pmemlog_workload : public workload_base {
 		}
 	}
 
-	virtual void initialize() override
+	void initialize() override
 	{
 		auto path = cfg.path.c_str();
 		plp = pmemlog_create(path, cfg.size, S_IRWXU);
@@ -211,6 +210,11 @@ class pmemlog_workload : public workload_base {
 		}
 		auto bytes_to_generate = cfg.element_count * cfg.element_size;
 		prepare_data(bytes_to_generate);
+	}
+
+	void clean() override
+	{
+		pmemlog_rewind(plp);
 	}
 
  private:
@@ -237,6 +241,7 @@ class pmemstream_workload : public workload_base {
 
 		auto bytes_to_generate = cfg.element_count * cfg.element_size;
 		prepare_data(bytes_to_generate);
+
 	}
 
 	void perform() override
@@ -245,9 +250,14 @@ class pmemstream_workload : public workload_base {
 		for (size_t i = 0; i < data.size() * sizeof(uint64_t); i += cfg.element_size) {
 			if (pmemstream_append(stream.get(), region, region_runtime_ptr, data_chunks + i,
 					      cfg.element_size, NULL) < 0) {
-				throw std::runtime_error("Error while appending new entry!");
+				throw std::runtime_error("Error while appending " + std::to_string(i) + " entry!");
 			}
 		}
+	}
+
+	void clean() override
+	{
+		pmemstream_region_free(stream.get(), region);
 	}
 
  private:
@@ -280,15 +290,16 @@ int main(int argc, char *argv[])
 		workload = std::make_unique<pmemstream_workload>(cfg);
 	}
 
+	/* XXX: Add initialization phase whith separate measurement */
+	std::vector<std::chrono::nanoseconds::rep> results;
 	try {
-		workload->initialize();
+		results = benchmark::measure<std::chrono::nanoseconds>(
+			cfg.iterations, [&] { workload->initialize(); },
+			[interface = workload.get()] { interface->perform(); }, [&] { workload->clean(); });
 	} catch (std::runtime_error &e) {
 		std::cerr << e.what() << std::endl;
 		return -2;
 	}
-	/* XXX: Add initialization phase whith separate measurement */
-	auto results = benchmark::measure<std::chrono::nanoseconds>(
-		cfg.iterations, [interface = workload.get()] { interface->perform(); });
 
 	auto mean = benchmark::mean(results) / cfg.element_count;
 	auto max = static_cast<size_t>(benchmark::max(results)) / cfg.element_count;
