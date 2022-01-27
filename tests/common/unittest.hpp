@@ -124,4 +124,14 @@ make_pmemstream(const std::string &file, size_t block_size, size_t size, bool tr
 	return std::unique_ptr<struct pmemstream, std::function<void(struct pmemstream *)>>(stream, stream_delete);
 }
 
+/* Return function which constructs (creates unique_ptr) an instance of an object using ctor().
+ * Its main purpose is to wrap C-like interface with _new and _destroy functions in unique_ptr. */
+template <typename Ctor, typename Dtor>
+auto make_instance_ctor(Ctor &&ctor, Dtor &&dtor)
+{
+	return [&] {
+		return std::unique_ptr<std::remove_reference_t<decltype(*ctor())>, decltype(&dtor)>(ctor(), &dtor);
+	};
+}
+
 #endif /* LIBPMEMSTREAM_UNITTEST_HPP */
