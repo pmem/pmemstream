@@ -184,7 +184,7 @@ void region_runtime_increase_committed_offset(struct pmemstream_region_runtime *
 	__atomic_fetch_add(&region_runtime->committed_offset, diff, __ATOMIC_RELEASE);
 }
 
-/* Iterates over entire region. Might initialize append_offset. */
+/* Iterates over entire region. Might initialize region. */
 static int region_iterate_and_try_recover(struct pmemstream *stream, struct pmemstream_region region)
 {
 	struct pmemstream_entry_iterator iter;
@@ -205,7 +205,7 @@ int region_runtime_try_initialize_locked(struct pmemstream *stream, struct pmems
 	assert(region_runtime);
 	int ret = 0;
 
-	/* If append_offset is not set, iterate over region and set it after last valid entry.
+	/* If region is not initialized, iterate over region and set it after last valid entry.
 	 * Uses "double-checked locking". */
 	if (!region_runtime_is_initialized(region_runtime)) {
 		pthread_mutex_lock(&stream->region_runtimes_map->region_lock);
@@ -215,6 +215,8 @@ int region_runtime_try_initialize_locked(struct pmemstream *stream, struct pmems
 		pthread_mutex_unlock(&stream->region_runtimes_map->region_lock);
 	}
 
+	/* When we're here it means that region_initialization has started but might not have
+	 * completed yet. */
 	return ret;
 }
 
@@ -245,7 +247,13 @@ void region_runtime_initialize(struct pmemstream_region_runtime *region_runtime,
 		uint64_t prev_append_offset = __atomic_exchange_n(
 			&region_runtime->append_offset, tail.offset | PMEMSTREAM_OFFSET_DIRTY_BIT, __ATOMIC_RELAXED);
 		assert(prev_append_offset == PMEMSTREAM_OFFSET_UNINITIALIZED);
+	} else {
+		/* XXX: consider using lock. */
+		while (!region_runtime_is_initialized(region_runtime))
+			;
 	}
+
+	assert(region_runtime_is_initialized(region_runtime));
 }
 
 static void region_runtime_clear_from_tail(struct pmemstream *stream, struct pmemstream_region region,
