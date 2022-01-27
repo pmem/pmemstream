@@ -173,13 +173,13 @@ int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region regio
 		}
 	}
 
-	ret = region_runtime_try_initialize_locked(stream, region, region_runtime);
+	uint64_t offset = 0;
+	ret = region_runtime_initialize_clear_locked(stream, region, region_runtime, &offset);
 	if (ret) {
 		return ret;
 	}
 
-	uint64_t offset = region_runtime_try_clear_from_tail(stream, region, region_runtime);
-
+	assert(offset >= region_srt.data_offset);
 	if (offset + entry_total_size_span_aligned > region.offset + region_srt.total_size) {
 		return -1;
 	}
