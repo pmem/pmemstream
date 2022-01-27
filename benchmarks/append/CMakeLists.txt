@@ -4,6 +4,8 @@
 cmake_minimum_required(VERSION 3.3)
 project(benchmark-append)
 
+set(CMAKE_CXX_STANDARD 17)
+
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBPMEMSTREAM REQUIRED libpmemstream)
 pkg_check_modules(LIBPMEMLOG REQUIRED libpmemlog)
