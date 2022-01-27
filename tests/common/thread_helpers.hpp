@@ -106,26 +106,38 @@ class latch {
 	size_t counter = 0;
 };
 
+/* Implements multi-use barrier (latch). Once all threads arrive at the
+ * latch, a new latch is allocated and used by all subsequent calls to
+ * syncthreads. */
+struct syncthreads_barrier {
+	syncthreads_barrier(size_t num_threads) : num_threads(num_threads)
+	{
+		mutex = std::shared_ptr<std::mutex>(new std::mutex);
+		current_latch = std::shared_ptr<latch>(new latch(num_threads));
+	}
+
+	void operator()()
+	{
+		std::unique_lock<std::mutex> lock(*mutex);
+		auto l = current_latch;
+		if (l->wait(lock))
+			current_latch = std::shared_ptr<latch>(new latch(num_threads));
+	}
+
+ private:
+	size_t num_threads;
+	std::shared_ptr<std::mutex> mutex;
+	std::shared_ptr<latch> current_latch;
+};
+
 /*
- * This function executes 'threads_number' threads and provides
+ * Executes 'threads_number' of threads and provides
  * 'syncthreads' method (multi-use synchronization barrier) for f()
  */
 template <typename Function>
 void parallel_xexec(size_t threads_number, Function f)
 {
-	std::mutex m;
-	std::shared_ptr<latch> current_latch = std::shared_ptr<latch>(new latch(threads_number));
-
-	/* Implements multi-use barrier (latch). Once all threads arrive at the
-	 * latch, a new latch is allocated and used by all subsequent calls to
-	 * syncthreads. */
-	auto syncthreads = [&] {
-		std::unique_lock<std::mutex> lock(m);
-		auto l = current_latch;
-		if (l->wait(lock))
-			current_latch = std::shared_ptr<latch>(new latch(threads_number));
-	};
-
+	syncthreads_barrier syncthreads(threads_number);
 	parallel_exec(threads_number, [&](size_t tid) { f(tid, syncthreads); });
 }
 
