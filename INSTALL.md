@@ -28,6 +28,8 @@ In order to build libpmemstream, you need to have installed:
 	* [**pandoc**](https://pandoc.org/) - markup converter to generate man pages
 	* [**perl**](https://www.perl.org/) - for whitespace checker script
 	* [**clang format**](https://clang.llvm.org/docs/ClangFormat.html) - to format and check coding style, version **9.0** is required
+* Used for **benchmarks**
+	* **libpmemlog-dev(el)**, which is part of [PMDK](https://github.com/pmem/pmdk) - Persistent Memory Development Kit 1.10
 
 Required packages (or their names) for some OSes may differ. Some examples or scripts in
 this repository may require additional dependencies, but should not interrupt the build.
