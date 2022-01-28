@@ -12,11 +12,6 @@ include(cmake/functions.cmake)
 # ----------------------------------------------------------------- #
 add_custom_target(tests)
 
-set(CXX_STANDARD 17 CACHE STRING "C++ language standard")
-
-set(CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_STANDARD ${CXX_STANDARD})
-
 # Finds valgrind and checks for pmemcheck's availability
  if(PKG_CONFIG_FOUND)
 	pkg_check_modules(VALGRIND QUIET valgrind)
