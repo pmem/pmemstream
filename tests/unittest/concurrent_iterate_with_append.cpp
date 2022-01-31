@@ -72,8 +72,8 @@ int main(int argc, char *argv[])
 						/* appender */
 						pmemstream_region_runtime *region_runtime = nullptr;
 						if (use_region_runtime) {
-							pmemstream_get_region_runtime(stream.get(), region,
-										      &region_runtime);
+							pmemstream_region_runtime_initialize(stream.get(), region,
+											     &region_runtime);
 						}
 						append(stream.get(), region, region_runtime, extra_data);
 						verify(stream.get(), region, extra_data, {});
@@ -95,8 +95,8 @@ int main(int argc, char *argv[])
 							 /* appender */
 							 pmemstream_region_runtime *region_runtime = nullptr;
 							 if (use_region_runtime) {
-								 pmemstream_get_region_runtime(stream.get(), region,
-											       &region_runtime);
+								 pmemstream_region_runtime_initialize(
+									 stream.get(), region, &region_runtime);
 							 }
 							 append(stream.get(), region, region_runtime, extra_data);
 							 verify(stream.get(), region, data, extra_data);
@@ -124,8 +124,8 @@ int main(int argc, char *argv[])
 						/* appender */
 						pmemstream_region_runtime *region_runtime = nullptr;
 						if (use_region_runtime) {
-							pmemstream_get_region_runtime(stream.get(), region,
-										      &region_runtime);
+							pmemstream_region_runtime_initialize(stream.get(), region,
+											     &region_runtime);
 						}
 						append(stream.get(), region, region_runtime, extra_data);
 						verify(stream.get(), region, data, extra_data);
