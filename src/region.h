@@ -63,7 +63,7 @@ void region_runtime_increase_committed_offset(struct pmemstream_region_runtime *
  * After this call, region_runtime is in "clear" state.
  */
 int region_runtime_initialize_clear_locked(struct pmemstream *stream, struct pmemstream_region region,
-					   struct pmemstream_region_runtime *region_runtime, uint64_t *tail);
+					   struct pmemstream_region_runtime *region_runtime);
 
 /*
  * Performs region recovery - initializes append_offset and committed_offset.
