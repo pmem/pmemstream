@@ -231,7 +231,7 @@ class pmemstream_workload : public workload_base {
 			throw std::runtime_error("Error during region allocate!");
 		}
 		if (!cfg.null_region_runtime &&
-		    pmemstream_get_region_runtime(stream.get(), region, &region_runtime_ptr)) {
+		    pmemstream_region_runtime_initialize(stream.get(), region, &region_runtime_ptr)) {
 			throw std::runtime_error("Error during getting region runtime!");
 		}
 

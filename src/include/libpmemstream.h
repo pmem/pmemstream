@@ -42,15 +42,19 @@ int pmemstream_region_free(struct pmemstream *stream, struct pmemstream_region r
 size_t pmemstream_region_size(struct pmemstream *stream, struct pmemstream_region region);
 
 /* Returns pointer to pmemstream_region_runtime. The runtime is managed by libpmemstream - user does not
- * have to explicitly delete/free it. Runtime becomes invalid after corresponding region is freed. */
-int pmemstream_get_region_runtime(struct pmemstream *stream, struct pmemstream_region region,
-				  struct pmemstream_region_runtime **runtime);
+ * have to explicitly delete/free it. Runtime becomes invalid after corresponding region is freed.
+ *
+ * Call to this function might be expensive. If it is not called explicitly, pmemstream will call it
+ * inside append/reserve.
+ */
+int pmemstream_region_runtime_initialize(struct pmemstream *stream, struct pmemstream_region region,
+					 struct pmemstream_region_runtime **runtime);
 
 /* Reserve space (for a future, custom write) of a given size, in a region at offset pointed by region_runtime.
  * Entry's data have to be copied into reserved space by the user and then published using pmemstream_publish.
  * For regular usage, pmemstream_append should be simpler and safer to use and provide better performance.
  *
- * region_runtime is an optional parameter which can be obtained from pmemstream_get_region_runtime.
+ * region_runtime is an optional parameter which can be obtained from pmemstream_region_runtime_initialize.
  * If it's NULL, it will be obtained from its internal structures (which might incur overhead).
  * reserved_entry is updated with offset of the reserved entry.
  * data is updated with a pointer to reserved space - this is a destination for, e.g., custom memcpy. */
@@ -71,7 +75,7 @@ int pmemstream_publish(struct pmemstream *stream, struct pmemstream_region regio
 /* Synchronously appends data buffer after last valid entry in region.
  * Fails if no space is available.
  *
- * region_runtime is an optional parameter which can be obtained from pmemstream_get_region_runtime.
+ * region_runtime is an optional parameter which can be obtained from pmemstream_region_runtime_initialize.
  * If it's NULL, it will be obtained from its internal structures (which might incur overhead).
  *
  * data is a pointer to data to be appended

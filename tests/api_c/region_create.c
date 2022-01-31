@@ -5,7 +5,7 @@
 
 /**
  * region_create - unit test for pmemstream_region_allocate, pmemstream_region_free,
- *					pmemstream_region_size, pmemstream_get_region_runtime
+ *					pmemstream_region_size, pmemstream_region_runtime_initialize
  */
 
 void test_region_create(char *path)
@@ -25,7 +25,7 @@ void test_region_create(char *path)
 	UT_ASSERT(region_size >= TEST_DEFAULT_REGION_SIZE);
 
 	struct pmemstream_region_runtime *rtm = NULL;
-	ret = pmemstream_get_region_runtime(stream, region, &rtm);
+	ret = pmemstream_region_runtime_initialize(stream, region, &rtm);
 	UT_ASSERTeq(ret, 0);
 	UT_ASSERTne(rtm, NULL);
 

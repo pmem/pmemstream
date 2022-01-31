@@ -146,8 +146,8 @@ size_t pmemstream_entry_length(struct pmemstream *stream, struct pmemstream_entr
 	return entry_srt.entry.size;
 }
 
-int pmemstream_get_region_runtime(struct pmemstream *stream, struct pmemstream_region region,
-				  struct pmemstream_region_runtime **region_runtime)
+int pmemstream_region_runtime_initialize(struct pmemstream *stream, struct pmemstream_region region,
+					 struct pmemstream_region_runtime **region_runtime)
 {
 	int ret = region_runtimes_map_get_or_create(stream->region_runtimes_map, region, region_runtime);
 	if (ret) {
@@ -174,7 +174,7 @@ int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region regio
 	int ret = 0;
 
 	if (!region_runtime) {
-		ret = pmemstream_get_region_runtime(stream, region, &region_runtime);
+		ret = pmemstream_region_runtime_initialize(stream, region, &region_runtime);
 		if (ret) {
 			return ret;
 		}
@@ -204,7 +204,7 @@ int pmemstream_publish(struct pmemstream *stream, struct pmemstream_region regio
 		       struct pmemstream_entry *reserved_entry)
 {
 	if (!region_runtime) {
-		int ret = pmemstream_get_region_runtime(stream, region, &region_runtime);
+		int ret = pmemstream_region_runtime_initialize(stream, region, &region_runtime);
 		if (ret) {
 			return ret;
 		}
@@ -222,7 +222,7 @@ int pmemstream_append(struct pmemstream *stream, struct pmemstream_region region
 		      struct pmemstream_entry *new_entry)
 {
 	if (!region_runtime) {
-		int ret = pmemstream_get_region_runtime(stream, region, &region_runtime);
+		int ret = pmemstream_region_runtime_initialize(stream, region, &region_runtime);
 		if (ret) {
 			return ret;
 		}
