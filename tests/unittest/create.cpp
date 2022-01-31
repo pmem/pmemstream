@@ -60,8 +60,6 @@ int main(int argc, char *argv[])
 						    get_test_config().stream_size);
 			auto region = stream.helpers.initialize_single_region(region_size, data);
 			stream.helpers.verify(region, data, {});
-
-			UT_ASSERTeq(stream.sut.region_free(region), 0);
 		});
 
 		ret += rc::check(
@@ -82,8 +80,6 @@ int main(int argc, char *argv[])
 				pmemstream_region_iterator_next(riter.get());
 				ret = pmemstream_region_iterator_is_valid(riter.get());
 				UT_ASSERTeq(ret, -1);
-
-				UT_ASSERTeq(stream.sut.region_free(region), 0);
 			});
 
 		/* "verify if region of unexpected arbitrary sizes cannot be created" */
@@ -111,8 +107,6 @@ int main(int argc, char *argv[])
 			/* and initialize this stream with a single region of */
 			auto region = stream.helpers.initialize_single_region(region_size, {});
 			stream.helpers.verify(region, {}, {});
-
-			UT_ASSERTeq(stream.sut.region_free(region), 0);
 		});
 
 		ret += rc::check("verify if a stream of various block_sizes can be created", [&]() {
@@ -165,5 +159,50 @@ int main(int argc, char *argv[])
 				UT_ASSERT_UNREACHABLE;
 			}
 		}
+
+		ret += rc::check("verify if region deallocated using region_free is not returned by region iterator",
+				 [&](const std::string &entry) {
+					 auto [region_size, block_size] =
+						 generate_region_size_and_block_size(get_test_config().stream_size);
+
+					 {
+						 pmemstream_test_base stream(get_test_config().filename, block_size,
+									     get_test_config().stream_size);
+
+						 auto region =
+							 stream.helpers.initialize_single_region(region_size, {entry});
+						 stream.helpers.verify(region, {entry}, {});
+
+						 UT_ASSERTeq(stream.helpers.count_regions(), 1);
+						 stream.sut.region_free(region);
+						 UT_ASSERTeq(stream.helpers.count_regions(), 0);
+					 }
+
+					 {
+						 pmemstream_test_base stream(get_test_config().filename, block_size,
+									     get_test_config().stream_size);
+						 UT_ASSERTeq(stream.helpers.count_regions(), 0);
+					 }
+				 });
+
+		ret += rc::check(
+			"verify if we can repopulate stream with the same data after region reallocate",
+			[&](const std::vector<std::string> &data) {
+				{
+					auto [region_size, block_size] =
+						generate_region_size_and_block_size(get_test_config().stream_size);
+					pmemstream_test_base stream(get_test_config().filename, block_size,
+								    get_test_config().stream_size);
+					auto region = stream.helpers.initialize_single_region(region_size, data);
+
+					UT_ASSERTeq(stream.helpers.count_regions(), 1);
+					stream.sut.region_free(region);
+					UT_ASSERTeq(stream.helpers.count_regions(), 0);
+
+					auto new_region = stream.helpers.initialize_single_region(region_size, data);
+					UT_ASSERTeq(region.offset, new_region.offset);
+					stream.helpers.verify(new_region, data, {});
+				}
+			});
 	});
 }
