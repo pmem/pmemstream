@@ -40,5 +40,50 @@ int main(int argc, char *argv[])
 
 			RC_ASSERT(all_equal(threads_data));
 		});
+
+		ret += rc::check(
+			"verify that pmemstream_get_region_runtime clears region after last entry",
+			[&](const std::vector<std::string> &data, const std::string &garbage) {
+				RC_PRE(data.size() > 0);
+
+				pmemstream_region region;
+				pmemstream_entry last_entry;
+
+				auto garbage_destination = [](pmemstream *stream, pmemstream_entry last_entry) {
+					auto *cdata = reinterpret_cast<const char *>(
+						pmemstream_entry_data(stream, last_entry));
+					auto *data = const_cast<char *>(cdata);
+
+					/* garbage_destination is surely bigger than end offset of last_entry
+					 * (including any padding). */
+					return data + pmemstream_entry_length(stream, last_entry) +
+						TEST_DEFAULT_BLOCK_SIZE;
+				};
+
+				{
+					auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE,
+								      TEST_DEFAULT_STREAM_SIZE);
+					region = initialize_stream_single_region(stream.get(), TEST_DEFAULT_REGION_SIZE,
+										 data);
+
+					last_entry = get_last_entry(stream.get(), region);
+					auto garbage_dst = garbage_destination(stream.get(), last_entry);
+
+					std::memcpy(garbage_dst, garbage.data(), garbage.size());
+				}
+
+				{
+					auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE,
+								      TEST_DEFAULT_STREAM_SIZE, false);
+
+					pmemstream_region_runtime *region_runtime;
+					(void)pmemstream_get_region_runtime(stream.get(), region, &region_runtime);
+
+					auto garbage_dst = garbage_destination(stream.get(), last_entry);
+					for (size_t i = 0; i < garbage.size(); i++) {
+						RC_ASSERT(garbage_dst[i] == 0);
+					}
+				}
+			});
 	});
 }
