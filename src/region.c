@@ -14,7 +14,7 @@
  * It contains all runtime data specific to a region.
  * It is always managed by the pmemstream (user can only obtain a non-owning pointer) and can be created
  * in few different ways:
- * - By explicitly calling pmemstream_get_region_runtime() for the first time
+ * - By explicitly calling pmemstream_region_runtime_initialize() for the first time
  * - By calling pmemstream_append (only if region_runtime does not exist yet)
  * - By advancing an entry iterator past last entry in a region (only if region_runtime does not exist yet)
  */

@@ -71,7 +71,7 @@ void reserve_and_publish(struct pmemstream *stream, struct pmemstream_region reg
 {
 	pmemstream_region_runtime *runtime = nullptr;
 	if (*rc::gen::arbitrary<bool>()) {
-		int ret = pmemstream_get_region_runtime(stream, region, &runtime);
+		int ret = pmemstream_region_runtime_initialize(stream, region, &runtime);
 		RC_ASSERT(ret == 0);
 	}
 
