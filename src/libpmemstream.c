@@ -149,7 +149,14 @@ size_t pmemstream_entry_length(struct pmemstream *stream, struct pmemstream_entr
 int pmemstream_get_region_runtime(struct pmemstream *stream, struct pmemstream_region region,
 				  struct pmemstream_region_runtime **region_runtime)
 {
-	return region_runtimes_map_get_or_create(stream->region_runtimes_map, region, region_runtime);
+	int ret = region_runtimes_map_get_or_create(stream->region_runtimes_map, region, region_runtime);
+	if (ret) {
+		return ret;
+	}
+
+	assert(*region_runtime);
+
+	return region_runtime_initialize_clear_locked(stream, region, *region_runtime);
 }
 
 static size_t pmemstream_entry_total_size_aligned(size_t size)
@@ -173,12 +180,7 @@ int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region regio
 		}
 	}
 
-	uint64_t offset = 0;
-	ret = region_runtime_initialize_clear_locked(stream, region, region_runtime, &offset);
-	if (ret) {
-		return ret;
-	}
-
+	uint64_t offset = region_runtime_get_append_offset_acquire(region_runtime);
 	assert(offset >= region_srt.data_offset);
 	if (offset + entry_total_size_span_aligned > region.offset + region_srt.total_size) {
 		return -1;
