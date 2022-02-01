@@ -93,7 +93,7 @@ uint64_t id_manager_acquire(struct id_manager *manager)
 	bool found = id_manager_critnib_get_min_key(manager->ids, &min_id);
 	if (!found) {
 		/* No id available in ids. */
-		id = manager->next_id++;
+		id = __atomic_fetch_add(&manager->next_id, 1, __ATOMIC_RELAXED);
 	} else {
 		critnib_remove(manager->ids, min_id);
 		id = min_id;
@@ -111,7 +111,7 @@ static void id_manager_do_compaction(struct id_manager *manager)
 		/* Id is the biggest one from all granted ids. This means
 		 * that we can try to do compaction (decrease size of the
 		 * container and next_id value). */
-		manager->next_id--;
+		__atomic_fetch_sub(&manager->next_id, 1, __ATOMIC_RELAXED);
 
 		uint64_t next_id;
 		bool found = id_manager_critnib_get_le_key(manager->ids, id, &next_id);
@@ -160,4 +160,9 @@ int id_manager_release(struct id_manager *manager, uint64_t id)
 	assert(id_manager_release_invariants(manager));
 	pthread_mutex_unlock(&manager->id_acquire_release_mutex);
 	return ret;
+}
+
+uint64_t id_manager_max_num_used(struct id_manager *manager)
+{
+	return __atomic_load_n(&manager->next_id, __ATOMIC_RELAXED);
 }

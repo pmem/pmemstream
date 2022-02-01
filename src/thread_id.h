@@ -29,6 +29,9 @@ void thread_id_destroy(struct thread_id *thread_id);
  */
 uint64_t thread_id_get(struct thread_id *thread_id);
 
+/* Returns upper bound on number of used IDs (if there is at least one ID used, it is equal to max used ID - 1) */
+uint64_t thread_id_max_num_used(struct thread_id *thread_id);
+
 #ifdef __cplusplus
 } /* end extern "C" */
 #endif
