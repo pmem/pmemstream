@@ -16,6 +16,7 @@ add_check_whitespace(src
 set(SOURCES critnib/critnib.c
 			id_manager.c
 			iterator.c
+			mpmc_queue.c
 			region.c
 			span.c
 			thread_id.c
