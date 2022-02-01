@@ -118,6 +118,12 @@ if(TESTS_RAPIDCHECK)
 	build_test_rc(NAME id_manager SRC_FILES unittest/id_manager.cpp ../src/id_manager.c ../src/critnib/critnib.c)
 	add_test_generic(NAME id_manager TRACERS none memcheck)
 
+	build_test_rc(NAME mpmc_queue SRC_FILES unittest/mpmc_queue/mpmc_queue.cpp ../src/mpmc_queue.c)
+	add_test_generic(NAME mpmc_queue TRACERS none memcheck)
+
+	build_test_rc(NAME mpmc_queue_multithreaded SRC_FILES unittest/mpmc_queue/mpmc_queue_multithreaded.cpp ../src/mpmc_queue.c)
+	add_test_generic(NAME mpmc_queue_multithreaded TRACERS none)
+
 	build_test_rc(NAME region_runtime_initialize SRC_FILES unittest/region_runtime_initialize.cpp)
 	add_test_generic(NAME region_runtime_initialize TRACERS none memcheck)
 
