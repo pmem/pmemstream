@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /* Copyright 2021-2022, Intel Corporation */
 
+#include <cstdint>
 #include <vector>
 
 #include <rapidcheck.h>
@@ -58,6 +59,25 @@ int main(int argc, char *argv[])
 
 			UT_ASSERTeq(pmemstream_region_free(stream.get(), region), 0);
 		}
+
+		ret += rc::check("verify if appedning entry of size = 0 and invalid address do not cause segfault",
+				 [&](const uintptr_t &invalid_data_address) {
+					 const size_t max_size = 1024UL;
+					 auto stream = make_pmemstream(path, max_size, TEST_DEFAULT_STREAM_SIZE);
+					 auto region = initialize_stream_single_region(stream.get(), max_size, {});
+					 verify(stream.get(), region, {}, {});
+
+					 /* append an entry with size = 0 and invalid address */
+					 std::string entry;
+
+					 auto invalid_data_ptr = reinterpret_cast<void *>(invalid_data_address);
+					 auto ret = pmemstream_append(stream.get(), region, nullptr, invalid_data_ptr,
+								      0, nullptr);
+					 UT_ASSERTeq(ret, 0);
+					 verify(stream.get(), region, {entry}, {});
+
+					 UT_ASSERTeq(pmemstream_region_free(stream.get(), region), 0);
+				 });
 
 		ret += rc::check("verify append will work until OOM", [&]() {
 			auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE, TEST_DEFAULT_STREAM_SIZE);
