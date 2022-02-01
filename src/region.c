@@ -247,7 +247,7 @@ static void region_runtime_clear_from_tail(struct pmemstream *stream, struct pme
 	size_t region_end_offset = region.offset + region_rt.total_size;
 	size_t remaining_size = region_end_offset - tail;
 
-	if (remaining_size != 0) {
+	if (!util_is_zeroed(pmemstream_offset_to_ptr(stream, tail), remaining_size)) {
 		span_create_empty(stream, tail, remaining_size - SPAN_EMPTY_METADATA_SIZE);
 	}
 

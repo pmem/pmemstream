@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-/* Copyright 2021, Intel Corporation */
+/* Copyright 2021-2022, Intel Corporation */
 
 /* Common, internal utils */
 
@@ -8,6 +8,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>
 
 #define ALIGN_UP(size, align) (((size) + (align)-1) & ~((align)-1))
 #define ALIGN_DOWN(size, align) ((size) & ~((align)-1))
@@ -32,6 +33,19 @@ static inline size_t util_popcount_memory(const uint8_t *data, size_t size)
 	}
 
 	return count;
+}
+
+static inline int util_is_zeroed(const void *addr, size_t len)
+{
+	const char *a = (const char *)addr;
+
+	if (len == 0)
+		return 1;
+
+	if (a[0] == 0 && memcmp(a, a + 1, len - 1) == 0)
+		return 1;
+
+	return 0;
 }
 
 #endif /* LIBPMEMSTREAM_UTIL_H */
