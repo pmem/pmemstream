@@ -28,6 +28,7 @@ int main()
 
 			std::sort(thread_data.begin(), thread_data.end());
 			UT_ASSERT(thread_data.back() <= concurrency);
+			UT_ASSERT(thread_id_max_num_used(thread_id.get()) <= concurrency);
 		};
 
 		/* verify if thread ids are in 0..concurrency range (when all threads are alive). */
@@ -128,6 +129,8 @@ int main()
 			std::thread new_thread(
 				[&] { UT_ASSERTeq(thread_id_get(thread_id.get()), thread_to_destroy_id); });
 			new_thread.join();
+
+			UT_ASSERTeq(thread_id_max_num_used(thread_id.get()), concurrency);
 
 			/* Stop all remaining threads. */
 			stop_all_threads_sync();

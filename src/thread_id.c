@@ -113,3 +113,8 @@ uint64_t thread_id_get(struct thread_id *thread_id)
 
 	return id;
 }
+
+uint64_t thread_id_max_num_used(struct thread_id *thread_id)
+{
+	return id_manager_max_num_used(thread_id->id_manager);
+}

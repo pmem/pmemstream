@@ -43,6 +43,8 @@ int main()
 				auto id = id_manager_acquire(manager.get());
 				UT_ASSERT(id == i);
 			}
+
+			UT_ASSERTeq(id_manager_max_num_used(manager.get()), max_num_id_requests);
 		}
 
 		/* Verify if ids are reused (in case of one id being used). */
@@ -56,6 +58,8 @@ int main()
 				int ret = id_manager_release(manager.get(), id);
 				UT_ASSERT(ret == 0);
 			}
+
+			UT_ASSERTeq(id_manager_max_num_used(manager.get()), 0);
 		}
 
 		ret += rc::check("verify if ids are reused", [](bool release_from_biggest) {

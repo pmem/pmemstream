@@ -29,6 +29,9 @@ uint64_t id_manager_acquire(struct id_manager *manager);
 /* Release id so that it can be reused by subsequent id_manager_acquire. */
 int id_manager_release(struct id_manager *manager, uint64_t id);
 
+/* Returns upper bound on number of used IDs (if there is at least one ID used, it is equal to max used ID - 1) */
+uint64_t id_manager_max_num_used(struct id_manager *manager);
+
 #ifdef __cplusplus
 } /* end extern "C" */
 #endif
