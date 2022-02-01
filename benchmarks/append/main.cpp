@@ -164,8 +164,8 @@ std::ostream &operator<<(std::ostream &out, config const &cfg)
 class workload_base {
  public:
 	virtual ~workload_base(){};
-	virtual void perform() = 0;
 	virtual void initialize() = 0;
+	virtual void perform() = 0;
 	virtual void clean() = 0;
 
 	void prepare_data(size_t bytes_to_generate)
@@ -183,8 +183,22 @@ class workload_base {
 
 class pmemlog_workload : public workload_base {
  public:
-	pmemlog_workload(config &cfg) : cfg(cfg)
+	pmemlog_workload(config &cfg)
+	    : cfg(cfg), plp(pmemlog_create(cfg.path.c_str(), cfg.size, S_IRWXU), pmemlog_close)
 	{
+		if (plp.get() == nullptr) {
+			plp.reset(pmemlog_open(cfg.path.c_str()));
+		}
+		if (plp.get() == nullptr) {
+			throw std::runtime_error("Creating file: " + cfg.path +
+						 " caused error: " + std::strerror(errno));
+		}
+	}
+
+	void initialize() override
+	{
+		auto bytes_to_generate = cfg.element_count * cfg.element_size;
+		prepare_data(bytes_to_generate);
 	}
 
 	void perform() override
@@ -198,28 +212,14 @@ class pmemlog_workload : public workload_base {
 		}
 	}
 
-	void initialize() override
-	{
-		auto path = cfg.path.c_str();
-		plp = pmemlog_create(path, cfg.size, S_IRWXU);
-		if (plp == NULL)
-			plp = pmemlog_open(path);
-		if (plp == NULL) {
-			throw std::runtime_error("Creating file: " + std::string(path) +
-						 " caused error: " + std::strerror(errno));
-		}
-		auto bytes_to_generate = cfg.element_count * cfg.element_size;
-		prepare_data(bytes_to_generate);
-	}
-
 	void clean() override
 	{
-		pmemlog_rewind(plp);
+		pmemlog_rewind(plp.get());
 	}
 
  private:
 	config cfg;
-	PMEMlogpool *plp;
+	std::unique_ptr<PMEMlogpool, std::function<void(PMEMlogpool *)>> plp;
 };
 
 class pmemstream_workload : public workload_base {
@@ -241,7 +241,6 @@ class pmemstream_workload : public workload_base {
 
 		auto bytes_to_generate = cfg.element_count * cfg.element_size;
 		prepare_data(bytes_to_generate);
-
 	}
 
 	void perform() override
