@@ -10,6 +10,7 @@
 #include "libpmemstream.h"
 #include "region.h"
 #include "span.h"
+#include "thread_id.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -17,6 +18,8 @@ extern "C" {
 
 #define PMEMSTREAM_SIGNATURE ("PMEMSTREAM")
 #define PMEMSTREAM_SIGNATURE_SIZE (64)
+
+#define PMEMSTREAM_MAX_CONCURRENCY 128
 
 struct pmemstream_data {
 	struct pmemstream_header {
@@ -40,6 +43,7 @@ struct pmemstream {
 	pmem2_persist_fn persist;
 
 	struct region_runtimes_map *region_runtimes_map;
+	struct thread_id *thread_id;
 };
 
 static inline const uint8_t *pmemstream_offset_to_ptr(const struct pmemstream *stream, uint64_t offset)

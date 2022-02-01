@@ -61,7 +61,7 @@ int entry_iterator_initialize(struct pmemstream_entry_iterator *iterator, struct
 	struct span_runtime region_srt = span_get_region_runtime(stream, region.offset);
 	struct pmemstream_region_runtime *region_rt;
 
-	int ret = region_runtimes_map_get_or_create(stream->region_runtimes_map, region, &region_rt);
+	int ret = region_runtimes_map_get_or_create(stream->region_runtimes_map, region, region_srt, &region_rt);
 	if (ret) {
 		return ret;
 	}

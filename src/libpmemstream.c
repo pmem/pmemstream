@@ -68,13 +68,20 @@ int pmemstream_from_map(struct pmemstream **stream, size_t block_size, struct pm
 
 	s->region_runtimes_map = region_runtimes_map_new();
 	if (!s->region_runtimes_map) {
-		goto err;
+		goto err_region_runtimes_map;
+	}
+
+	s->thread_id = thread_id_new();
+	if (!s->thread_id) {
+		goto err_thread_id;
 	}
 
 	*stream = s;
 	return 0;
 
-err:
+err_thread_id:
+	region_runtimes_map_destroy(s->region_runtimes_map);
+err_region_runtimes_map:
 	free(s);
 	return -1;
 }
@@ -82,6 +89,7 @@ err:
 void pmemstream_delete(struct pmemstream **stream)
 {
 	struct pmemstream *s = *stream;
+	thread_id_destroy(s->thread_id);
 	region_runtimes_map_destroy(s->region_runtimes_map);
 	free(s);
 	*stream = NULL;
@@ -149,7 +157,8 @@ size_t pmemstream_entry_length(struct pmemstream *stream, struct pmemstream_entr
 int pmemstream_region_runtime_initialize(struct pmemstream *stream, struct pmemstream_region region,
 					 struct pmemstream_region_runtime **region_runtime)
 {
-	int ret = region_runtimes_map_get_or_create(stream->region_runtimes_map, region, region_runtime);
+	struct span_runtime region_srt = span_get_region_runtime(stream, region.offset);
+	int ret = region_runtimes_map_get_or_create(stream->region_runtimes_map, region, region_srt, region_runtime);
 	if (ret) {
 		return ret;
 	}
@@ -180,17 +189,13 @@ int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region regio
 		}
 	}
 
-	uint64_t offset = region_runtime_get_append_offset_acquire(region_runtime);
+	uint64_t producer_id = thread_id_get(stream->thread_id);
+	uint64_t offset =
+		region_runtime_acquire_append_offset(region_runtime, producer_id, entry_total_size_span_aligned);
+	if (offset == PMEMSTREAM_OFFSET_INVALID) {
+		return -1;
+	}
 	assert(offset >= region_srt.data_offset);
-	if (offset + entry_total_size_span_aligned > region.offset + region_srt.total_size) {
-		return -1;
-	}
-	/* offset outside of region */
-	if (offset < region_srt.data_offset) {
-		return -1;
-	}
-
-	region_runtime_increase_append_offset(region_runtime, entry_total_size_span_aligned);
 
 	reserved_entry->offset = offset;
 	/* data is right after the entry metadata */
@@ -210,8 +215,14 @@ int pmemstream_publish(struct pmemstream *stream, struct pmemstream_region regio
 		}
 	}
 
+	uint64_t producer_id = thread_id_get(stream->thread_id);
 	span_create_entry(stream, reserved_entry->offset, size, util_popcount_memory(data, size));
-	region_runtime_increase_committed_offset(region_runtime, pmemstream_entry_total_size_aligned(size));
+	region_runtime_produce_append_offset(region_runtime, producer_id);
+
+	while (!region_runtime_try_consume(region_runtime,
+					   reserved_entry->offset + pmemstream_entry_total_size_aligned(size))) {
+		/* XXX: can use umwait? */
+	}
 
 	return 0;
 }
@@ -235,9 +246,15 @@ int pmemstream_append(struct pmemstream *stream, struct pmemstream_region region
 		return ret;
 	}
 
+	uint64_t producer_id = thread_id_get(stream->thread_id);
 	stream->memcpy(reserved_dest, data, size, PMEM2_F_MEM_NODRAIN);
 	span_create_entry_no_flush_data(stream, reserved_entry.offset, size, util_popcount_memory(data, size));
-	region_runtime_increase_committed_offset(region_runtime, pmemstream_entry_total_size_aligned(size));
+	region_runtime_produce_append_offset(region_runtime, producer_id);
+
+	while (!region_runtime_try_consume(region_runtime,
+					   reserved_entry.offset + pmemstream_entry_total_size_aligned(size))) {
+		/* XXX: can use umwait? */
+	}
 
 	if (new_entry) {
 		new_entry->offset = reserved_entry.offset;

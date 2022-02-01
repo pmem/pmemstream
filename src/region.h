@@ -35,6 +35,8 @@ enum region_runtime_state {
 	REGION_RUNTIME_STATE_CLEAR  /* append_offset and committed_offset are known, append is safe */
 };
 
+#define PMEMSTREAM_OFFSET_INVALID UINT64_MAX
+
 struct pmemstream_region_runtime;
 struct region_runtimes_map;
 
@@ -47,20 +49,20 @@ void region_runtimes_map_destroy(struct region_runtimes_map *map);
  * Returned region_runtime might be in all 3 states (uninitialized, dirty or clear).
  */
 int region_runtimes_map_get_or_create(struct region_runtimes_map *map, struct pmemstream_region region,
+				      struct span_runtime region_rt,
 				      struct pmemstream_region_runtime **container_handle);
 void region_runtimes_map_remove(struct region_runtimes_map *map, struct pmemstream_region region);
 
 enum region_runtime_state region_runtime_get_state_acquire(const struct pmemstream_region_runtime *region_runtime);
 
-/* Precondition: region_runtime_get_state_acquire() != REGION_RUNTIME_STATE_UNINITIALIZED */
-uint64_t region_runtime_get_append_offset_acquire(const struct pmemstream_region_runtime *region_runtime);
+/* Precondition: region_runtime_get_state_acquire() == REGION_RUNTIME_STATE_CLEAR */
+uint64_t region_runtime_acquire_append_offset(struct pmemstream_region_runtime *region_runtime, uint64_t producer_id,
+					      size_t size);
+/* Precondition: region_runtime_get_state_acquire() == REGION_RUNTIME_STATE_CLEAR */
+void region_runtime_produce_append_offset(struct pmemstream_region_runtime *region_runtime, uint64_t producer_id);
+
 /* Precondition: region_runtime_get_state_acquire() != REGION_RUNTIME_STATE_UNINITIALIZED */
 uint64_t region_runtime_get_committed_offset_acquire(const struct pmemstream_region_runtime *region_runtime);
-
-/* Precondition: region_runtime_get_state_acquire() == REGION_RUNTIME_STATE_CLEAR */
-void region_runtime_increase_append_offset(struct pmemstream_region_runtime *region_runtime, uint64_t diff);
-/* Precondition: region_runtime_get_state_acquire() == REGION_RUNTIME_STATE_CLEAR */
-void region_runtime_increase_committed_offset(struct pmemstream_region_runtime *region_runtime, uint64_t diff);
 
 /*
  * Performs region recovery - initializes append_offset and committed_offset.
@@ -78,6 +80,10 @@ int region_runtime_initialize_clear_locked(struct pmemstream *stream, struct pme
  */
 void region_runtime_initialize_dirty_locked(struct pmemstream_region_runtime *region_runtime,
 					    struct pmemstream_entry tail);
+
+/* Try to advance consume offset to target_offset. Returns true if successfull.
+ * Precondition: region_runtime_get_state_acquire() == REGION_RUNTIME_STATE_CLEAR */
+bool region_runtime_try_consume(struct pmemstream_region_runtime *region_runtime, uint64_t target_offset);
 
 #ifdef __cplusplus
 } /* end extern "C" */

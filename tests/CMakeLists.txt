@@ -90,7 +90,7 @@ add_test_generic(NAME entry_iterator TRACERS none memcheck pmemcheck drd helgrin
 build_test(region_create api_c/region_create.c)
 add_test_generic(NAME region_create TRACERS none memcheck pmemcheck drd helgrind)
 
-build_test_ext(NAME region_initialize SRC_FILES unittest/region_initialize.cpp ../src/region.c ../src/critnib/critnib.c ../src/span.c ../src/iterator.c)
+build_test_ext(NAME region_initialize SRC_FILES unittest/region_initialize.cpp ../src/region.c ../src/critnib/critnib.c ../src/span.c ../src/iterator.c ../src/mpmc_queue.c)
 add_test_generic(NAME region_initialize TRACERS none memcheck)
 
 build_test(region_iterator api_c/region_iterator.c)
@@ -119,7 +119,7 @@ if(TESTS_RAPIDCHECK)
 	add_test_generic(NAME id_manager TRACERS none memcheck)
 
 	build_test_rc(NAME mpmc_queue SRC_FILES unittest/mpmc_queue.cpp ../src/mpmc_queue.c)
-	add_test_generic(NAME mpmc_queue TRACERS none memcheck)
+	add_test_generic(NAME mpmc_queue TRACERS none) # XXX: memcheck takes a long time
 
 	build_test_rc(NAME region_runtime_initialize SRC_FILES unittest/region_runtime_initialize.cpp)
 	add_test_generic(NAME region_runtime_initialize TRACERS none memcheck)

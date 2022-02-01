@@ -2,11 +2,14 @@
 /* Copyright 2021-2022, Intel Corporation */
 
 #include "region.h"
-#include "iterator.h"
-#include "libpmemstream_internal.h"
 
 #include <assert.h>
 #include <errno.h>
+
+#include "critnib/critnib.h"
+#include "iterator.h"
+#include "libpmemstream_internal.h"
+#include "mpmc_queue.h"
 
 #define PMEMSTREAM_OFFSET_UNINITIALIZED 0ULL
 
@@ -22,17 +25,8 @@ struct pmemstream_region_runtime {
 	/* State of the region_runtime. */
 	enum region_runtime_state state;
 
-	/*
-	 * Offset at which new entries will be appended. Also serves as indicator of region runtime initialization
-	 * state.
-	 */
-	uint64_t append_offset;
-
-	/*
-	 * All entries which start at offset < committed_offset can be treated as committed and safely read
-	 * from multiple threads.
-	 */
-	uint64_t committed_offset;
+	/* Tracks offset at which entires are appended and offset which is ready to be read. */
+	struct mpmc_queue *offset_manager;
 
 	/* Protects region initialization step. */
 	pthread_mutex_t region_lock;
@@ -69,6 +63,7 @@ static int free_region_runtime_cb(uintptr_t key, void *value, void *privdata)
 	struct pmemstream_region_runtime *region_runtime = (struct pmemstream_region_runtime *)value;
 	assert(region_runtime);
 
+	mpmc_queue_destroy(region_runtime->offset_manager);
 	/* XXX: Handle error */
 	pthread_mutex_destroy(&region_runtime->region_lock);
 
@@ -84,6 +79,7 @@ void region_runtimes_map_destroy(struct region_runtimes_map *map)
 }
 
 static int region_runtimes_map_create_or_fail(struct region_runtimes_map *map, struct pmemstream_region region,
+					      struct span_runtime region_rt,
 					      struct pmemstream_region_runtime **container_handle)
 {
 	assert(container_handle);
@@ -98,6 +94,11 @@ static int region_runtimes_map_create_or_fail(struct region_runtimes_map *map, s
 		goto err_region_lock;
 	}
 
+	runtime->offset_manager = mpmc_queue_new(PMEMSTREAM_MAX_CONCURRENCY, region_rt.region.size);
+	if (!runtime->offset_manager) {
+		goto err_offset_manager;
+	}
+
 	ret = critnib_insert(map->container, region.offset, runtime, 0 /* no update */);
 	if (ret) {
 		goto err_critnib_insert;
@@ -107,6 +108,8 @@ static int region_runtimes_map_create_or_fail(struct region_runtimes_map *map, s
 	return ret;
 
 err_critnib_insert:
+	mpmc_queue_destroy(runtime->offset_manager);
+err_offset_manager:
 	/* XXX: Handle error */
 	pthread_mutex_destroy(&runtime->region_lock);
 err_region_lock:
@@ -115,10 +118,11 @@ err_region_lock:
 }
 
 static int region_runtimes_map_create(struct region_runtimes_map *map, struct pmemstream_region region,
+				      struct span_runtime region_rt,
 				      struct pmemstream_region_runtime **container_handle)
 {
 	assert(container_handle);
-	int ret = region_runtimes_map_create_or_fail(map, region, container_handle);
+	int ret = region_runtimes_map_create_or_fail(map, region, region_rt, container_handle);
 	if (ret == EEXIST) {
 		/* Someone else inserted the region runtime - just get a pointer to it. */
 		*container_handle = critnib_get(map->container, region.offset);
@@ -131,6 +135,7 @@ static int region_runtimes_map_create(struct region_runtimes_map *map, struct pm
 }
 
 int region_runtimes_map_get_or_create(struct region_runtimes_map *map, struct pmemstream_region region,
+				      struct span_runtime region_rt,
 				      struct pmemstream_region_runtime **container_handle)
 {
 	assert(container_handle);
@@ -141,25 +146,36 @@ int region_runtimes_map_get_or_create(struct region_runtimes_map *map, struct pm
 		return 0;
 	}
 
-	return region_runtimes_map_create(map, region, container_handle);
+	return region_runtimes_map_create(map, region, region_rt, container_handle);
 }
 
-uint64_t region_runtime_get_append_offset_acquire(const struct pmemstream_region_runtime *region_runtime)
+uint64_t region_runtime_acquire_append_offset(struct pmemstream_region_runtime *region_runtime, uint64_t producer_id,
+					      size_t size)
 {
 	assert(region_runtime_get_state_acquire(region_runtime) != REGION_RUNTIME_STATE_UNINITIALIZED);
-	return __atomic_load_n(&region_runtime->append_offset, __ATOMIC_ACQUIRE);
+	uint64_t ret = mpmc_queue_acquire(region_runtime->offset_manager, producer_id, size);
+	if (ret == MPMC_QUEUE_OFFSET_MAX) {
+		return PMEMSTREAM_OFFSET_INVALID;
+	} else {
+		return ret;
+	}
 }
 
 uint64_t region_runtime_get_committed_offset_acquire(const struct pmemstream_region_runtime *region_runtime)
 {
 	assert(region_runtime_get_state_acquire(region_runtime) != REGION_RUNTIME_STATE_UNINITIALIZED);
-	return __atomic_load_n(&region_runtime->committed_offset, __ATOMIC_ACQUIRE);
+	return mpmc_queue_get_consumed_offset(region_runtime->offset_manager);
 }
 
 void region_runtimes_map_remove(struct region_runtimes_map *map, struct pmemstream_region region)
 {
 	struct pmemstream_region_runtime *runtime = critnib_remove(map->container, region.offset);
-	free(runtime);
+	if (runtime) {
+		mpmc_queue_destroy(runtime->offset_manager);
+		/* XXX: Handle error */
+		pthread_mutex_destroy(&runtime->region_lock);
+		free(runtime);
+	}
 }
 
 enum region_runtime_state region_runtime_get_state_acquire(const struct pmemstream_region_runtime *region_runtime)
@@ -167,16 +183,10 @@ enum region_runtime_state region_runtime_get_state_acquire(const struct pmemstre
 	return __atomic_load_n(&region_runtime->state, __ATOMIC_ACQUIRE);
 }
 
-void region_runtime_increase_append_offset(struct pmemstream_region_runtime *region_runtime, uint64_t diff)
+void region_runtime_produce_append_offset(struct pmemstream_region_runtime *region_runtime, uint64_t producer_id)
 {
 	assert(region_runtime_get_state_acquire(region_runtime) == REGION_RUNTIME_STATE_CLEAR);
-	__atomic_fetch_add(&region_runtime->append_offset, diff, __ATOMIC_RELAXED);
-}
-
-void region_runtime_increase_committed_offset(struct pmemstream_region_runtime *region_runtime, uint64_t diff)
-{
-	assert(region_runtime_get_state_acquire(region_runtime) == REGION_RUNTIME_STATE_CLEAR);
-	__atomic_fetch_add(&region_runtime->committed_offset, diff, __ATOMIC_RELEASE);
+	mpmc_queue_produce(region_runtime->offset_manager, producer_id);
 }
 
 static void region_runtime_initialize_dirty(struct pmemstream_region_runtime *region_runtime,
@@ -187,8 +197,7 @@ static void region_runtime_initialize_dirty(struct pmemstream_region_runtime *re
 	assert(region_runtime);
 	assert(tail.offset != PMEMSTREAM_OFFSET_UNINITIALIZED);
 
-	region_runtime->committed_offset = tail.offset;
-	region_runtime->append_offset = tail.offset;
+	mpmc_queue_reset(region_runtime->offset_manager, tail.offset);
 	__atomic_store_n(&region_runtime->state, REGION_RUNTIME_STATE_DIRTY, __ATOMIC_RELEASE);
 }
 
@@ -237,7 +246,7 @@ static void region_runtime_clear_from_tail(struct pmemstream *stream, struct pme
 	assert(pthread_mutex_trylock(&region_runtime->region_lock) != 0);
 	assert(region_runtime_get_state_acquire(region_runtime) == REGION_RUNTIME_STATE_DIRTY);
 
-	uint64_t append_offset = region_runtime_get_append_offset_acquire(region_runtime);
+	uint64_t append_offset = region_runtime_get_committed_offset_acquire(region_runtime);
 	struct span_runtime region_rt = span_get_region_runtime(stream, region.offset);
 	size_t region_end_offset = region.offset + region_rt.total_size;
 	size_t remaining_size = region_end_offset - append_offset;
@@ -277,6 +286,20 @@ int region_runtime_initialize_clear_locked(struct pmemstream *stream, struct pme
 	pthread_mutex_unlock(&region_runtime->region_lock);
 
 	assert(region_runtime_get_state_acquire(region_runtime) == REGION_RUNTIME_STATE_CLEAR);
-	assert(region_runtime_get_append_offset_acquire(region_runtime) != PMEMSTREAM_OFFSET_UNINITIALIZED);
+	assert(region_runtime_get_committed_offset_acquire(region_runtime) != PMEMSTREAM_OFFSET_UNINITIALIZED);
 	return ret;
+}
+
+bool region_runtime_try_consume(struct pmemstream_region_runtime *region_runtime, uint64_t target_offset)
+{
+	assert(region_runtime_get_state_acquire(region_runtime) == REGION_RUNTIME_STATE_CLEAR);
+
+	uint64_t ready_offset;
+	uint64_t size = mpmc_queue_consume(region_runtime->offset_manager, PMEMSTREAM_MAX_CONCURRENCY, &ready_offset);
+
+	if (ready_offset + size >= target_offset) {
+		return true;
+	}
+
+	return false;
 }

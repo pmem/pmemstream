@@ -32,7 +32,13 @@ int main(int argc, char *argv[])
 
 			struct pmemstream_region_runtime *region_runtime;
 			struct pmemstream_region region = {8};
-			int ret = region_runtimes_map_get_or_create(region_runtimes_map.get(), region, &region_runtime);
+			struct span_runtime region_srt;
+			region_srt.total_size = 0;
+
+			// XXX: fille region_srt properly
+
+			int ret = region_runtimes_map_get_or_create(region_runtimes_map.get(), region, region_srt,
+								    &region_runtime);
 			UT_ASSERTeq(ret, 0);
 
 			UT_ASSERTeq(region_runtime_get_state_acquire(region_runtime),
@@ -58,13 +64,6 @@ int main(int argc, char *argv[])
 						if (initialized) {
 							UT_ASSERTeq(region_runtime_get_state_acquire(region_runtime),
 								    REGION_RUNTIME_STATE_DIRTY);
-							auto append_offset = region_runtime_get_append_offset_acquire(
-								region_runtime);
-							auto committed_offset =
-								region_runtime_get_committed_offset_acquire(
-									region_runtime);
-							UT_ASSERTeq(append_offset, committed_offset);
-							UT_ASSERTeq(append_offset, region.offset);
 						}
 					}
 				}
