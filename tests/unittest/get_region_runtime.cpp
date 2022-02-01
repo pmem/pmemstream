@@ -32,13 +32,13 @@ int main(int argc, char *argv[])
 
 			std::vector<pmemstream_region_runtime *> threads_data(concurrency);
 			parallel_exec(concurrency, [&](size_t tid) {
-				RC_ASSERT(pmemstream_get_region_runtime(stream.get(), region, &threads_data[tid]) == 0);
+				UT_ASSERT(pmemstream_get_region_runtime(stream.get(), region, &threads_data[tid]) == 0);
 
 				auto is_nullptr = threads_data[tid] == nullptr;
-				RC_ASSERT(!is_nullptr);
+				UT_ASSERT(!is_nullptr);
 			});
 
-			RC_ASSERT(all_equal(threads_data));
+			UT_ASSERT(all_equal(threads_data));
 		});
 	});
 }

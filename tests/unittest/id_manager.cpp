@@ -23,7 +23,7 @@ void release_ids(id_manager *manager, size_t size, It &&it)
 {
 	for (size_t i = 0; i < size; i++) {
 		int ret = id_manager_release(manager, *it);
-		RC_ASSERT(ret == 0);
+		UT_ASSERT(ret == 0);
 		++it;
 	}
 }
@@ -81,7 +81,7 @@ int main()
 
 					/* Id will either be bigger than all existing (==
 					 * acquired_ids.size()) or will be a reused one. */
-					RC_ASSERT(id <= acquired_ids.size());
+					UT_ASSERT(id <= acquired_ids.size());
 
 					acquired_ids.emplace_back(id);
 				}
@@ -104,7 +104,7 @@ int main()
 			if (release_from_biggest) {
 				/* Since release was always done in reverse order, all ids should be
 				 * sorted. */
-				RC_ASSERT(std::is_sorted(acquired_ids.begin(), acquired_ids.end()));
+				UT_ASSERT(std::is_sorted(acquired_ids.begin(), acquired_ids.end()));
 			}
 		});
 
@@ -113,13 +113,13 @@ int main()
 			auto manager = make_id_manager();
 			for (unsigned i = 0; i < ids_to_acquire; i++) {
 				auto id = id_manager_acquire(manager.get());
-				RC_ASSERT(id == i);
+				UT_ASSERT(id == i);
 			}
 
 			auto to_release =
 				*rc::gen::unique<std::vector<unsigned>>(rc::gen::inRange<unsigned>(0, ids_to_acquire));
 			for (auto id : to_release) {
-				RC_ASSERT(id_manager_release(manager.get(), id) == 0);
+				UT_ASSERT(id_manager_release(manager.get(), id) == 0);
 			}
 
 			std::vector<unsigned> reacquired;
@@ -129,7 +129,7 @@ int main()
 			}
 
 			std::sort(to_release.begin(), to_release.end());
-			RC_ASSERT(std::equal(reacquired.begin(), reacquired.end(), to_release.begin()));
+			UT_ASSERT(std::equal(reacquired.begin(), reacquired.end(), to_release.begin()));
 		});
 	});
 }

@@ -23,7 +23,7 @@ void concurrent_iterate_verify(pmemstream *stream, pmemstream_region region, con
 	std::vector<std::string> result;
 
 	struct pmemstream_entry_iterator *eiter;
-	RC_ASSERT(pmemstream_entry_iterator_new(&eiter, stream, region) == 0);
+	UT_ASSERT(pmemstream_entry_iterator_new(&eiter, stream, region) == 0);
 
 	struct pmemstream_entry entry;
 
@@ -36,8 +36,8 @@ void concurrent_iterate_verify(pmemstream *stream, pmemstream_region region, con
 		}
 	}
 
-	RC_ASSERT(std::equal(data.begin(), data.end(), result.begin()));
-	RC_ASSERT(
+	UT_ASSERT(std::equal(data.begin(), data.end(), result.begin()));
+	UT_ASSERT(
 		std::equal(extra_data.begin(), extra_data.end(), result.begin() + static_cast<long long>(data.size())));
 
 	pmemstream_entry_iterator_delete(&eiter);

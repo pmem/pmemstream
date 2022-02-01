@@ -33,7 +33,7 @@ int main()
 				const auto size = data.size() * sizeof(uint64_t);
 				const auto count =
 					util_popcount_memory(reinterpret_cast<const uint8_t *>(data.data()), size);
-				RC_ASSERT(count == expected);
+				UT_ASSERT(count == expected);
 			});
 
 		ret += rc::check("verify if popcount handles sizes which are not multiple of 8",
@@ -48,7 +48,7 @@ int main()
 					 const auto to_middle_count = util_popcount_memory(ptr, middle);
 					 const auto all_count = util_popcount_memory(ptr, size);
 
-					 RC_ASSERT(to_middle_count + (size - middle) == all_count);
+					 UT_ASSERT(to_middle_count + (size - middle) == all_count);
 				 });
 
 		ret += rc::check(
@@ -82,7 +82,7 @@ int main()
 				/* Calculate popcount for the second time and make sure the result differs
 				 * from the original one by exactly ones_diff. */
 				const auto second_count = static_cast<int>(util_popcount_memory(ptr, size));
-				RC_ASSERT(first_count + ones_diff == second_count);
+				UT_ASSERT(first_count + ones_diff == second_count);
 			});
 	});
 }
