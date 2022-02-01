@@ -5,6 +5,7 @@
 
 #include <assert.h>
 
+#include "common/util.h"
 #include "libpmemstream_internal.h"
 
 const span_bytes *span_offset_to_span_ptr(const struct pmemstream *stream, uint64_t offset)
@@ -24,7 +25,9 @@ void span_create_empty(struct pmemstream *stream, uint64_t offset, size_t size)
 	span[0] = size | SPAN_EMPTY;
 
 	void *dest = ((uint8_t *)span) + SPAN_EMPTY_METADATA_SIZE;
-	stream->memset(dest, 0, size, PMEM2_F_MEM_NONTEMPORAL | PMEM2_F_MEM_NODRAIN);
+	if (!util_is_zeroed(dest, size)) {
+		stream->memset(dest, 0, size, PMEM2_F_MEM_NONTEMPORAL | PMEM2_F_MEM_NODRAIN);
+	}
 	stream->persist(span, SPAN_EMPTY_METADATA_SIZE);
 }
 
