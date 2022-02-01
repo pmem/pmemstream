@@ -131,8 +131,9 @@ make_pmemstream(const std::string &file, size_t block_size, size_t size, bool tr
 template <typename Ctor, typename Dtor>
 auto make_instance_ctor(Ctor &&ctor, Dtor &&dtor)
 {
-	return [&] {
-		return std::unique_ptr<std::remove_reference_t<decltype(*ctor())>, decltype(&dtor)>(ctor(), &dtor);
+	return [&](auto &&... args) {
+		return std::unique_ptr<std::remove_reference_t<decltype(*ctor(args...))>, decltype(&dtor)>(
+			ctor(args...), &dtor);
 	};
 }
 
