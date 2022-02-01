@@ -34,14 +34,14 @@ int main(int argc, char *argv[])
 
 				std::vector<pmemstream_region_runtime *> threads_data(concurrency);
 				parallel_exec(concurrency, [&](size_t tid) {
-					RC_ASSERT(pmemstream_region_runtime_initialize(stream.get(), region,
+					UT_ASSERT(pmemstream_region_runtime_initialize(stream.get(), region,
 										       &threads_data[tid]) == 0);
 
 					auto is_nullptr = threads_data[tid] == nullptr;
-					RC_ASSERT(!is_nullptr);
+					UT_ASSERT(!is_nullptr);
 				});
 
-				RC_ASSERT(all_equal(threads_data));
+				UT_ASSERT(all_equal(threads_data));
 			});
 
 		ret += rc::check("verify that pmemstream_region_runtime_initialize clears region after last entry",
@@ -85,7 +85,7 @@ int main(int argc, char *argv[])
 
 						 auto garbage_dst = garbage_destination(stream.get(), last_entry);
 						 for (size_t i = 0; i < garbage.size(); i++) {
-							 RC_ASSERT(garbage_dst[i] == 0);
+							 UT_ASSERT(garbage_dst[i] == 0);
 						 }
 					 }
 				 });
