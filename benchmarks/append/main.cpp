@@ -306,8 +306,8 @@ int main(int argc, char *argv[])
 	auto std_dev = benchmark::std_dev(results) / cfg.element_count;
 
 	std::cout << cfg.engine << " measurement:" << std::endl;
-	std::cout << "\tmean: " << mean << "ns" << std::endl;
-	std::cout << "\tmax: " << max << "ns" << std::endl;
-	std::cout << "\tmin: " << min << "ns" << std::endl;
-	std::cout << "\tstandard deviation: " << std_dev << "ns" << std::endl;
+	std::cout << "\tmean[ns]: " << mean << std::endl;
+	std::cout << "\tmax[ns]: " << max << std::endl;
+	std::cout << "\tmin[ns]: " << min << std::endl;
+	std::cout << "\tstandard deviation[ns]: " << std_dev << std::endl;
 }
