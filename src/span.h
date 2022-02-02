@@ -54,7 +54,7 @@ struct span_runtime {
 };
 
 #define SPAN_EMPTY_METADATA_SIZE (MEMBER_SIZE(span_runtime, empty))
-#define SPAN_REGION_METADATA_SIZE (MEMBER_SIZE(span_runtime, region))
+#define SPAN_REGION_METADATA_SIZE (64ULL)
 #define SPAN_ENTRY_METADATA_SIZE (MEMBER_SIZE(span_runtime, entry))
 
 typedef uint64_t span_bytes;

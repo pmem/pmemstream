@@ -171,6 +171,7 @@ int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region regio
 {
 	size_t entry_total_size_span_aligned = pmemstream_entry_total_size_aligned(size);
 	struct span_runtime region_srt = span_get_region_runtime(stream, region.offset);
+	assert(((uint64_t)pmemstream_offset_to_ptr(stream, region_srt.data_offset)) % 64 == 0);
 	int ret = 0;
 
 	if (!region_runtime) {
