@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: BSD-3-Clause
-# Copyright 2021, Intel Corporation
+# Copyright 2021-2022, Intel Corporation
 
 #
 # Dockerfile - a 'recipe' for Docker to build an image of ubuntu-based
@@ -7,22 +7,35 @@
 #
 
 # Pull base image
-FROM ghcr.io/pmem/libpmemobj-cpp:ubuntu-20.04-latest
+FROM ghcr.io/pmem/dev-utils-kit:ubuntu-20.04-latest
 MAINTAINER igor.chorazewicz@intel.com
 
+# use 'root' while building the image
 USER root
 
-RUN dpkg -i /opt/pmdk-pkg/*.deb
+# Tests (optional)
+ARG TESTS_DEPS="\
+	libc6-dbg"
 
-ENV DOC_DEPS "\
-	hub \
-	pandoc"
+# Codecov - coverage tool (optional)
+ARG CODECOV_DEPS="\
+	curl \
+	llvm"
+
+# Misc for our builds/CI (optional)
+ARG MISC_DEPS="\
+	clang-format-9"
 
 # Install all required packages
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
-	${DOC_DEPS} \
+	${TESTS_DEPS} \
+	${CODECOV_DEPS} \
+	${MISC_DEPS} \
 && rm -rf /var/lib/apt/lists/*
+
+# Install all PMDK packages
+RUN /opt/install-pmdk.sh /opt/pmdk/
 
 # Install rapidcheck
 COPY install-rapidcheck.sh install-rapidcheck.sh
@@ -32,3 +45,6 @@ RUN ./install-rapidcheck.sh
 COPY download-scripts.sh download-scripts.sh
 COPY 0001-fix-generating-gcov-files-and-turn-off-verbose-log.patch 0001-fix-generating-gcov-files-and-turn-off-verbose-log.patch
 RUN ./download-scripts.sh
+
+# switch back to regular user
+USER ${USER}
