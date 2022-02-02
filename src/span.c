@@ -108,7 +108,7 @@ struct span_runtime span_get_entry_runtime(const struct pmemstream *stream, uint
 	srt.entry.size = span_get_size(span);
 	srt.entry.popcount = span[1];
 	srt.data_offset = offset + SPAN_ENTRY_METADATA_SIZE;
-	srt.total_size = ALIGN_UP(srt.entry.size + SPAN_ENTRY_METADATA_SIZE, sizeof(span_bytes));
+	srt.total_size = ALIGN_UP(srt.entry.size + SPAN_ENTRY_METADATA_SIZE, 64ULL);
 
 	return srt;
 }

@@ -162,7 +162,7 @@ int pmemstream_region_runtime_initialize(struct pmemstream *stream, struct pmems
 static size_t pmemstream_entry_total_size_aligned(size_t size)
 {
 	size_t entry_total_size = size + SPAN_ENTRY_METADATA_SIZE;
-	return ALIGN_UP(entry_total_size, sizeof(span_bytes));
+	return ALIGN_UP(entry_total_size, 64ULL);
 }
 
 int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region region,
@@ -183,6 +183,7 @@ int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region regio
 
 	uint64_t offset = region_runtime_get_append_offset_acquire(region_runtime);
 	assert(offset >= region_srt.data_offset);
+	assert(offset % 64 == 0);
 	if (offset + entry_total_size_span_aligned > region.offset + region_srt.total_size) {
 		return -1;
 	}
@@ -195,7 +196,9 @@ int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region regio
 
 	reserved_entry->offset = offset;
 	/* data is right after the entry metadata */
-	*data_addr = (void *)span_offset_to_span_ptr(stream, offset + SPAN_ENTRY_METADATA_SIZE);
+	const uint8_t *data_ptr = pmemstream_offset_to_ptr(stream, offset);
+	assert(((uint64_t)data_ptr) % 64 == 0);
+	*data_addr = (void *)(data_ptr + SPAN_ENTRY_METADATA_SIZE);
 
 	return ret;
 }
