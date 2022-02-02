@@ -4,10 +4,6 @@
 #ifndef LIBPMEMSTREAM_UNITTEST_H
 #define LIBPMEMSTREAM_UNITTEST_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include "libpmemstream.h"
 #include "test_backtrace.h"
 
@@ -19,6 +15,39 @@ extern "C" {
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+
+#ifdef __cplusplus
+#include <stdexcept>
+static inline void UT_FATAL(const char *format, ...)
+{
+	va_list args_list;
+	va_start(args_list, format);
+	char buffer[10240]; /* big enough to hold error message. */
+	int written = vsnprintf(buffer, sizeof(buffer), format, args_list);
+	if (written == sizeof(buffer))
+		buffer[written - 1] = '\0';
+
+	va_end(args_list);
+
+	throw std::runtime_error(buffer);
+}
+#else
+static inline void UT_FATAL(const char *format, ...)
+{
+	va_list args_list;
+	va_start(args_list, format);
+	vfprintf(stderr, format, args_list);
+	va_end(args_list);
+
+	fprintf(stderr, "\n");
+
+	abort();
+}
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* XXX: refactor to use __start (https://stackoverflow.com/questions/15919356/c-program-start) */
 #define START() test_register_sighandlers()
@@ -38,18 +67,6 @@ static inline void UT_OUT(const char *format, ...)
 	va_end(args_list);
 
 	fprintf(stdout, "\n");
-}
-
-static inline void UT_FATAL(const char *format, ...)
-{
-	va_list args_list;
-	va_start(args_list, format);
-	vfprintf(stderr, format, args_list);
-	va_end(args_list);
-
-	fprintf(stderr, "\n");
-
-	abort();
 }
 
 // XXX: use pmemstream_errormsg()

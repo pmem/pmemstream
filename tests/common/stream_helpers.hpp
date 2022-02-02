@@ -15,7 +15,7 @@ void append(struct pmemstream *stream, struct pmemstream_region region,
 {
 	for (const auto &e : data) {
 		auto ret = pmemstream_append(stream, region, region_runtime, e.data(), e.size(), nullptr);
-		RC_ASSERT(ret == 0);
+		UT_ASSERT(ret == 0);
 	}
 }
 
@@ -23,9 +23,9 @@ struct pmemstream_region initialize_stream_single_region(struct pmemstream *stre
 							 const std::vector<std::string> &data)
 {
 	struct pmemstream_region new_region;
-	RC_ASSERT(pmemstream_region_allocate(stream, region_size, &new_region) == 0);
+	UT_ASSERT(pmemstream_region_allocate(stream, region_size, &new_region) == 0);
 	/* region_size is aligned up to block_size, on allocation, so it may be bigger than expected */
-	RC_ASSERT(pmemstream_region_size(stream, new_region) >= region_size);
+	UT_ASSERT(pmemstream_region_size(stream, new_region) >= region_size);
 
 	append(stream, new_region, NULL, data);
 
@@ -37,12 +37,12 @@ std::vector<std::string> get_elements_in_region(struct pmemstream *stream, struc
 	std::vector<std::string> result;
 
 	struct pmemstream_entry_iterator *eiter;
-	RC_ASSERT(pmemstream_entry_iterator_new(&eiter, stream, region) == 0);
+	UT_ASSERT(pmemstream_entry_iterator_new(&eiter, stream, region) == 0);
 
 	struct pmemstream_entry entry;
 	struct pmemstream_region r;
 	while (pmemstream_entry_iterator_next(eiter, &r, &entry) == 0) {
-		RC_ASSERT(r.offset == region.offset);
+		UT_ASSERT(r.offset == region.offset);
 		auto data_ptr = reinterpret_cast<const char *>(pmemstream_entry_data(stream, entry));
 		result.emplace_back(data_ptr, pmemstream_entry_length(stream, entry));
 	}
@@ -60,8 +60,8 @@ void verify(pmemstream *stream, pmemstream_region region, const std::vector<std:
 	auto all_elements = get_elements_in_region(stream, region);
 	auto extra_data_start = all_elements.begin() + static_cast<int>(data.size());
 
-	RC_ASSERT(std::equal(all_elements.begin(), extra_data_start, data.begin()));
-	RC_ASSERT(std::equal(extra_data_start, all_elements.end(), extra_data.begin()));
+	UT_ASSERT(std::equal(all_elements.begin(), extra_data_start, data.begin()));
+	UT_ASSERT(std::equal(extra_data_start, all_elements.end(), extra_data.begin()));
 }
 
 /* Reserve space, write data, and publish (persist) them, within the given region.
@@ -72,7 +72,7 @@ void reserve_and_publish(struct pmemstream *stream, struct pmemstream_region reg
 	pmemstream_region_runtime *runtime = nullptr;
 	if (*rc::gen::arbitrary<bool>()) {
 		int ret = pmemstream_region_runtime_initialize(stream, region, &runtime);
-		RC_ASSERT(ret == 0);
+		UT_ASSERT(ret == 0);
 	}
 
 	for (const auto &d : data_to_write) {
@@ -80,20 +80,20 @@ void reserve_and_publish(struct pmemstream *stream, struct pmemstream_region reg
 		struct pmemstream_entry reserved_entry;
 		void *reserved_data;
 		int ret = pmemstream_reserve(stream, region, nullptr, d.size(), &reserved_entry, &reserved_data);
-		RC_ASSERT(ret == 0);
+		UT_ASSERT(ret == 0);
 
 		/* write into the reserved space and publish (persist) it */
 		memcpy(reserved_data, d.data(), d.size());
 
 		ret = pmemstream_publish(stream, region, runtime, d.data(), d.size(), &reserved_entry);
-		RC_ASSERT(ret == 0);
+		UT_ASSERT(ret == 0);
 	}
 }
 
 struct pmemstream_entry get_last_entry(pmemstream *stream, pmemstream_region region)
 {
 	struct pmemstream_entry_iterator *eiter;
-	RC_ASSERT(pmemstream_entry_iterator_new(&eiter, stream, region) == 0);
+	UT_ASSERT(pmemstream_entry_iterator_new(&eiter, stream, region) == 0);
 
 	struct pmemstream_entry last_entry = {0};
 	struct pmemstream_entry tmp_entry;

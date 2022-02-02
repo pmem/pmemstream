@@ -48,10 +48,10 @@ int main(int argc, char *argv[])
 				const auto extra_entry = my_data.back();
 				int ret = pmemstream_append(stream.get(), region, nullptr, extra_entry.data(),
 							    extra_entry.size(), nullptr);
-				RC_ASSERT(ret == 0);
+				UT_ASSERT(ret == 0);
 				verify(stream.get(), region, data, my_data);
 
-				RC_ASSERT(pmemstream_region_free(stream.get(), region) == 0);
+				UT_ASSERT(pmemstream_region_free(stream.get(), region) == 0);
 			});
 
 		ret += rc::check("verify if reserve+publish by hand will behave the same as regular append",
@@ -66,7 +66,7 @@ int main(int argc, char *argv[])
 						 verify(stream.get(), region, data, {});
 						 a_data = get_elements_in_region(stream.get(), region);
 
-						 RC_ASSERT(pmemstream_region_free(stream.get(), region) == 0);
+						 UT_ASSERT(pmemstream_region_free(stream.get(), region) == 0);
 					 }
 					 /* publish-reserve by hand of the same 'data' (in a different file) */
 					 std::vector<std::string> rp_data;
@@ -78,10 +78,10 @@ int main(int argc, char *argv[])
 						 reserve_and_publish(stream.get(), region, data);
 						 rp_data = get_elements_in_region(stream.get(), region);
 
-						 RC_ASSERT(std::equal(a_data.begin(), a_data.end(), rp_data.begin(),
+						 UT_ASSERT(std::equal(a_data.begin(), a_data.end(), rp_data.begin(),
 								      rp_data.end()));
 
-						 RC_ASSERT(pmemstream_region_free(stream.get(), region) == 0);
+						 UT_ASSERT(pmemstream_region_free(stream.get(), region) == 0);
 					 }
 				 });
 
@@ -99,7 +99,7 @@ int main(int argc, char *argv[])
 						 int ret = pmemstream_reserve(stream.get(), region, nullptr,
 									      extra_entry.size(), &reserved_entry,
 									      &reserved_data);
-						 RC_ASSERT(ret == 0);
+						 UT_ASSERT(ret == 0);
 
 						 std::memcpy(reinterpret_cast<char *>(reserved_data),
 							     extra_entry.data(), extra_entry.size());
