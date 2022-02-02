@@ -71,7 +71,7 @@ void reserve_and_publish(struct pmemstream *stream, struct pmemstream_region reg
 {
 	pmemstream_region_runtime *runtime = nullptr;
 	if (*rc::gen::arbitrary<bool>()) {
-		int ret = pmemstream_get_region_runtime(stream, region, &runtime);
+		int ret = pmemstream_region_runtime_initialize(stream, region, &runtime);
 		RC_ASSERT(ret == 0);
 	}
 
@@ -89,4 +89,24 @@ void reserve_and_publish(struct pmemstream *stream, struct pmemstream_region reg
 		RC_ASSERT(ret == 0);
 	}
 }
+
+struct pmemstream_entry get_last_entry(pmemstream *stream, pmemstream_region region)
+{
+	struct pmemstream_entry_iterator *eiter;
+	RC_ASSERT(pmemstream_entry_iterator_new(&eiter, stream, region) == 0);
+
+	struct pmemstream_entry last_entry = {0};
+	struct pmemstream_entry tmp_entry;
+	while (pmemstream_entry_iterator_next(eiter, nullptr, &tmp_entry) == 0) {
+		last_entry = tmp_entry;
+	}
+
+	if (last_entry.offset == 0)
+		throw std::runtime_error("No elements in the stream");
+
+	pmemstream_entry_iterator_delete(&eiter);
+
+	return last_entry;
+}
+
 #endif /* LIBPMEMSTREAM_STREAM_HELPERS_HPP */

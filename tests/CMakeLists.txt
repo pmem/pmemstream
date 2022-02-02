@@ -90,6 +90,9 @@ add_test_generic(NAME entry_iterator TRACERS none memcheck pmemcheck drd helgrin
 build_test(region_create api_c/region_create.c)
 add_test_generic(NAME region_create TRACERS none memcheck pmemcheck drd helgrind)
 
+build_test_ext(NAME region_initialize SRC_FILES unittest/region_initialize.cpp ../src/region.c ../src/critnib/critnib.c ../src/span.c ../src/iterator.c)
+add_test_generic(NAME region_initialize TRACERS none memcheck)
+
 build_test(region_iterator api_c/region_iterator.c)
 add_test_generic(NAME region_iterator TRACERS none memcheck pmemcheck drd helgrind)
 
@@ -112,11 +115,11 @@ if(TESTS_RAPIDCHECK)
 	build_test_rc(NAME create SRC_FILES unittest/create.cpp)
 	add_test_generic(NAME create TRACERS none)
 
-	build_test_rc(NAME get_region_runtime SRC_FILES unittest/get_region_runtime.cpp)
-	add_test_generic(NAME get_region_runtime TRACERS none)
-
 	build_test_rc(NAME id_manager SRC_FILES unittest/id_manager.cpp ../src/id_manager.c ../src/critnib/critnib.c)
 	add_test_generic(NAME id_manager TRACERS none memcheck)
+
+	build_test_rc(NAME region_runtime_initialize SRC_FILES unittest/region_runtime_initialize.cpp)
+	add_test_generic(NAME region_runtime_initialize TRACERS none memcheck)
 
 	build_test_rc(NAME reserve_publish SRC_FILES unittest/reserve_publish.cpp)
 	add_test_generic(NAME reserve_publish TRACERS none memcheck)

@@ -20,13 +20,20 @@ extern "C" {
 
 /**
  * Functions for manipulating regions and region_runtime.
- *
- * Region_runtime can be in 3 different states:
- * - uninitialized: append_offset and committed_offset are invalid
- * - dirty: append_offset and committed_offsets are known but region was not yet cleared (appending
- *   to such region might lead to data corruption)
- * - clear: append_offset and committed_offset are known, append is safe
  */
+
+/* After opening pmemstream, each region_runtime is in UNINITIALIZED state.
+ * The only possible state transitions are:
+ * UNINITIALIZED -> DIRTY
+ * UNINITIALIZED -> CLEAR
+ * DIRTY -> CLEAR
+ */
+enum region_runtime_state {
+	REGION_RUNTIME_STATE_UNINITIALIZED, /* append_offset and committed_offset are invalid */
+	REGION_RUNTIME_STATE_DIRTY, /* append_offset and committed_offsets are known but region was not yet cleared
+		  (appending to such region might lead to data corruption) */
+	REGION_RUNTIME_STATE_CLEAR  /* append_offset and committed_offset are known, append is safe */
+};
 
 struct pmemstream_region_runtime;
 struct region_runtimes_map;
@@ -43,36 +50,34 @@ int region_runtimes_map_get_or_create(struct region_runtimes_map *map, struct pm
 				      struct pmemstream_region_runtime **container_handle);
 void region_runtimes_map_remove(struct region_runtimes_map *map, struct pmemstream_region region);
 
-bool region_runtime_is_initialized(const struct pmemstream_region_runtime *region_runtime);
-bool region_runtime_is_dirty(const struct pmemstream_region_runtime *region_runtime);
+enum region_runtime_state region_runtime_get_state_acquire(const struct pmemstream_region_runtime *region_runtime);
 
-/* Precondition: region_runtime_is_initialized() == true */
+/* Precondition: region_runtime_get_state_acquire() != REGION_RUNTIME_STATE_UNINITIALIZED */
 uint64_t region_runtime_get_append_offset_acquire(const struct pmemstream_region_runtime *region_runtime);
-/* Precondition: region_runtime_is_initialized() == true */
+/* Precondition: region_runtime_get_state_acquire() != REGION_RUNTIME_STATE_UNINITIALIZED */
 uint64_t region_runtime_get_committed_offset_acquire(const struct pmemstream_region_runtime *region_runtime);
 
+/* Precondition: region_runtime_get_state_acquire() == REGION_RUNTIME_STATE_CLEAR */
 void region_runtime_increase_append_offset(struct pmemstream_region_runtime *region_runtime, uint64_t diff);
+/* Precondition: region_runtime_get_state_acquire() == REGION_RUNTIME_STATE_CLEAR */
 void region_runtime_increase_committed_offset(struct pmemstream_region_runtime *region_runtime, uint64_t diff);
 
-/* Recovers a region (under a global lock) if it is not yet recovered. */
-int region_runtime_try_initialize_locked(struct pmemstream *stream, struct pmemstream_region region,
-					 struct pmemstream_region_runtime *region_runtime);
+/*
+ * Performs region recovery - initializes append_offset and committed_offset.
+ * Also clears memory after append_offset.
+ *
+ * After this call, region_runtime is in "clear" state.
+ */
+int region_runtime_initialize_clear_locked(struct pmemstream *stream, struct pmemstream_region region,
+					   struct pmemstream_region_runtime *region_runtime);
 
 /*
- * Performs region recovery - initializes append_offset and clears all the data in the region after `tail` entry.
+ * Performs region recovery - initializes append_offset and committed_offset.
  *
  * After this call, region_runtime is in "dirty" state.
  */
-void region_runtime_initialize(struct pmemstream_region_runtime *region_runtime, struct pmemstream_entry tail);
-
-/*
- * Clears data in region starting from tail offset if region_runtime is in "dirty" state, does nothing otherwise.
- * After this call, region_runtime is in "clear" state.
- *
- * Returns current append_offset.
- */
-uint64_t region_runtime_try_clear_from_tail(struct pmemstream *stream, struct pmemstream_region region,
-					    struct pmemstream_region_runtime *region_runtime);
+void region_runtime_initialize_dirty_locked(struct pmemstream_region_runtime *region_runtime,
+					    struct pmemstream_entry tail);
 
 #ifdef __cplusplus
 } /* end extern "C" */

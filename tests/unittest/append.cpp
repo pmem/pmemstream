@@ -122,7 +122,8 @@ int main(int argc, char *argv[])
 									       TEST_DEFAULT_STREAM_SIZE, false);
 						 pmemstream_region_runtime *runtime = NULL;
 						 if (user_created_runtime) {
-							 pmemstream_get_region_runtime(stream.get(), region, &runtime);
+							 pmemstream_region_runtime_initialize(stream.get(), region,
+											      &runtime);
 						 }
 
 						 append(stream.get(), region, runtime, extra_data);
