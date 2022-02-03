@@ -30,12 +30,16 @@ jobs:
     strategy:
       matrix:
         CONFIG: [
-                  "TYPE=debug OS=ubuntu OS_VER=20.04 CHECK_CPP_STYLE=1 ",
-                  "TYPE=debug OS=ubuntu OS_VER=20.04 COVERAGE=1 PUSH_IMAGE=1",
+                  "TYPE=debug OS=ubuntu OS_VER=20.04 CHECK_CPP_STYLE=1",
+                  "TYPE=debug OS=ubuntu OS_VER=20.04 COVERAGE=1",
+                  "TYPE=debug OS=fedora OS_VER=35",
                   "TYPE=debug OS=ubuntu OS_VER=20.04 TESTS_ASAN=1",
                   "TYPE=debug OS=ubuntu OS_VER=20.04 TESTS_UBSAN=1",
+                  "TYPE=debug OS=fedora OS_VER=35 TESTS_ASAN=1",
+                  "TYPE=debug OS=fedora OS_VER=35 TESTS_UBSAN=1",
                   "TYPE=valgrind OS=ubuntu OS_VER=20.04",
-                  "TYPE=package OS=ubuntu OS_VER=20.04",
+                  "TYPE=package OS=ubuntu OS_VER=20.04 PUSH_IMAGE=1",
+                  "TYPE=package OS=fedora OS_VER=35 PUSH_IMAGE=1",
                  ]
     steps:
       - name: Get release version
@@ -73,8 +77,7 @@ jobs:
       github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/heads/stable-')
     strategy:
       matrix:
-        # XXX: temporarily we run all our jobs on Ubuntu; normally it should run on Fedora
-        CONFIG: ["TYPE=doc OS=ubuntu OS_VER=20.04"]
+        CONFIG: ["TYPE=doc OS=fedora OS_VER=35"]
     steps:
       - name: Set image version for stable branch
         # doc update happens only on stable branch (not on PR), so we check only for heads ref
