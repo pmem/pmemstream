@@ -30,7 +30,7 @@ int main(int argc, char *argv[])
 		ret += rc::check(
 			"verify if mixing reserve+publish with append works fine",
 			[&](const std::vector<std::string> &data, const std::vector<std::string> &extra_data,
-			    const bool use_append) {
+			    const bool use_append, const bool is_runtime_initialized) {
 				auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE, TEST_DEFAULT_STREAM_SIZE);
 				auto region =
 					initialize_stream_single_region(stream.get(), TEST_DEFAULT_REGION_SIZE, data);
@@ -39,7 +39,7 @@ int main(int argc, char *argv[])
 				if (use_append) {
 					append(stream.get(), region, nullptr, extra_data);
 				} else {
-					reserve_and_publish(stream.get(), region, extra_data);
+					reserve_and_publish(stream.get(), region, is_runtime_initialized, extra_data);
 				}
 
 				/* add one more "regular" append */
@@ -54,36 +54,37 @@ int main(int argc, char *argv[])
 				UT_ASSERT(pmemstream_region_free(stream.get(), region) == 0);
 			});
 
-		ret += rc::check("verify if reserve+publish by hand will behave the same as regular append",
-				 [&](const std::vector<std::string> &data) {
-					 /* regular append of 'data' */
-					 std::vector<std::string> a_data;
-					 {
-						 auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE,
-									       TEST_DEFAULT_STREAM_SIZE);
-						 auto region = initialize_stream_single_region(
-							 stream.get(), TEST_DEFAULT_REGION_SIZE, data);
-						 verify(stream.get(), region, data, {});
-						 a_data = get_elements_in_region(stream.get(), region);
+		ret += rc::check(
+			"verify if reserve+publish by hand will behave the same as regular append",
+			[&](const std::vector<std::string> &data, const bool is_runtime_initialized) {
+				/* regular append of 'data' */
+				std::vector<std::string> a_data;
+				{
+					auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE,
+								      TEST_DEFAULT_STREAM_SIZE);
+					auto region = initialize_stream_single_region(stream.get(),
+										      TEST_DEFAULT_REGION_SIZE, data);
+					verify(stream.get(), region, data, {});
+					a_data = get_elements_in_region(stream.get(), region);
 
-						 UT_ASSERT(pmemstream_region_free(stream.get(), region) == 0);
-					 }
-					 /* publish-reserve by hand of the same 'data' (in a different file) */
-					 std::vector<std::string> rp_data;
-					 {
-						 auto stream = make_pmemstream(path + "_2", TEST_DEFAULT_BLOCK_SIZE,
-									       TEST_DEFAULT_STREAM_SIZE);
-						 auto region = initialize_stream_single_region(
-							 stream.get(), TEST_DEFAULT_REGION_SIZE, {});
-						 reserve_and_publish(stream.get(), region, data);
-						 rp_data = get_elements_in_region(stream.get(), region);
+					UT_ASSERT(pmemstream_region_free(stream.get(), region) == 0);
+				}
+				/* publish-reserve by hand of the same 'data' (in a different file) */
+				std::vector<std::string> rp_data;
+				{
+					auto stream = make_pmemstream(path + "_2", TEST_DEFAULT_BLOCK_SIZE,
+								      TEST_DEFAULT_STREAM_SIZE);
+					auto region = initialize_stream_single_region(stream.get(),
+										      TEST_DEFAULT_REGION_SIZE, {});
+					reserve_and_publish(stream.get(), region, is_runtime_initialized, data);
+					rp_data = get_elements_in_region(stream.get(), region);
 
-						 UT_ASSERT(std::equal(a_data.begin(), a_data.end(), rp_data.begin(),
-								      rp_data.end()));
+					UT_ASSERT(std::equal(a_data.begin(), a_data.end(), rp_data.begin(),
+							     rp_data.end()));
 
-						 UT_ASSERT(pmemstream_region_free(stream.get(), region) == 0);
-					 }
-				 });
+					UT_ASSERT(pmemstream_region_free(stream.get(), region) == 0);
+				}
+			});
 
 		ret += rc::check("verify if not calling publish does not result in data being visible",
 				 [&](const std::vector<std::string> &data, const std::string &extra_entry) {

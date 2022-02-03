@@ -66,11 +66,11 @@ void verify(pmemstream *stream, pmemstream_region region, const std::vector<std:
 
 /* Reserve space, write data, and publish (persist) them, within the given region.
  * Do this for all data in the vector. */
-void reserve_and_publish(struct pmemstream *stream, struct pmemstream_region region,
+void reserve_and_publish(struct pmemstream *stream, struct pmemstream_region region, bool is_runtime_initialized,
 			 const std::vector<std::string> &data_to_write)
 {
 	pmemstream_region_runtime *runtime = nullptr;
-	if (*rc::gen::arbitrary<bool>()) {
+	if (!is_runtime_initialized) {
 		int ret = pmemstream_region_runtime_initialize(stream, region, &runtime);
 		UT_ASSERT(ret == 0);
 	}
