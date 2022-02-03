@@ -83,7 +83,8 @@ void region_runtime_initialize_dirty_locked(struct pmemstream_region_runtime *re
 
 /* Try to advance consume offset to target_offset. Returns true if successfull.
  * Precondition: region_runtime_get_state_acquire() == REGION_RUNTIME_STATE_CLEAR */
-bool region_runtime_try_consume(struct pmemstream_region_runtime *region_runtime, uint64_t target_offset);
+bool region_runtime_try_consume(struct pmemstream_region_runtime *region_runtime, uint64_t target_offset,
+				uint64_t max_producers);
 
 #ifdef __cplusplus
 } /* end extern "C" */
