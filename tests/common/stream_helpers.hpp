@@ -32,6 +32,20 @@ struct pmemstream_region initialize_stream_single_region(struct pmemstream *stre
 	return new_region;
 }
 
+struct pmemstream_region get_first_region(struct pmemstream *stream)
+{
+	struct pmemstream_region_iterator *riter;
+	int ret = pmemstream_region_iterator_new(&riter, stream);
+	UT_ASSERTne(ret, -1);
+
+	struct pmemstream_region region;
+	ret = pmemstream_region_iterator_next(riter, &region);
+	UT_ASSERTne(ret, -1);
+	pmemstream_region_iterator_delete(&riter);
+
+	return region;
+}
+
 std::vector<std::string> get_elements_in_region(struct pmemstream *stream, struct pmemstream_region region)
 {
 	std::vector<std::string> result;
