@@ -262,7 +262,7 @@ class pmemstream_workload : public workload_base {
  private:
 	config cfg;
 	struct pmemstream_region region;
-	pmemstream_region_runtime *region_runtime_ptr;
+	pmemstream_region_runtime *region_runtime_ptr = nullptr;
 	std::unique_ptr<struct pmemstream, std::function<void(struct pmemstream *)>> stream;
 };
 
