@@ -164,14 +164,13 @@ std::ostream &operator<<(std::ostream &out, config const &cfg)
 class workload_base {
  public:
 	virtual ~workload_base(){};
-	virtual void perform() = 0;
 	virtual void initialize() = 0;
+	virtual void perform() = 0;
+	virtual void clean() = 0;
 
 	void prepare_data(size_t bytes_to_generate)
 	{
-		auto input_generation_time = benchmark::measure<std::chrono::seconds>(
-			[&] { data = benchmark::generate_data(bytes_to_generate); });
-		std::cout << "input generation time: " << input_generation_time << "s" << std::endl;
+		data = benchmark::generate_data(bytes_to_generate);
 	}
 	uint8_t *get_data_chunks()
 	{
@@ -184,38 +183,43 @@ class workload_base {
 
 class pmemlog_workload : public workload_base {
  public:
-	pmemlog_workload(config &cfg) : cfg(cfg)
+	pmemlog_workload(config &cfg)
+	    : cfg(cfg), plp(pmemlog_create(cfg.path.c_str(), cfg.size, S_IRWXU), pmemlog_close)
 	{
-	}
-
-	virtual void perform() override
-	{
-		auto data_chunks = get_data_chunks();
-		for (size_t i = 0; i < data.size() * sizeof(uint64_t); i += cfg.element_size) {
-			if (pmemlog_append(plp, data_chunks + i, cfg.element_size) < 0) {
-				throw std::runtime_error("Error while appending new entry! Errno: " +
-							 std::string(std::strerror(errno)));
-			}
+		if (plp.get() == nullptr) {
+			plp.reset(pmemlog_open(cfg.path.c_str()));
 		}
-	}
-
-	virtual void initialize() override
-	{
-		auto path = cfg.path.c_str();
-		plp = pmemlog_create(path, cfg.size, S_IRWXU);
-		if (plp == NULL)
-			plp = pmemlog_open(path);
-		if (plp == NULL) {
-			throw std::runtime_error("Creating file: " + std::string(path) +
+		if (plp.get() == nullptr) {
+			throw std::runtime_error("Creating file: " + cfg.path +
 						 " caused error: " + std::strerror(errno));
 		}
+	}
+
+	void initialize() override
+	{
 		auto bytes_to_generate = cfg.element_count * cfg.element_size;
 		prepare_data(bytes_to_generate);
 	}
 
+	void perform() override
+	{
+		auto data_chunks = get_data_chunks();
+		for (size_t i = 0; i < data.size() * sizeof(uint64_t); i += cfg.element_size) {
+			if (pmemlog_append(plp.get(), data_chunks + i, cfg.element_size) < 0) {
+				throw std::runtime_error("Error while appending " + std::to_string(i) +
+							 " entry! Errno: " + std::string(std::strerror(errno)));
+			}
+		}
+	}
+
+	void clean() override
+	{
+		pmemlog_rewind(plp.get());
+	}
+
  private:
 	config cfg;
-	PMEMlogpool *plp;
+	std::unique_ptr<PMEMlogpool, std::function<void(PMEMlogpool *)>> plp;
 };
 
 class pmemstream_workload : public workload_base {
@@ -245,9 +249,14 @@ class pmemstream_workload : public workload_base {
 		for (size_t i = 0; i < data.size() * sizeof(uint64_t); i += cfg.element_size) {
 			if (pmemstream_append(stream.get(), region, region_runtime_ptr, data_chunks + i,
 					      cfg.element_size, NULL) < 0) {
-				throw std::runtime_error("Error while appending new entry!");
+				throw std::runtime_error("Error while appending " + std::to_string(i) + " entry!");
 			}
 		}
+	}
+
+	void clean() override
+	{
+		pmemstream_region_free(stream.get(), region);
 	}
 
  private:
@@ -280,15 +289,16 @@ int main(int argc, char *argv[])
 		workload = std::make_unique<pmemstream_workload>(cfg);
 	}
 
+	/* XXX: Add initialization phase whith separate measurement */
+	std::vector<std::chrono::nanoseconds::rep> results;
 	try {
-		workload->initialize();
+		results = benchmark::measure<std::chrono::nanoseconds>(
+			cfg.iterations, [&] { workload->initialize(); },
+			[interface = workload.get()] { interface->perform(); }, [&] { workload->clean(); });
 	} catch (std::runtime_error &e) {
 		std::cerr << e.what() << std::endl;
 		return -2;
 	}
-	/* XXX: Add initialization phase whith separate measurement */
-	auto results = benchmark::measure<std::chrono::nanoseconds>(
-		cfg.iterations, [interface = workload.get()] { interface->perform(); });
 
 	auto mean = benchmark::mean(results) / cfg.element_count;
 	auto max = static_cast<size_t>(benchmark::max(results)) / cfg.element_count;
@@ -296,8 +306,8 @@ int main(int argc, char *argv[])
 	auto std_dev = benchmark::std_dev(results) / cfg.element_count;
 
 	std::cout << cfg.engine << " measurement:" << std::endl;
-	std::cout << "\tmean: " << mean << "ns" << std::endl;
-	std::cout << "\tmax: " << max << "ns" << std::endl;
-	std::cout << "\tmin: " << min << "ns" << std::endl;
-	std::cout << "\tstandard deviation: " << std_dev << "ns" << std::endl;
+	std::cout << "\tmean[ns]: " << mean << std::endl;
+	std::cout << "\tmax[ns]: " << max << std::endl;
+	std::cout << "\tmin[ns]: " << min << std::endl;
+	std::cout << "\tstandard deviation[ns]: " << std_dev << std::endl;
 }
