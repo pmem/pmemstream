@@ -5,6 +5,7 @@ include(${TESTS_ROOT_DIR}/cmake/exec_functions.cmake)
 
 setup()
 
-execute(${EXECUTABLE} --path ${DIR}/testfile)
+execute(${EXECUTABLE} --path ${DIR}/testfile-pmemstream)
+execute(${EXECUTABLE} --engine pmemlog --path ${DIR}/testfile-pmemlog)
 
 finish()
