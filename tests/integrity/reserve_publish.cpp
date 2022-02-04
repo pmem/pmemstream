@@ -28,13 +28,13 @@ int main(int argc, char *argv[])
 		ret += rc::check(
 			"verify if mixing reserve+publish with append works fine",
 			[&](const std::vector<std::string> &data, const std::vector<std::string> &extra_data,
-			    const bool use_append) {
+			    const bool use_append, const bool is_runtime_initialized) {
 				auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE, TEST_DEFAULT_STREAM_SIZE);
 				auto region =
 					initialize_stream_single_region(stream.get(), TEST_DEFAULT_REGION_SIZE, data);
 				verify(stream.get(), region, data, {});
 
-				reserve_and_publish(stream.get(), region, extra_data);
+				reserve_and_publish(stream.get(), region, is_runtime_initialized, extra_data);
 
 				verify(stream.get(), region, data, extra_data);
 			});
