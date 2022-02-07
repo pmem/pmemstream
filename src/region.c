@@ -293,10 +293,17 @@ int region_runtime_initialize_clear_locked(struct pmemstream *stream, struct pme
 bool region_runtime_try_consume(struct pmemstream_region_runtime *region_runtime, uint64_t target_offset,
 				uint64_t max_producers)
 {
+	return region_runtime_try_consume_hint(region_runtime, target_offset, UINT64_MAX, max_producers);
+}
+
+bool region_runtime_try_consume_hint(struct pmemstream_region_runtime *region_runtime, uint64_t target_offset,
+				     uint64_t producer_id, uint64_t max_producers)
+{
 	assert(region_runtime_get_state_acquire(region_runtime) == REGION_RUNTIME_STATE_CLEAR);
 
 	uint64_t ready_offset;
-	uint64_t size = mpmc_queue_consume(region_runtime->offset_manager, max_producers, &ready_offset);
+	uint64_t size =
+		mpmc_queue_consume_hint(region_runtime->offset_manager, producer_id, max_producers, &ready_offset);
 
 	if (ready_offset + size >= target_offset) {
 		return true;

@@ -219,9 +219,9 @@ int pmemstream_publish(struct pmemstream *stream, struct pmemstream_region regio
 	span_create_entry(stream, reserved_entry->offset, size, util_popcount_memory(data, size));
 	region_runtime_produce_append_offset(region_runtime, producer_id);
 
-	while (!region_runtime_try_consume(region_runtime,
-					   reserved_entry->offset + pmemstream_entry_total_size_aligned(size),
-					   thread_id_max_num_used(stream->thread_id) + 1)) {
+	while (!region_runtime_try_consume_hint(region_runtime,
+						reserved_entry->offset + pmemstream_entry_total_size_aligned(size),
+						producer_id, thread_id_max_num_used(stream->thread_id) + 1)) {
 		/* XXX: can use umwait? */
 	}
 
@@ -252,9 +252,9 @@ int pmemstream_append(struct pmemstream *stream, struct pmemstream_region region
 	span_create_entry_no_flush_data(stream, reserved_entry.offset, size, util_popcount_memory(data, size));
 	region_runtime_produce_append_offset(region_runtime, producer_id);
 
-	while (!region_runtime_try_consume(region_runtime,
-					   reserved_entry.offset + pmemstream_entry_total_size_aligned(size),
-					   thread_id_max_num_used(stream->thread_id) + 1)) {
+	while (!region_runtime_try_consume_hint(region_runtime,
+						reserved_entry.offset + pmemstream_entry_total_size_aligned(size),
+						producer_id, thread_id_max_num_used(stream->thread_id) + 1)) {
 		/* XXX: can use umwait? */
 	}
 

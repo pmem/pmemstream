@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-/* Copyright 2021, Intel Corporation */
+/* Copyright 2021-2022, Intel Corporation */
 
 /* Internal Header */
 
@@ -34,6 +34,11 @@ void mpmc_queue_produce(struct mpmc_queue *manager, uint64_t producer_id);
 
 /* Returns number of bytes consumed, 'ready_offset' is start offset of consumed data. */
 uint64_t mpmc_queue_consume(struct mpmc_queue *manager, uint64_t max_producer_id, size_t *ready_offset);
+
+/* Same as mpmc_queue_consume but with producer_id hint. Speeds up execution if producer_id is the only active
+ * producer. If invalid producer_id is passed, just executes like mpmc_queue_consume. */
+uint64_t mpmc_queue_consume_hint(struct mpmc_queue *manager, uint64_t producer_id, uint64_t max_producer_id,
+				 size_t *ready_offset);
 
 /* Returns offset up to which data is already consumed. */
 uint64_t mpmc_queue_get_consumed_offset(struct mpmc_queue *manager);

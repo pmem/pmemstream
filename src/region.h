@@ -86,6 +86,10 @@ void region_runtime_initialize_dirty_locked(struct pmemstream_region_runtime *re
 bool region_runtime_try_consume(struct pmemstream_region_runtime *region_runtime, uint64_t target_offset,
 				uint64_t max_producers);
 
+/* Same as region_runtime_try_consume but optimized for case where producer_id is the only active producer. */
+bool region_runtime_try_consume_hint(struct pmemstream_region_runtime *region_runtime, uint64_t target_offset,
+				     uint64_t producer_id, uint64_t max_producers);
+
 #ifdef __cplusplus
 } /* end extern "C" */
 #endif
