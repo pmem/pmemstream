@@ -29,6 +29,10 @@ void thread_id_destroy(struct thread_id *thread_id);
  */
 uint64_t thread_id_get(struct thread_id *thread_id);
 
+/*
+ * Manually drops this thread's unique id (make it available for grabbing). */
+void thread_id_drop(struct thread_id *thread_id);
+
 /* Returns upper bound on number of used IDs (if there is at least one ID used, it is equal to max used ID - 1) */
 uint64_t thread_id_max_num_used(struct thread_id *thread_id);
 

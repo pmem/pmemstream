@@ -190,6 +190,12 @@ int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region regio
 	}
 
 	uint64_t producer_id = thread_id_get(stream->thread_id);
+	if (producer_id >= PMEMSTREAM_MAX_CONCURRENCY) {
+		/* XXX: add test for this. */
+		thread_id_drop(stream->thread_id);
+		return -1;
+	}
+
 	uint64_t offset =
 		region_runtime_acquire_append_offset(region_runtime, producer_id, entry_total_size_span_aligned);
 	if (offset == PMEMSTREAM_OFFSET_INVALID) {

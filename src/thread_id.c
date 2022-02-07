@@ -88,6 +88,16 @@ void thread_id_destroy(struct thread_id *thread_id)
 	}
 }
 
+void thread_id_drop(struct thread_id *thread_id)
+{
+	void *td = pthread_getspecific(thread_id->key);
+	if (td) {
+		uint64_t id = ((struct thread_data *)td)->id;
+		(void)id_manager_release(thread_id->id_manager, id);
+	}
+	free(td);
+}
+
 uint64_t thread_id_get(struct thread_id *thread_id)
 {
 	uint64_t id = THREAD_ID_INVALID;

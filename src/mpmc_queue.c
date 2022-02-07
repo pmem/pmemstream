@@ -52,6 +52,8 @@ void mpmc_queue_destroy(struct mpmc_queue *manager)
 
 uint64_t mpmc_queue_acquire(struct mpmc_queue *manager, uint64_t producer_id, size_t size)
 {
+	assert(producer_id < manager->num_producers);
+
 	struct mpmc_queue_producer *producer = &manager->producers[producer_id];
 	uint64_t grant_offset = __atomic_load_n(&manager->produce_offset, __ATOMIC_RELAXED);
 
@@ -72,6 +74,8 @@ uint64_t mpmc_queue_acquire(struct mpmc_queue *manager, uint64_t producer_id, si
 
 void mpmc_queue_produce(struct mpmc_queue *manager, uint64_t producer_id)
 {
+	assert(producer_id < manager->num_producers);
+
 	struct mpmc_queue_producer *producer = &manager->producers[producer_id];
 	__atomic_store_n(&producer->granted_offset, MPMC_QUEUE_OFFSET_MAX, __ATOMIC_RELEASE);
 }
