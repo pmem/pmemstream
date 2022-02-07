@@ -1,0 +1,45 @@
+
+name: Nightly Tests
+# It runs non-default OSes, listed below with basic set of compilers and tests.
+
+on:
+  schedule:
+    # run this job at 01:00 UTC everyday
+    - cron:  '0 1 * * *'
+
+env:
+  REPO:           pmemstream
+  GITHUB_REPO:    pmem/pmemstream
+  CONTAINER_REG:  ghcr.io/pmem/pmemstream
+  HOST_WORKDIR:   ${{ github.workspace }}
+  WORKDIR:        utils/docker
+  TEST_TIMEOUT:   800
+  IMG_VER:        latest
+  TYPE:           debug
+  PUSH_IMAGE:     1
+  # use org's Private Access Token to log in to GitHub Container Registry
+  CONTAINER_REG_USER:   ${{ secrets.GH_CR_USER }}
+  CONTAINER_REG_PASS:   ${{ secrets.GH_CR_PAT }}
+
+jobs:
+  linux:
+    name: Linux-nightly
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        CONFIG: [
+                  "OS=fedora OS_VER=34",
+                  "OS=ubuntu OS_VER=21.04",
+                  "OS=ubuntu OS_VER=21.10",
+                ]
+    steps:
+      - name: Clone the git repo
+        uses: actions/checkout@v2
+
+      # It rebuilds images every time and pushes them to the container registry
+      - name: Rebuild and push the image
+        run: cd $WORKDIR && ${{ matrix.CONFIG }} ./pull-or-rebuild-image.sh rebuild
+
+      - name: Run the build
+        run: cd $WORKDIR && ${{ matrix.CONFIG }} ./build.sh

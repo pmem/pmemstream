@@ -7,16 +7,11 @@
 #
 
 # Pull base image
-FROM ghcr.io/pmem/dev-utils-kit:ubuntu-20.04-latest
+FROM ghcr.io/pmem/dev-utils-kit:ubuntu-21.10-latest
 MAINTAINER igor.chorazewicz@intel.com
 
 # use 'root' while building the image
 USER root
-
-# Codecov - coverage tool (optional)
-ARG CODECOV_DEPS="\
-	curl \
-	llvm"
 
 # Misc for our builds/CI (optional)
 ARG MISC_DEPS="\
@@ -25,7 +20,6 @@ ARG MISC_DEPS="\
 # Install all required packages
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
-	${CODECOV_DEPS} \
 	${MISC_DEPS} \
 && rm -rf /var/lib/apt/lists/*
 
