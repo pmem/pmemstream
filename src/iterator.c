@@ -164,9 +164,13 @@ static void pmemstream_entry_iterator_advance(struct pmemstream_entry_iterator *
 	assert(pmemstream_entry_iterator_offset_is_inside_region(iterator));
 }
 
-static int pmemstream_entry_iterator_next_when_region_initialized(struct pmemstream_entry_iterator *iterator)
+static int pmemstream_entry_iterator_next_when_region_initialized(struct pmemstream_entry_iterator *iterator,
+								  struct pmemstream_entry *user_entry)
 {
 	if (pmemstream_entry_iterator_offset_is_below_committed(iterator)) {
+		if (user_entry) {
+			user_entry->offset = iterator->offset;
+		}
 		pmemstream_entry_iterator_advance(iterator);
 		return 0;
 	}
@@ -174,9 +178,13 @@ static int pmemstream_entry_iterator_next_when_region_initialized(struct pmemstr
 	return -1;
 }
 
-static int pmemstream_entry_iterator_next_when_region_not_initialized(struct pmemstream_entry_iterator *iterator)
+static int pmemstream_entry_iterator_next_when_region_not_initialized(struct pmemstream_entry_iterator *iterator,
+								      struct pmemstream_entry *user_entry)
 {
 	if (pmemstream_entry_iterator_offset_at_valid_entry(iterator)) {
+		if (user_entry) {
+			user_entry->offset = iterator->offset;
+		}
 		pmemstream_entry_iterator_advance(iterator);
 		return 0;
 	}
@@ -191,19 +199,15 @@ static int pmemstream_entry_iterator_next_when_region_not_initialized(struct pme
 int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iterator, struct pmemstream_region *region,
 				   struct pmemstream_entry *user_entry)
 {
-	// XXX: add test for NULL entry
-	if (user_entry) {
-		user_entry->offset = iterator->offset;
-	}
 	if (region) {
 		*region = iterator->region;
 	}
 
 	if (region_runtime_get_state_acquire(iterator->region_runtime) != REGION_RUNTIME_STATE_UNINITIALIZED) {
-		return pmemstream_entry_iterator_next_when_region_initialized(iterator);
+		return pmemstream_entry_iterator_next_when_region_initialized(iterator, user_entry);
 	}
 
-	return pmemstream_entry_iterator_next_when_region_not_initialized(iterator);
+	return pmemstream_entry_iterator_next_when_region_not_initialized(iterator, user_entry);
 }
 
 void pmemstream_entry_iterator_delete(struct pmemstream_entry_iterator **iterator)
