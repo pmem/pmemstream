@@ -69,9 +69,11 @@ static inline int run_test(std::function<void()> test)
 	try {
 		test();
 	} catch (std::exception &e) {
-		UT_FATALexc(e);
+		UT_EXCEPTION(e);
+		abort();
 	} catch (...) {
-		UT_FATAL("catch(...){}");
+		std::cerr << "catch(...){}" << std::endl;
+		abort();
 	}
 
 	return 0;
