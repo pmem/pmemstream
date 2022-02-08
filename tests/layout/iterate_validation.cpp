@@ -61,6 +61,8 @@ int main(int argc, char *argv[])
 		ret += rc::check(
 			"verify if stream does not treat inconsistent spans as valid entries",
 			[&](const std::vector<std::string> &data, bool entry_span) {
+				RC_PRE(data.size() > 0);
+
 				pmemstream_region region;
 				{
 					auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE,
@@ -73,14 +75,18 @@ int main(int argc, char *argv[])
 					struct pmemstream_entry_iterator *eiter;
 					UT_ASSERTeq(pmemstream_entry_iterator_new(&eiter, stream.get(), region), 0);
 
-					struct pmemstream_entry entry;
+					struct pmemstream_entry entry = {UINT64_MAX};
 					while (pmemstream_entry_iterator_next(eiter, nullptr, &entry) == 0) {
 						/* NOP */
 					}
+					UT_ASSERTne(entry.offset, UINT64_MAX);
 
 					pmemstream_entry_iterator_delete(&eiter);
+
+					auto next_entry_offset = ALIGN_UP(
+						entry.offset + data.back().size() + SPAN_ENTRY_METADATA_SIZE, 8ULL);
 					/* This pointer is not safe to read - it points to uninitialized data */
-					auto data_ptr = reinterpret_cast<char *>(stream->spans) + entry.offset;
+					auto data_ptr = reinterpret_cast<char *>(stream->spans) + next_entry_offset;
 
 					auto partial_span =
 						generate_inconsistent_span(entry_span ? SPAN_ENTRY : SPAN_EMPTY);

@@ -87,6 +87,9 @@ add_test_generic(NAME append_entry TRACERS none memcheck pmemcheck drd helgrind)
 build_test(entry_iterator api_c/entry_iterator.c)
 add_test_generic(NAME entry_iterator TRACERS none memcheck pmemcheck drd helgrind)
 
+build_test(get_last_entry api_c/get_last_entry.c)
+add_test_generic(NAME get_last_entry TRACERS none memcheck pmemcheck drd helgrind)
+
 build_test(region_create api_c/region_create.c)
 add_test_generic(NAME region_create TRACERS none memcheck pmemcheck drd helgrind)
 
