@@ -8,6 +8,10 @@
  *					pmemstream_entry_iterator_next, pmemstream_entry_iterator_delete
  */
 
+struct entry_data {
+	uint64_t data;
+};
+
 void test_entry_iterator(char *path)
 {
 	int ret;
@@ -37,6 +41,48 @@ void test_entry_iterator(char *path)
 	pmem2_map_delete(&map);
 }
 
+void test_get_last_entry(char *path)
+{
+	int ret;
+	const int entries_count = 5;
+	struct pmemstream_entry_iterator *eiter;
+	struct pmemstream_entry last_entry;
+
+	struct pmem2_map *map = map_open(path, TEST_DEFAULT_STREAM_SIZE, true);
+	struct pmemstream *stream;
+	ret = pmemstream_from_map(&stream, TEST_DEFAULT_BLOCK_SIZE, map);
+	UT_ASSERTeq(ret, 0);
+
+	struct pmemstream_region region;
+	ret = pmemstream_region_allocate(stream, TEST_DEFAULT_REGION_SIZE, &region);
+	UT_ASSERTeq(ret, 0);
+
+	struct entry_data *e = malloc((uint64_t)entries_count * sizeof(struct entry_data));
+
+	for (int i = 0; i < entries_count; i++) {
+		e[i].data = (uint64_t)i;
+		pmemstream_append(stream, region, NULL, &e[i], sizeof(e[i]), NULL);
+	}
+
+	ret = pmemstream_entry_iterator_new(&eiter, stream, region);
+	UT_ASSERTeq(ret, 0);
+	UT_ASSERTne(eiter, NULL);
+
+	while (pmemstream_entry_iterator_next(eiter, &region, &last_entry) == 0) {
+		/* NOP */
+	}
+
+	const struct entry_data *last_entry_data = pmemstream_entry_data(stream, last_entry);
+	UT_ASSERTeq(last_entry_data->data, e[entries_count - 1].data);
+
+	pmemstream_entry_iterator_delete(&eiter);
+	UT_ASSERTeq(eiter, NULL);
+	pmemstream_region_free(stream, region);
+	pmemstream_delete(&stream);
+	pmem2_map_delete(&map);
+	free(e);
+}
+
 int main(int argc, char *argv[])
 {
 	if (argc < 2) {
@@ -48,6 +94,7 @@ int main(int argc, char *argv[])
 	char *path = argv[1];
 
 	test_entry_iterator(path);
+	test_get_last_entry(path);
 
 	return 0;
 }
