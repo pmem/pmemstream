@@ -100,12 +100,14 @@ int main(int argc, char *argv[])
 		});
 
 		ret += rc::check("verify if a stream of various block_sizes can be created", [&]() {
-			const auto block_size = *rc::gen::inRange<std::size_t>(
-				1UL, TEST_DEFAULT_STREAM_SIZE / 2UL - STREAM_METADATA_SIZE);
+			/* XXX: use CACHELINE_SIZE instead of 64 */
+			auto block_size = *rc::gen::inRange<std::size_t>(
+				64, TEST_DEFAULT_STREAM_SIZE / 2UL - STREAM_METADATA_SIZE);
+			block_size -= block_size % 64;
 
 			auto stream = make_pmemstream(path, block_size, TEST_DEFAULT_STREAM_SIZE);
 			/* and initialize this stream with a single region of */
-			auto region = initialize_stream_single_region(stream.get(), block_size / 10UL, {});
+			auto region = initialize_stream_single_region(stream.get(), block_size, {});
 			verify(stream.get(), region, {}, {});
 
 			UT_ASSERT(pmemstream_region_free(stream.get(), region) == 0);
