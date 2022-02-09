@@ -68,7 +68,7 @@ class config {
 	std::string engine = "pmemstream";
 	std::string path;
 	size_t size = std::max(PMEMLOG_MIN_POOL, TEST_DEFAULT_STREAM_SIZE * 10);
-	size_t block_size = TEST_DEFAULT_BLOCK_SIZE * 10;
+	size_t block_size = TEST_DEFAULT_BLOCK_SIZE;
 	size_t region_size = TEST_DEFAULT_REGION_SIZE * 10;
 	size_t element_count = 100;
 	size_t element_size = 1024;
