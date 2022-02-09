@@ -14,4 +14,4 @@ include_directories(${LIBPMEMSTREAM_INCLUDE_DIRS} ../../tests/common . ..)
 link_directories(${LIBPMEMSTREAM_LIBRARY_DIRS})
 
 add_executable(benchmark-append main.cpp)
-target_link_libraries(benchmark-append ${LIBPMEMSTREAM_LIBRARIES} ${LIBPMEMLOG_LIBRARIES})
+target_link_libraries(benchmark-append ${LIBPMEMSTREAM_LIBRARIES} ${LIBPMEMLOG_LIBRARIES} pthread)
