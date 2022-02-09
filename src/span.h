@@ -30,7 +30,7 @@ extern "C" {
  * can be obtained from span_get_runtime* family of functions.
  */
 
-enum span_type { SPAN_EMPTY = 00ULL << 62, SPAN_REGION = 11ULL << 62, SPAN_ENTRY = 10ULL << 62 };
+enum span_type { SPAN_EMPTY = 0b00ULL << 62, SPAN_REGION = 0b11ULL << 62, SPAN_ENTRY = 0b10ULL << 62 };
 
 #define SPAN_TYPE_MASK (11ULL << 62)
 #define SPAN_EXTRA_MASK (~SPAN_TYPE_MASK)
