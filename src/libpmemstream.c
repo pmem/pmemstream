@@ -14,13 +14,13 @@
 
 static int pmemstream_is_initialized(struct pmemstream *stream)
 {
-	if (strcmp(stream->data->header.signature, PMEMSTREAM_SIGNATURE) != 0) {
+	if (strcmp(stream->header->signature, PMEMSTREAM_SIGNATURE) != 0) {
 		return -1;
 	}
-	if (stream->data->header.block_size != stream->block_size) {
+	if (stream->header->block_size != stream->block_size) {
 		return -1; // todo: fail with incorrect args or something
 	}
-	if (stream->data->header.stream_size != stream->stream_size) {
+	if (stream->header->stream_size != stream->stream_size) {
 		return -1; // todo: fail with incorrect args or something
 	}
 
@@ -29,14 +29,16 @@ static int pmemstream_is_initialized(struct pmemstream *stream)
 
 static void pmemstream_init(struct pmemstream *stream)
 {
-	stream->memset(stream->data->header.signature, 0, PMEMSTREAM_SIGNATURE_SIZE,
+	stream->memset(stream->header->signature, 0, PMEMSTREAM_SIGNATURE_SIZE,
 		       PMEM2_F_MEM_NONTEMPORAL | PMEM2_F_MEM_NODRAIN);
-	stream->data->header.stream_size = stream->stream_size;
-	stream->data->header.block_size = stream->block_size;
-	stream->persist(stream->data, sizeof(struct pmemstream_data));
 
 	span_create_empty(stream, 0, stream->usable_size - SPAN_EMPTY_METADATA_SIZE);
-	stream->memcpy(stream->data->header.signature, PMEMSTREAM_SIGNATURE, strlen(PMEMSTREAM_SIGNATURE),
+
+	stream->header->stream_size = stream->stream_size;
+	stream->header->block_size = stream->block_size;
+	stream->persist(stream->header, sizeof(struct pmemstream_header));
+
+	stream->memcpy(stream->header->signature, PMEMSTREAM_SIGNATURE, strlen(PMEMSTREAM_SIGNATURE),
 		       PMEM2_F_MEM_NONTEMPORAL);
 }
 
@@ -46,14 +48,21 @@ int pmemstream_from_map(struct pmemstream **stream, size_t block_size, struct pm
 		return -1;
 	}
 
+	if (((uintptr_t)pmem2_map_get_address(map)) % block_size != 0) {
+		return -1;
+	}
+
 	struct pmemstream *s = malloc(sizeof(struct pmemstream));
 	if (!s) {
 		return -1;
 	}
 
-	s->data = pmem2_map_get_address(map);
+	size_t spans_offset = ALIGN_UP(sizeof(struct pmemstream_header), block_size);
+
+	s->header = pmem2_map_get_address(map);
+	s->spans = (span_bytes *)(((uint8_t *)pmem2_map_get_address(map)) + spans_offset);
 	s->stream_size = pmem2_map_get_size(map);
-	s->usable_size = ALIGN_DOWN(s->stream_size - sizeof(struct pmemstream_data), block_size);
+	s->usable_size = s->stream_size - spans_offset;
 	s->block_size = block_size;
 
 	s->memcpy = pmem2_get_memcpy_fn(map);
@@ -98,13 +107,18 @@ int pmemstream_region_allocate(struct pmemstream *stream, size_t size, struct pm
 	if (srt.type != SPAN_EMPTY)
 		return -1;
 
-	size = ALIGN_UP(size, stream->block_size);
+	assert(offset % stream->block_size == 0);
+	assert(((uintptr_t)pmemstream_offset_to_ptr(stream, offset)) % stream->block_size == 0);
 
-	if (size > srt.empty.size)
+	size_t total_size = ALIGN_UP(size + SPAN_REGION_METADATA_SIZE, stream->block_size);
+	if (total_size > srt.empty.size)
 		return -1;
 
 	span_create_region(stream, offset, size);
 	region->offset = offset;
+
+	/* XXX: use CACHELINE_SIZE instead of 64 */
+	assert(((uintptr_t)pmemstream_offset_to_ptr(stream, span_get_runtime(stream, offset).data_offset)) % 64 == 0);
 
 	return 0;
 }
