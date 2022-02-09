@@ -30,7 +30,12 @@ extern "C" {
  * can be obtained from span_get_runtime* family of functions.
  */
 
-enum span_type { SPAN_EMPTY = 0b00ULL << 62, SPAN_REGION = 0b11ULL << 62, SPAN_ENTRY = 0b10ULL << 62 };
+enum span_type {
+	SPAN_EMPTY = 0b00ULL << 62,
+	SPAN_REGION = 0b11ULL << 62,
+	SPAN_ENTRY = 0b10ULL << 62,
+	SPAN_UNKNOWN = 0b01ULL << 62
+};
 
 #define SPAN_TYPE_MASK (11ULL << 62)
 #define SPAN_EXTRA_MASK (~SPAN_TYPE_MASK)
@@ -74,7 +79,8 @@ enum span_type span_get_type(const span_bytes *span);
 /* Obtain span_runtime structure describing span at 'offset'. offset must be 8-bytes aligned. */
 struct span_runtime span_get_runtime(const struct pmemstream *stream, uint64_t offset);
 
-/* Works similar to the function above but span must be of certain type. */
+/* Works similar to the function above but span must be of certain type. Does not verify if span at 'offset'
+ * is correct. */
 struct span_runtime span_get_empty_runtime(const struct pmemstream *stream, uint64_t offset);
 struct span_runtime span_get_entry_runtime(const struct pmemstream *stream, uint64_t offset);
 struct span_runtime span_get_region_runtime(const struct pmemstream *stream, uint64_t offset);
