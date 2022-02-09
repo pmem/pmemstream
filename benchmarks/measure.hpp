@@ -7,6 +7,7 @@
 #include <iterator>
 #include <random>
 
+#include "thread_helpers.hpp"
 namespace benchmark
 {
 
@@ -64,15 +65,22 @@ typename TimeUnit::rep measure(F &&func)
 /* Measure time of execution of run_workload function. init() and clean()
  * functions are executed respectively before and after each iteration */
 template <typename TimeUnit>
-auto measure(size_t iterations, workload_base *workload)
+auto measure(size_t iterations, workload_base *workload, size_t concurency = 1)
 {
-	std::vector<typename TimeUnit::rep> results;
-	results.reserve(iterations);
+	using ResultsType = typename TimeUnit::rep;
+
+	std::vector<ResultsType> results;
 
 	for (size_t i = 0; i < iterations; i++) {
 		workload->initialize();
-		results.push_back(measure<TimeUnit>([&]() { workload->perform(); }));
+		std::vector<ResultsType> iteration_results(concurency);
+		parallel_xexec(concurency, [&](size_t id, std::function<void(void)> syncthreads) {
+			syncthreads();
+
+			iteration_results[id] = measure<TimeUnit>([&]() { workload->perform(); });
+		});
 		workload->clean();
+		results.insert(results.end(), iteration_results.begin(), iteration_results.end());
 	}
 
 	return results;
