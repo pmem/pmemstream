@@ -95,17 +95,38 @@ int main(int argc, char *argv[])
 		});
 
 		ret += rc::check("verify if a stream of various block_sizes can be created", [&]() {
-			size_t minimum_block_size = sizeof(span_runtime::entry);
-			const auto block_size = *rc::gen::inRange<std::size_t>(
-				minimum_block_size, TEST_DEFAULT_STREAM_SIZE / 2UL - STREAM_METADATA_SIZE);
+			/* XXX: use CACHELINE_SIZE instead of 64 */
+			const auto minimum_block_size = 64;
+			const auto max_block_and_region_size = TEST_DEFAULT_STREAM_SIZE / 2UL - STREAM_METADATA_SIZE;
+			auto block_size = *rc::gen::inRange<std::size_t>(minimum_block_size, max_block_and_region_size);
+			block_size -= block_size % minimum_block_size;
+
+			auto region_size = *rc::gen::inRange<std::size_t>(1, max_block_and_region_size);
 
 			auto stream = make_pmemstream(path, block_size, TEST_DEFAULT_STREAM_SIZE);
 			/* and initialize this stream with a single region of */
-			auto region = initialize_stream_single_region(stream.get(), block_size / 10UL, {});
+			auto region = initialize_stream_single_region(stream.get(), region_size, {});
 			verify(stream.get(), region, {}, {});
 
 			UT_ASSERT(pmemstream_region_free(stream.get(), region) == 0);
 		});
+
+		ret += rc::check(
+			"verify that stream can only be created with block_size which is a multiple of CACHELINE_SIZE",
+			[&]() {
+				auto block_size = *rc::gen::inRange<std::size_t>(
+					1ULL, TEST_DEFAULT_STREAM_SIZE / 2UL - STREAM_METADATA_SIZE);
+				/* XXX: use CACHELINE_SIZE instead of 64 */
+				RC_PRE(block_size % 64 != 0);
+
+				try {
+					make_pmemstream(path, block_size, TEST_DEFAULT_STREAM_SIZE);
+					UT_ASSERT_UNREACHABLE;
+				} catch (std::runtime_error &e) {
+				} catch (...) {
+					UT_ASSERT_UNREACHABLE;
+				}
+			});
 
 		/* verify if a stream of block_size = 0 cannot be created */
 		{
