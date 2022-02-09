@@ -5,8 +5,10 @@
 #include <chrono>
 #include <cmath>
 #include <iterator>
+#include <mutex>
 #include <random>
 
+#include "thread_helpers.hpp"
 namespace benchmark
 {
 
@@ -64,14 +66,29 @@ typename TimeUnit::rep measure(F &&func)
 /* Measure time of execution of run_workload function. init() and clean()
  * functions are executed respectively before and after each iteration */
 template <typename TimeUnit>
-auto measure(size_t iterations, workload_base *workload)
+auto measure(size_t iterations, workload_base *workload, size_t concurency = 1)
 {
-	std::vector<typename TimeUnit::rep> results;
-	results.reserve(iterations);
+	using ResultsType = typename TimeUnit::rep;
+
+	std::vector<ResultsType> results;
+	std::mutex results_mutex;
+	results.reserve(iterations * concurency);
+
+	auto merge_results = [&](std::vector<typename TimeUnit::rep> &vector_to_merge) {
+		std::lock_guard<std::mutex> guard(results_mutex);
+		results.insert(results.end(), vector_to_merge.begin(), vector_to_merge.end());
+	};
 
 	for (size_t i = 0; i < iterations; i++) {
 		workload->initialize();
-		results.push_back(measure<TimeUnit>([&]() { workload->perform(); }));
+		parallel_xexec(concurency, [&](size_t id, std::function<void(void)> syncthreads) {
+			std::vector<ResultsType> thread_results;
+			syncthreads();
+
+			thread_results.push_back(measure<TimeUnit>([&]() { workload->perform(); }));
+
+			merge_results(thread_results);
+		});
 		workload->clean();
 	}
 
