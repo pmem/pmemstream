@@ -161,27 +161,7 @@ std::ostream &operator<<(std::ostream &out, config const &cfg)
 	return out;
 }
 
-class workload_base {
- public:
-	virtual ~workload_base(){};
-	virtual void initialize() = 0;
-	virtual void perform() = 0;
-	virtual void clean() = 0;
-
-	void prepare_data(size_t bytes_to_generate)
-	{
-		data = benchmark::generate_data(bytes_to_generate);
-	}
-	uint8_t *get_data_chunks()
-	{
-		return reinterpret_cast<uint8_t *>(data.data());
-	}
-
- protected:
-	std::vector<uint64_t> data;
-};
-
-class pmemlog_workload : public workload_base {
+class pmemlog_workload : public benchmark::workload_base {
  public:
 	pmemlog_workload(config &cfg)
 	    : cfg(cfg), plp(pmemlog_create(cfg.path.c_str(), cfg.size, S_IRWXU), pmemlog_close)
@@ -222,7 +202,7 @@ class pmemlog_workload : public workload_base {
 	std::unique_ptr<PMEMlogpool, std::function<void(PMEMlogpool *)>> plp;
 };
 
-class pmemstream_workload : public workload_base {
+class pmemstream_workload : public benchmark::workload_base {
  public:
 	pmemstream_workload(config &cfg) : cfg(cfg)
 	{
@@ -281,7 +261,7 @@ int main(int argc, char *argv[])
 	}
 	std::cout << cfg << std::endl;
 
-	std::unique_ptr<workload_base> workload;
+	std::unique_ptr<benchmark::workload_base> workload;
 
 	if (cfg.engine == "pmemlog") {
 		workload = std::make_unique<pmemlog_workload>(cfg);
@@ -292,9 +272,7 @@ int main(int argc, char *argv[])
 	/* XXX: Add initialization phase whith separate measurement */
 	std::vector<std::chrono::nanoseconds::rep> results;
 	try {
-		results = benchmark::measure<std::chrono::nanoseconds>(
-			cfg.iterations, [&] { workload->initialize(); },
-			[interface = workload.get()] { interface->perform(); }, [&] { workload->clean(); });
+		results = benchmark::measure<std::chrono::nanoseconds>(cfg.iterations, workload.get());
 	} catch (std::runtime_error &e) {
 		std::cerr << e.what() << std::endl;
 		return -2;
