@@ -30,6 +30,7 @@ struct pmemstream_entry {
 
 // manages lifecycle of the stream. Can be based on top of a raw pmem2_map
 // or a pmemset (TBD).
+// block_size defines alignment of regions - map alignment must be a multiple of block_size
 int pmemstream_from_map(struct pmemstream **stream, size_t block_size, struct pmem2_map *map);
 void pmemstream_delete(struct pmemstream **stream);
 

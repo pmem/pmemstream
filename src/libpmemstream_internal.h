@@ -18,17 +18,15 @@ extern "C" {
 #define PMEMSTREAM_SIGNATURE ("PMEMSTREAM")
 #define PMEMSTREAM_SIGNATURE_SIZE (64)
 
-struct pmemstream_data {
-	struct pmemstream_header {
-		char signature[PMEMSTREAM_SIGNATURE_SIZE];
-		uint64_t stream_size;
-		uint64_t block_size;
-	} header;
-	span_bytes spans[];
+struct pmemstream_header {
+	char signature[PMEMSTREAM_SIGNATURE_SIZE];
+	uint64_t stream_size;
+	uint64_t block_size;
 };
 
 struct pmemstream {
-	struct pmemstream_data *data;
+	struct pmemstream_header *header;
+	span_bytes *spans;
 	size_t stream_size;
 	size_t usable_size;
 	size_t block_size;
@@ -44,7 +42,7 @@ struct pmemstream {
 
 static inline const uint8_t *pmemstream_offset_to_ptr(const struct pmemstream *stream, uint64_t offset)
 {
-	return (const uint8_t *)stream->data->spans + offset;
+	return (const uint8_t *)stream->spans + offset;
 }
 
 #ifdef __cplusplus
