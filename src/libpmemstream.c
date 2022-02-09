@@ -14,13 +14,13 @@
 
 static int pmemstream_is_initialized(struct pmemstream *stream)
 {
-	if (strcmp(stream->data->header.signature, PMEMSTREAM_SIGNATURE) != 0) {
+	if (strcmp(stream->header->signature, PMEMSTREAM_SIGNATURE) != 0) {
 		return -1;
 	}
-	if (stream->data->header.block_size != stream->block_size) {
+	if (stream->header->block_size != stream->block_size) {
 		return -1; // todo: fail with incorrect args or something
 	}
-	if (stream->data->header.stream_size != stream->stream_size) {
+	if (stream->header->stream_size != stream->stream_size) {
 		return -1; // todo: fail with incorrect args or something
 	}
 
@@ -29,21 +29,28 @@ static int pmemstream_is_initialized(struct pmemstream *stream)
 
 static void pmemstream_init(struct pmemstream *stream)
 {
-	stream->memset(stream->data->header.signature, 0, PMEMSTREAM_SIGNATURE_SIZE,
+	stream->memset(stream->header->signature, 0, PMEMSTREAM_SIGNATURE_SIZE,
 		       PMEM2_F_MEM_NONTEMPORAL | PMEM2_F_MEM_NODRAIN);
-	stream->data->header.stream_size = stream->stream_size;
-	stream->data->header.block_size = stream->block_size;
-	stream->persist(stream->data, sizeof(struct pmemstream_data));
 
 	span_create_empty(stream, 0, stream->usable_size - SPAN_EMPTY_METADATA_SIZE);
-	stream->memcpy(stream->data->header.signature, PMEMSTREAM_SIGNATURE, strlen(PMEMSTREAM_SIGNATURE),
+
+	stream->header->stream_size = stream->stream_size;
+	stream->header->block_size = stream->block_size;
+	stream->persist(stream->header, sizeof(struct pmemstream_header));
+
+	stream->memcpy(stream->header->signature, PMEMSTREAM_SIGNATURE, strlen(PMEMSTREAM_SIGNATURE),
 		       PMEM2_F_MEM_NONTEMPORAL);
+}
+
+static size_t pmemstream_spans_offset(size_t block_size)
+{
+	return ALIGN_UP(sizeof(struct pmemstream_header), block_size);
 }
 
 static size_t pmemstream_usable_size(size_t stream_size, size_t block_size)
 {
-	assert(stream_size >= sizeof(struct pmemstream_data));
-	return ALIGN_DOWN(stream_size - sizeof(struct pmemstream_data), block_size);
+	assert(stream_size >= pmemstream_spans_offset(block_size));
+	return ALIGN_DOWN(stream_size - pmemstream_spans_offset(block_size), block_size);
 }
 
 static int pmemstream_validate_sizes(size_t block_size, struct pmem2_map *map)
@@ -52,17 +59,19 @@ static int pmemstream_validate_sizes(size_t block_size, struct pmem2_map *map)
 		return -1;
 	}
 
+	/* XXX: change 64 to CACHELINE_SIZE */
+	if (block_size % 64 != 0) {
+		return -1;
+	}
+
 	if (map == NULL) {
 		return -1;
 	}
 
-	if (pmem2_map_get_size(map) < sizeof(struct pmemstream_data)) {
+	if (pmem2_map_get_size(map) <= pmemstream_spans_offset(block_size)) {
 		return -1;
 	}
 
-	if (pmemstream_usable_size(pmem2_map_get_size(map), block_size) == 0) {
-		return -1;
-	}
 	return 0;
 }
 
@@ -82,7 +91,9 @@ int pmemstream_from_map(struct pmemstream **stream, size_t block_size, struct pm
 		return -1;
 	}
 
-	s->data = pmem2_map_get_address(map);
+	size_t spans_offset = pmemstream_spans_offset(block_size);
+	s->header = pmem2_map_get_address(map);
+	s->spans = (span_bytes *)(((uint8_t *)pmem2_map_get_address(map)) + spans_offset);
 	s->stream_size = stream_size;
 	s->usable_size = pmemstream_usable_size(s->stream_size, block_size);
 	s->block_size = block_size;
@@ -123,21 +134,26 @@ void pmemstream_delete(struct pmemstream **stream)
 int pmemstream_region_allocate(struct pmemstream *stream, size_t size, struct pmemstream_region *region)
 {
 	const uint64_t offset = 0;
+	assert(offset % stream->block_size == 0);
 	struct span_runtime srt = span_get_runtime(stream, offset);
 
-	if (srt.type != SPAN_EMPTY)
+	if (srt.type != SPAN_EMPTY) {
 		return -1;
+	}
 
 	if (size == 0) {
 		return -1;
 	}
-	size = ALIGN_UP(size, stream->block_size);
 
-	if (size > srt.empty.size)
+	size_t total_size = ALIGN_UP(size + SPAN_REGION_METADATA_SIZE, stream->block_size);
+	if (total_size > srt.empty.size + SPAN_EMPTY_METADATA_SIZE)
 		return -1;
 
-	span_create_region(stream, offset, size);
+	span_create_region(stream, offset, total_size - SPAN_REGION_METADATA_SIZE);
 	region->offset = offset;
+
+	/* XXX: use CACHELINE_SIZE instead of 64 */
+	assert(((uintptr_t)pmemstream_offset_to_ptr(stream, span_get_runtime(stream, offset).data_offset)) % 64 == 0);
 
 	return 0;
 }
