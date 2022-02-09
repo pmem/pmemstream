@@ -100,6 +100,10 @@ err:
 
 static int validate_entry(const struct pmemstream *stream, struct pmemstream_entry entry)
 {
+	/* XXX: reading this span metadata is potentially dangerous. It might happen so that
+	 * before calling this function region_runtime is in UNINITIALIZED state but some other thread
+	 * changes it to CLEAR while span metadata is read. We might fix this using Optimistic Concurrency
+	 * Control (using region_runtime state). */
 	struct span_runtime srt = span_get_runtime(stream, entry.offset);
 	const void *entry_data = pmemstream_offset_to_ptr(stream, srt.data_offset);
 	if (srt.type == SPAN_ENTRY && util_popcount_memory(entry_data, srt.entry.size) == srt.entry.popcount) {
