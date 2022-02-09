@@ -17,7 +17,7 @@ function(add_benchmark name)
 	prepend(srcs ${CMAKE_CURRENT_SOURCE_DIR} ${srcs})
 	add_executable(benchmark-${name} ${srcs})
 	add_dependencies(benchmarks benchmark-${name})
-	target_link_libraries(benchmark-${name} ${LIBPMEM2_LIBRARIES} ${LIBPMEMLOG_LIBRARIES} pmemstream)
+	target_link_libraries(benchmark-${name} ${LIBPMEM2_LIBRARIES} ${LIBPMEMLOG_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT} pmemstream)
 	target_include_directories(benchmark-${name} PRIVATE ${PMEMSTREAM_ROOT_DIR}/src/include)
 endfunction()
 
