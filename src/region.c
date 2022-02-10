@@ -238,8 +238,11 @@ static void region_runtime_clear_from_tail(struct pmemstream *stream, struct pme
 	assert(region_runtime_get_state_acquire(region_runtime) == REGION_RUNTIME_STATE_DIRTY);
 
 	uint64_t append_offset = region_runtime_get_append_offset_acquire(region_runtime);
-	struct span_runtime region_rt = span_get_region_runtime(stream, region.offset);
-	size_t region_end_offset = region.offset + region_rt.total_size;
+	struct span_runtime *region_rt;
+	if (span_get_region_runtime(stream, region.offset, &region_rt) == -1) {
+		return;
+	}
+	size_t region_end_offset = region.offset + region_rt->total_size;
 	size_t remaining_size = region_end_offset - append_offset;
 
 	if (remaining_size != 0) {

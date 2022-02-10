@@ -148,9 +148,12 @@ int pmemstream_region_allocate(struct pmemstream *stream, size_t size, struct pm
 {
 	const uint64_t offset = 0;
 	assert(offset % stream->block_size == 0);
-	struct span_runtime srt = span_get_runtime(stream, offset);
+	struct span_runtime *srt;
+	if (span_get_runtime(stream, offset, &srt) == -1) {
+		return -1;
+	}
 
-	if (srt.type != SPAN_EMPTY) {
+	if (srt->type != SPAN_EMPTY) {
 		return -1;
 	}
 
@@ -159,30 +162,40 @@ int pmemstream_region_allocate(struct pmemstream *stream, size_t size, struct pm
 	}
 
 	size_t total_size = ALIGN_UP(size + SPAN_REGION_METADATA_SIZE, stream->block_size);
-	if (total_size > srt.empty.size + SPAN_EMPTY_METADATA_SIZE)
+	if (total_size > srt->empty.size + SPAN_EMPTY_METADATA_SIZE)
 		return -1;
 
 	span_create_region(stream, offset, total_size - SPAN_REGION_METADATA_SIZE);
 	region->offset = offset;
 
 	/* XXX: use CACHELINE_SIZE instead of 64 */
-	assert(((uintptr_t)pmemstream_offset_to_ptr(stream, span_get_runtime(stream, offset).data_offset)) % 64 == 0);
+	struct span_runtime *span_rt;
+	span_get_runtime(stream, offset, &span_rt);
+	assert((uintptr_t)pmemstream_offset_to_ptr(stream, span_rt->data_offset) % 64 == 0);
 
 	return 0;
 }
 
 size_t pmemstream_region_size(struct pmemstream *stream, struct pmemstream_region region)
 {
-	struct span_runtime region_srt = span_get_region_runtime(stream, region.offset);
+	struct span_runtime *region_srt;
 
-	return region_srt.region.size;
+	if (span_get_region_runtime(stream, region.offset, &region_srt) == -1) {
+		return 0;
+	}
+
+	return region_srt->region.size;
 }
 
 int pmemstream_region_free(struct pmemstream *stream, struct pmemstream_region region)
 {
-	struct span_runtime srt = span_get_runtime(stream, region.offset);
+	struct span_runtime *srt;
 
-	if (srt.type != SPAN_REGION)
+	if (span_get_runtime(stream, region.offset, &srt) == -1) {
+		return -1;
+	}
+
+	if (srt->type != SPAN_REGION)
 		return -1;
 
 	span_create_empty(stream, 0, stream->usable_size - SPAN_EMPTY_METADATA_SIZE);
@@ -195,17 +208,25 @@ int pmemstream_region_free(struct pmemstream *stream, struct pmemstream_region r
 // returns pointer to the data of the entry
 const void *pmemstream_entry_data(struct pmemstream *stream, struct pmemstream_entry entry)
 {
-	struct span_runtime entry_srt = span_get_entry_runtime(stream, entry.offset);
+	struct span_runtime *entry_srt;
 
-	return pmemstream_offset_to_ptr(stream, entry_srt.data_offset);
+	if (span_get_entry_runtime(stream, entry.offset, &entry_srt) == -1) {
+		return NULL;
+	}
+
+	return pmemstream_offset_to_ptr(stream, entry_srt->data_offset);
 }
 
 // returns the size of the entry
 size_t pmemstream_entry_length(struct pmemstream *stream, struct pmemstream_entry entry)
 {
-	struct span_runtime entry_srt = span_get_entry_runtime(stream, entry.offset);
+	struct span_runtime *entry_srt;
 
-	return entry_srt.entry.size;
+	if (span_get_entry_runtime(stream, entry.offset, &entry_srt) == -1) {
+		return 0;
+	}
+
+	return entry_srt->entry.size;
 }
 
 int pmemstream_region_runtime_initialize(struct pmemstream *stream, struct pmemstream_region region,
@@ -232,8 +253,12 @@ int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region regio
 		       struct pmemstream_entry *reserved_entry, void **data_addr)
 {
 	size_t entry_total_size_span_aligned = pmemstream_entry_total_size_aligned(size);
-	struct span_runtime region_srt = span_get_region_runtime(stream, region.offset);
+	struct span_runtime *region_srt;
 	int ret = 0;
+
+	if (span_get_region_runtime(stream, region.offset, &region_srt) == -1) {
+		return -1;
+	}
 
 	if (!region_runtime) {
 		ret = pmemstream_region_runtime_initialize(stream, region, &region_runtime);
@@ -243,12 +268,12 @@ int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region regio
 	}
 
 	uint64_t offset = region_runtime_get_append_offset_acquire(region_runtime);
-	assert(offset >= region_srt.data_offset);
-	if (offset + entry_total_size_span_aligned > region.offset + region_srt.total_size) {
+	assert(offset >= region_srt->data_offset);
+	if (offset + entry_total_size_span_aligned > region.offset + region_srt->total_size) {
 		return -1;
 	}
 	/* offset outside of region */
-	if (offset < region_srt.data_offset) {
+	if (offset < region_srt->data_offset) {
 		return -1;
 	}
 
