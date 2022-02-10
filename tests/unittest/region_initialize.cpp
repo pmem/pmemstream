@@ -37,7 +37,8 @@ int main(int argc, char *argv[])
 
 			UT_ASSERTeq(region_runtime_get_state_acquire(region_runtime),
 				    REGION_RUNTIME_STATE_UNINITIALIZED);
-			parallel_xexec(concurrency, [&](size_t id, std::function<void(void)> syncthreads) {
+			syncthreads_barrier syncthreads(concurrency);
+			parallel_exec(concurrency, [&](size_t id) {
 				if (id % 2 == 0) {
 					struct pmemstream_entry entry {
 						region.offset
