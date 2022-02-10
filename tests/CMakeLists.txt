@@ -145,6 +145,9 @@ if(symbols_dependencies_FOUND)
 		${PMEMSTREAM_ROOT_DIR}/src/libpmemstream.map ${CMAKE_BINARY_DIR}/src/libpmemstream.so)
 endif()
 
+build_test(thread_helpers common/thread_helpers_test.cpp)
+add_test_generic(NAME thread_helpers TRACERS none)
+
 # ----------------------------------------------------------------- #
 ## Tests using examples
 # ----------------------------------------------------------------- #
