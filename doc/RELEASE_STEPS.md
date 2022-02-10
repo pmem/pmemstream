@@ -33,6 +33,8 @@ Publish package and make it official:
 - announce the release on pmem group and on pmem slack channel(s)
 
 Later, for major/minor release:
-- once gh-pages branch contains new documentation:
+
+<!-- XXX: re-write this paragraph when transition to pmem.io is done -->
+- once 'docs' branch contains new documentation:
   - add there (in index.md) new links to manpages and Doxygen docs
   - update there "Releases' support status" table (update any other release's status if needed)
