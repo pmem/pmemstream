@@ -42,7 +42,12 @@ struct pmemstream {
 
 static inline const uint8_t *pmemstream_offset_to_ptr(const struct pmemstream *stream, uint64_t offset)
 {
-	return (const uint8_t *)stream->spans + offset;
+	if (stream) {
+		if (stream->header->stream_size >= offset) {
+			return (const uint8_t *)stream->spans + offset;
+		}
+	}
+	return NULL;
 }
 
 #ifdef __cplusplus

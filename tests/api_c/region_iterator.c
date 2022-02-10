@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /* Copyright 2021-2022, Intel Corporation */
 
+#include "span.h"
 #include "unittest.h"
 
 /**
@@ -8,7 +9,7 @@
  *					pmemstrem_region_iterator_next, pmemstream_region_iterator_delete
  */
 
-void test_region_iterator(char *path)
+void valid_input_test(char *path)
 {
 	int ret;
 	struct pmemstream_region_iterator *riter;
@@ -39,6 +40,40 @@ void test_region_iterator(char *path)
 	pmem2_map_delete(&map);
 }
 
+void invalid_region_test(char *path)
+{
+	struct pmem2_map *map = map_open(path, TEST_DEFAULT_STREAM_SIZE, true);
+	struct pmemstream *stream;
+	pmemstream_from_map(&stream, TEST_DEFAULT_BLOCK_SIZE, map);
+	struct pmemstream_region_iterator *riter;
+	struct pmemstream_region invalid_region = {.offset = ALIGN_DOWN(UINT64_MAX, sizeof(span_bytes))};
+	int ret;
+
+	ret = pmemstream_region_iterator_new(&riter, stream);
+	UT_ASSERTeq(ret, 0);
+	UT_ASSERTne(riter, NULL);
+
+	ret = pmemstream_region_iterator_next(riter, &invalid_region);
+	UT_ASSERTeq(ret, -1);
+
+	pmemstream_region_iterator_delete(&riter);
+	pmemstream_delete(&stream);
+	pmem2_map_delete(&map);
+}
+
+void null_stream_test()
+{
+	struct pmemstream_region_iterator *riter = NULL;
+	struct pmemstream *null_stream = NULL;
+	int ret;
+
+	ret = pmemstream_region_iterator_new(&riter, null_stream);
+	UT_ASSERTeq(ret, 0);
+	UT_ASSERTne(riter, NULL);
+
+	pmemstream_region_iterator_delete(&riter);
+}
+
 int main(int argc, char *argv[])
 {
 	if (argc < 2) {
@@ -49,7 +84,9 @@ int main(int argc, char *argv[])
 
 	char *path = argv[1];
 
-	test_region_iterator(path);
+	valid_input_test(path);
+	invalid_region_test(path);
+	null_stream_test();
 
 	return 0;
 }

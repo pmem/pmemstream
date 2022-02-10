@@ -72,76 +72,102 @@ void span_create_region(struct pmemstream *stream, uint64_t offset, size_t size)
 	stream->persist(span, SPAN_REGION_METADATA_SIZE);
 }
 
-uint64_t span_get_size(const span_bytes *span)
+uint64_t span_get_size(const span_bytes **span)
 {
-	return span[0] & SPAN_EXTRA_MASK;
+	return *span[0] & SPAN_EXTRA_MASK;
 }
 
-enum span_type span_get_type(const span_bytes *span)
+enum span_type span_get_type(const span_bytes **span)
 {
-	return span[0] & SPAN_TYPE_MASK;
+	return *span[0] & SPAN_TYPE_MASK;
 }
 
-struct span_runtime span_get_empty_runtime(const struct pmemstream *stream, uint64_t offset)
+int span_get_empty_runtime(const struct pmemstream *stream, uint64_t offset, struct span_runtime **runtime)
 {
 	const span_bytes *span = span_offset_to_span_ptr(stream, offset);
-	struct span_runtime srt;
 
-	srt.type = SPAN_EMPTY;
-	srt.empty.size = span_get_size(span);
-	srt.data_offset = offset + SPAN_EMPTY_METADATA_SIZE;
-	srt.total_size = ALIGN_UP(srt.empty.size + SPAN_EMPTY_METADATA_SIZE, sizeof(span_bytes));
+	if (!span)
+		return -1;
 
-	return srt;
+	struct span_runtime *srt = (struct span_runtime *)calloc(1, sizeof(*srt));
+
+	assert(span_get_type(&span) == SPAN_EMPTY);
+
+	srt->type = SPAN_EMPTY;
+	srt->empty.size = span_get_size(&span);
+	srt->data_offset = offset + SPAN_EMPTY_METADATA_SIZE;
+	srt->total_size = ALIGN_UP(srt->empty.size + SPAN_EMPTY_METADATA_SIZE, sizeof(span_bytes));
+
+	*runtime = srt;
+	return 0;
 }
 
-struct span_runtime span_get_entry_runtime(const struct pmemstream *stream, uint64_t offset)
+int span_get_entry_runtime(const struct pmemstream *stream, uint64_t offset, struct span_runtime **runtime)
 {
 	const span_bytes *span = span_offset_to_span_ptr(stream, offset);
-	struct span_runtime srt;
+	if (!span)
+		return -1;
 
-	srt.type = SPAN_ENTRY;
-	srt.entry.size = span_get_size(span);
-	srt.entry.popcount = span[1];
-	srt.data_offset = offset + SPAN_ENTRY_METADATA_SIZE;
-	srt.total_size = ALIGN_UP(srt.entry.size + SPAN_ENTRY_METADATA_SIZE, sizeof(span_bytes));
+	struct span_runtime *srt = (struct span_runtime *)calloc(1, sizeof(*srt));
 
-	return srt;
+	assert(span_get_type(&span) == SPAN_ENTRY);
+
+	srt->type = SPAN_ENTRY;
+	srt->entry.size = span_get_size(&span);
+	srt->entry.popcount = span[1];
+	srt->data_offset = offset + SPAN_ENTRY_METADATA_SIZE;
+	srt->total_size = ALIGN_UP(srt->entry.size + SPAN_ENTRY_METADATA_SIZE, sizeof(span_bytes));
+
+	*runtime = srt;
+	return 0;
 }
 
-struct span_runtime span_get_region_runtime(const struct pmemstream *stream, uint64_t offset)
+int span_get_region_runtime(const struct pmemstream *stream, uint64_t offset, struct span_runtime **runtime)
 {
 	const span_bytes *span = span_offset_to_span_ptr(stream, offset);
-	struct span_runtime srt;
+	if (!span)
+		return -1;
 
-	srt.type = SPAN_REGION;
-	srt.region.size = span_get_size(span);
-	srt.data_offset = offset + SPAN_REGION_METADATA_SIZE;
-	srt.total_size = ALIGN_UP(srt.region.size + SPAN_REGION_METADATA_SIZE, sizeof(span_bytes));
+	struct span_runtime *srt = (struct span_runtime *)calloc(1, sizeof(*srt));
 
-	return srt;
+	assert(span_get_type(&span) == SPAN_REGION);
+
+	srt->type = SPAN_REGION;
+	srt->region.size = span_get_size(&span);
+	srt->data_offset = offset + SPAN_REGION_METADATA_SIZE;
+	srt->total_size = ALIGN_UP(srt->region.size + SPAN_REGION_METADATA_SIZE, sizeof(span_bytes));
+
+	*runtime = srt;
+	return 0;
 }
 
-struct span_runtime span_get_runtime(const struct pmemstream *stream, uint64_t offset)
+int span_get_runtime(const struct pmemstream *stream, uint64_t offset, struct span_runtime **runtime)
 {
 	const span_bytes *span = span_offset_to_span_ptr(stream, offset);
-	struct span_runtime srt;
+	struct span_runtime *srt = (struct span_runtime *)calloc(1, sizeof(*srt));
+	int ret = -1;
+	if (!span)
+		return -1;
 
-	switch (span_get_type(span)) {
+	switch (span_get_type(&span)) {
 		case SPAN_EMPTY:
-			srt = span_get_empty_runtime(stream, offset);
+			ret = span_get_empty_runtime(stream, offset, runtime);
+			free(srt);
 			break;
 		case SPAN_ENTRY:
-			srt = span_get_entry_runtime(stream, offset);
+			ret = span_get_entry_runtime(stream, offset, runtime);
+			free(srt);
 			break;
 		case SPAN_REGION:
-			srt = span_get_region_runtime(stream, offset);
+			ret = span_get_region_runtime(stream, offset, runtime);
+			free(srt);
 			break;
 		default:
-			srt.type = SPAN_UNKNOWN;
-			srt.data_offset = offset;
-			srt.total_size = 0;
+			srt->type = SPAN_UNKNOWN;
+			srt->data_offset = offset;
+			srt->total_size = 0;
+			*runtime = srt;
 	}
 
-	return srt;
+	return ret;
 }
