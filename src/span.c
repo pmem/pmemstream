@@ -87,8 +87,6 @@ struct span_runtime span_get_empty_runtime(const struct pmemstream *stream, uint
 	const span_bytes *span = span_offset_to_span_ptr(stream, offset);
 	struct span_runtime srt;
 
-	assert(span_get_type(span) == SPAN_EMPTY);
-
 	srt.type = SPAN_EMPTY;
 	srt.empty.size = span_get_size(span);
 	srt.data_offset = offset + SPAN_EMPTY_METADATA_SIZE;
@@ -101,8 +99,6 @@ struct span_runtime span_get_entry_runtime(const struct pmemstream *stream, uint
 {
 	const span_bytes *span = span_offset_to_span_ptr(stream, offset);
 	struct span_runtime srt;
-
-	assert(span_get_type(span) == SPAN_ENTRY);
 
 	srt.type = SPAN_ENTRY;
 	srt.entry.size = span_get_size(span);
@@ -117,8 +113,6 @@ struct span_runtime span_get_region_runtime(const struct pmemstream *stream, uin
 {
 	const span_bytes *span = span_offset_to_span_ptr(stream, offset);
 	struct span_runtime srt;
-
-	assert(span_get_type(span) == SPAN_REGION);
 
 	srt.type = SPAN_REGION;
 	srt.region.size = span_get_size(span);
@@ -144,7 +138,9 @@ struct span_runtime span_get_runtime(const struct pmemstream *stream, uint64_t o
 			srt = span_get_region_runtime(stream, offset);
 			break;
 		default:
-			abort();
+			srt.type = SPAN_UNKNOWN;
+			srt.data_offset = offset;
+			srt.total_size = 0;
 	}
 
 	return srt;
