@@ -35,7 +35,8 @@ int main()
 			auto thread_id = make_thread_id();
 
 			std::vector<size_t> threads_data(concurrency);
-			parallel_xexec(concurrency, [&](size_t id, std::function<void(void)> syncthreads) {
+			syncthreads_barrier syncthreads(concurrency);
+			parallel_exec(concurrency, [&](size_t id) {
 				threads_data[id] = thread_id_get(thread_id.get());
 
 				syncthreads();
@@ -53,7 +54,8 @@ int main()
 		{
 			auto thread_id = make_thread_id();
 
-			parallel_xexec(concurrency, [&](size_t tid, std::function<void(void)> syncthreads) {
+			syncthreads_barrier syncthreads(concurrency);
+			parallel_exec(concurrency, [&](size_t tid) {
 				auto id = thread_id_get(thread_id.get());
 				UT_ASSERTeq(id, thread_id_get(thread_id.get()));
 

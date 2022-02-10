@@ -116,6 +116,9 @@ struct syncthreads_barrier {
 		current_latch = std::shared_ptr<latch>(new latch(num_threads));
 	}
 
+	syncthreads_barrier(const syncthreads_barrier &) = delete;
+	syncthreads_barrier(syncthreads_barrier &&) = default;
+
 	void operator()()
 	{
 		std::unique_lock<std::mutex> lock(*mutex);
@@ -129,30 +132,5 @@ struct syncthreads_barrier {
 	std::shared_ptr<std::mutex> mutex;
 	std::shared_ptr<latch> current_latch;
 };
-
-/*
- * Executes 'threads_number' of threads and provides
- * 'syncthreads' method (multi-use synchronization barrier) for f()
- */
-template <typename Function>
-void parallel_xexec(size_t threads_number, Function f)
-{
-	syncthreads_barrier syncthreads(threads_number);
-	parallel_exec(threads_number, [&](size_t tid) { f(tid, syncthreads); });
-}
-
-/*
- * This function executes 'threads_number' threads and wait for all of them to
- * finish executing f before calling join().
- */
-template <typename Function>
-void parallel_exec_with_sync(size_t threads_number, Function f)
-{
-	parallel_xexec(threads_number, [&](size_t tid, std::function<void(void)> syncthreads) {
-		f(tid);
-
-		syncthreads();
-	});
-}
 
 #endif /* LIBPMEMSTREAM_THREAD_HELPERS_HPP */
