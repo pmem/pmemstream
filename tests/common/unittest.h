@@ -152,6 +152,14 @@ err_fd:
 	return map;
 }
 
+static inline size_t log2_uint(size_t value)
+{
+	size_t pow = 0;
+	while (value >>= 1)
+		++pow;
+	return pow;
+}
+
 #ifdef __cplusplus
 }
 #endif
