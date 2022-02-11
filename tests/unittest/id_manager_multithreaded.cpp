@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
 
 			for (auto id : thread_ids[thread_id]) {
 				int ret = id_manager_release(manager.get(), id);
-				UT_ASSERT(ret == 0);
+				UT_ASSERTeq(ret, 0);
 			}
 		});
 

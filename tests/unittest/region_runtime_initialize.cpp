@@ -85,7 +85,7 @@ int main(int argc, char *argv[])
 
 						 auto garbage_dst = garbage_destination(stream.get(), last_entry);
 						 for (size_t i = 0; i < garbage.size(); i++) {
-							 UT_ASSERT(garbage_dst[i] == 0);
+							 UT_ASSERTeq(garbage_dst[i], 0);
 						 }
 					 }
 				 });
