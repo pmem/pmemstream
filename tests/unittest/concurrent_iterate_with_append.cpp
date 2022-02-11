@@ -23,7 +23,7 @@ void concurrent_iterate_verify(pmemstream *stream, pmemstream_region region, con
 	std::vector<std::string> result;
 
 	struct pmemstream_entry_iterator *eiter;
-	UT_ASSERT(pmemstream_entry_iterator_new(&eiter, stream, region) == 0);
+	UT_ASSERTeq(pmemstream_entry_iterator_new(&eiter, stream, region), 0);
 
 	struct pmemstream_entry entry;
 

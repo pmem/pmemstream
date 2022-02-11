@@ -71,7 +71,7 @@ int main(int argc, char *argv[])
 					std::vector<std::string> result;
 
 					struct pmemstream_entry_iterator *eiter;
-					UT_ASSERT(pmemstream_entry_iterator_new(&eiter, stream.get(), region) == 0);
+					UT_ASSERTeq(pmemstream_entry_iterator_new(&eiter, stream.get(), region), 0);
 
 					struct pmemstream_entry entry;
 					while (pmemstream_entry_iterator_next(eiter, nullptr, &entry) == 0) {
@@ -93,7 +93,7 @@ int main(int argc, char *argv[])
 								      TEST_DEFAULT_STREAM_SIZE, false);
 					auto stream_data = get_elements_in_region(stream.get(), region);
 					UT_ASSERT(std::equal(data.begin(), data.end(), stream_data.begin()));
-					UT_ASSERT(pmemstream_region_free(stream.get(), region) == 0);
+					UT_ASSERTeq(pmemstream_region_free(stream.get(), region), 0);
 				}
 			});
 	});

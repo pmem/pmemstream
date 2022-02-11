@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
 				verify(stream.get(), region, data, {});
 				append(stream.get(), region, NULL, extra_data);
 				verify(stream.get(), region, data, extra_data);
-				UT_ASSERT(pmemstream_region_free(stream.get(), region) == 0);
+				UT_ASSERTeq(pmemstream_region_free(stream.get(), region), 0);
 			});
 
 		/* verify if an entry of size = 0 can be appended and entry with size > region's size cannot */
@@ -89,22 +89,22 @@ int main(int argc, char *argv[])
 			struct pmemstream_entry ne = {0}, prev_ne = {0};
 			while (elems-- > 0) {
 				auto ret = pmemstream_append(stream.get(), region, nullptr, e.data(), e.size(), &ne);
-				UT_ASSERT(ret == 0);
+				UT_ASSERTeq(ret, 0);
 				UT_ASSERT(ne.offset > prev_ne.offset);
 				prev_ne = ne;
 			}
 			/* next append should not fit */
 			auto ret = pmemstream_append(stream.get(), region, nullptr, e.data(), e.size(), &ne);
-			UT_ASSERT(ne.offset == prev_ne.offset);
+			UT_ASSERTeq(ne.offset, prev_ne.offset);
 			/* XXX: should be updated with the real error code, when available */
-			UT_ASSERT(ret == -1);
+			UT_ASSERTeq(ret, -1);
 			e.resize(4);
 			/* ... but smaller entry should fit just in */
 			ret = pmemstream_append(stream.get(), region, nullptr, e.data(), e.size(), &ne);
 			UT_ASSERT(ne.offset > prev_ne.offset);
-			UT_ASSERT(ret == 0);
+			UT_ASSERTeq(ret, 0);
 
-			UT_ASSERT(pmemstream_region_free(stream.get(), region) == 0);
+			UT_ASSERTeq(pmemstream_region_free(stream.get(), region), 0);
 		});
 
 		ret += rc::check("verify if iteration return proper elements after pmemstream reopen",
@@ -121,7 +121,7 @@ int main(int argc, char *argv[])
 						 auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE,
 									       TEST_DEFAULT_STREAM_SIZE, false);
 						 verify(stream.get(), region, data, {});
-						 UT_ASSERT(pmemstream_region_free(stream.get(), region) == 0);
+						 UT_ASSERTeq(pmemstream_region_free(stream.get(), region), 0);
 					 }
 				 });
 
@@ -147,7 +147,7 @@ int main(int argc, char *argv[])
 
 						 append(stream.get(), region, runtime, extra_data);
 						 verify(stream.get(), region, data, extra_data);
-						 UT_ASSERT(pmemstream_region_free(stream.get(), region) == 0);
+						 UT_ASSERTeq(pmemstream_region_free(stream.get(), region), 0);
 					 }
 				 });
 	});

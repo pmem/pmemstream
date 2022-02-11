@@ -23,7 +23,7 @@ void release_ids(id_manager *manager, size_t size, It &&it)
 {
 	for (size_t i = 0; i < size; i++) {
 		int ret = id_manager_release(manager, *it);
-		UT_ASSERT(ret == 0);
+		UT_ASSERTeq(ret, 0);
 		++it;
 	}
 }
@@ -41,7 +41,7 @@ int main()
 
 			for (size_t i = 0; i < max_num_id_requests; i++) {
 				auto id = id_manager_acquire(manager.get());
-				UT_ASSERT(id == i);
+				UT_ASSERTeq(id, i);
 			}
 		}
 
@@ -51,10 +51,10 @@ int main()
 
 			for (size_t i = 0; i < max_num_id_requests; i++) {
 				auto id = id_manager_acquire(manager.get());
-				UT_ASSERT(id == 0);
+				UT_ASSERTeq(id, 0);
 
 				int ret = id_manager_release(manager.get(), id);
-				UT_ASSERT(ret == 0);
+				UT_ASSERTeq(ret, 0);
 			}
 		}
 
@@ -113,13 +113,13 @@ int main()
 			auto manager = make_id_manager();
 			for (unsigned i = 0; i < ids_to_acquire; i++) {
 				auto id = id_manager_acquire(manager.get());
-				UT_ASSERT(id == i);
+				UT_ASSERTeq(id, i);
 			}
 
 			auto to_release =
 				*rc::gen::unique<std::vector<unsigned>>(rc::gen::inRange<unsigned>(0, ids_to_acquire));
 			for (auto id : to_release) {
-				UT_ASSERT(id_manager_release(manager.get(), id) == 0);
+				UT_ASSERTeq(id_manager_release(manager.get(), id), 0);
 			}
 
 			std::vector<unsigned> reacquired;
