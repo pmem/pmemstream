@@ -34,7 +34,7 @@ void test_entry_iterator(char *path)
 
 	entry_data = pmemstream_entry_data(stream, entry);
 	UT_ASSERTne(entry_data, NULL);
-	UT_ASSERT(entry_data->data == data.data);
+	UT_ASSERTeq(entry_data->data, data.data);
 
 	UT_ASSERTeq(pmemstream_entry_length(stream, entry), sizeof(data));
 

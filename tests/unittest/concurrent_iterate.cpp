@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
 				});
 
 				UT_ASSERT(all_of(threads_data, predicates::equal(data)));
-				UT_ASSERT(pmemstream_region_free(stream.get(), region) == 0);
+				UT_ASSERTeq(pmemstream_region_free(stream.get(), region), 0);
 			});
 
 		ret += rc::check("verify if each concurrent iteration observes the same data after stream reopen",
@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
 						 });
 
 						 UT_ASSERT(all_of(threads_data, predicates::equal(data)));
-						 UT_ASSERT(pmemstream_region_free(stream.get(), region) == 0);
+						 UT_ASSERTeq(pmemstream_region_free(stream.get(), region), 0);
 					 }
 				 });
 	});
