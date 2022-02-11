@@ -33,6 +33,7 @@ class config {
 						  {"element_size", required_argument, NULL, 's'},
 						  {"iterations", required_argument, NULL, 'i'},
 						  {"null_region_runtime", no_argument, NULL, 'n'},
+						  {"concurrency", required_argument, NULL, 't'},
 						  {"help", no_argument, NULL, 'h'},
 						  {NULL, 0, NULL, 0}};
 
@@ -73,12 +74,13 @@ class config {
 	size_t element_size = 1024;
 	size_t iterations = 10;
 	bool null_region_runtime = false;
+	size_t concurrency = 1;
 
 	int parse_arguments(int argc, char *argv[])
 	{
 		app_name = std::string(argv[0]);
 		int ch;
-		while ((ch = getopt_long(argc, argv, "e:p:x:b:r:c:s:i:nh", long_options, NULL)) != -1) {
+		while ((ch = getopt_long(argc, argv, "e:p:x:b:r:c:s:i:nt:h", long_options, NULL)) != -1) {
 			switch (ch) {
 				case 'e':
 					set_engine(std::string(optarg));
@@ -106,6 +108,9 @@ class config {
 					break;
 				case 'n':
 					null_region_runtime = true;
+					break;
+				case 't':
+					concurrency = std::stoull(optarg);
 					break;
 				case 'h':
 					return -1;
@@ -138,6 +143,7 @@ class config {
 			new_line,
 			{"More iterations gives more robust statistical data, but takes more time", ""},
 			{"--null_region_runtime", "indicates if **null** region runtime would be passed to append"},
+			{"--concurrency [num]", "number of threads, which append concurrently"},
 			{"--help", "display this message"}};
 		for (auto &option : options) {
 			std::cout << std::setw(25) << std::left << option[0] << " " << option[1] << std::endl;
@@ -161,27 +167,7 @@ std::ostream &operator<<(std::ostream &out, config const &cfg)
 	return out;
 }
 
-class workload_base {
- public:
-	virtual ~workload_base(){};
-	virtual void initialize() = 0;
-	virtual void perform() = 0;
-	virtual void clean() = 0;
-
-	void prepare_data(size_t bytes_to_generate)
-	{
-		data = benchmark::generate_data(bytes_to_generate);
-	}
-	uint8_t *get_data_chunks()
-	{
-		return reinterpret_cast<uint8_t *>(data.data());
-	}
-
- protected:
-	std::vector<uint64_t> data;
-};
-
-class pmemlog_workload : public workload_base {
+class pmemlog_workload : public benchmark::workload_base {
  public:
 	pmemlog_workload(config &cfg)
 	    : cfg(cfg), plp(pmemlog_create(cfg.path.c_str(), cfg.size, S_IRWXU), pmemlog_close)
@@ -222,7 +208,7 @@ class pmemlog_workload : public workload_base {
 	std::unique_ptr<PMEMlogpool, std::function<void(PMEMlogpool *)>> plp;
 };
 
-class pmemstream_workload : public workload_base {
+class pmemstream_workload : public benchmark::workload_base {
  public:
 	pmemstream_workload(config &cfg) : cfg(cfg)
 	{
@@ -281,7 +267,7 @@ int main(int argc, char *argv[])
 	}
 	std::cout << cfg << std::endl;
 
-	std::unique_ptr<workload_base> workload;
+	std::unique_ptr<benchmark::workload_base> workload;
 
 	if (cfg.engine == "pmemlog") {
 		workload = std::make_unique<pmemlog_workload>(cfg);
@@ -292,9 +278,7 @@ int main(int argc, char *argv[])
 	/* XXX: Add initialization phase whith separate measurement */
 	std::vector<std::chrono::nanoseconds::rep> results;
 	try {
-		results = benchmark::measure<std::chrono::nanoseconds>(
-			cfg.iterations, [&] { workload->initialize(); },
-			[interface = workload.get()] { interface->perform(); }, [&] { workload->clean(); });
+		results = benchmark::measure<std::chrono::nanoseconds>(cfg.iterations, workload.get(), cfg.concurrency);
 	} catch (std::runtime_error &e) {
 		std::cerr << e.what() << std::endl;
 		return -2;

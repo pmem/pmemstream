@@ -7,8 +7,49 @@
 #include <iterator>
 #include <random>
 
+#include "thread_helpers.hpp"
 namespace benchmark
 {
+
+class workload_base {
+ public:
+	virtual ~workload_base(){};
+	virtual void initialize() = 0;
+	virtual void perform() = 0;
+	virtual void clean() = 0;
+
+	void prepare_data(size_t bytes_to_generate)
+	{
+		data = generate_data(bytes_to_generate);
+	}
+	uint8_t *get_data_chunks()
+	{
+		return reinterpret_cast<uint8_t *>(data.data());
+	}
+
+ protected:
+	std::vector<uint64_t> data;
+
+	/* Generate vector<uint64_t> which contains byte_count rounded up to 64 bits*/
+	std::vector<uint64_t> generate_data(size_t bytes_count)
+	{
+		size_t count = bytes_count / 8 + (bytes_count % 8 != 0);
+		std::vector<uint64_t> ret;
+		ret.reserve(count);
+
+		static std::mt19937_64 generator = []() {
+			std::random_device rd;
+			auto seed = rd();
+			return std::mt19937_64(seed);
+		}();
+
+		for (size_t i = 0; i < count; ++i) {
+			ret.push_back(generator());
+		}
+
+		return ret;
+	}
+};
 
 template <typename TimeUnit, typename F>
 typename TimeUnit::rep measure(F &&func)
@@ -23,39 +64,29 @@ typename TimeUnit::rep measure(F &&func)
 
 /* Measure time of execution of run_workload function. init() and clean()
  * functions are executed respectively before and after each iteration */
-template <typename TimeUnit, typename InitFunc, typename WorkloadFunc, typename CleanupFunc>
-auto measure(size_t iterations, InitFunc &&init, WorkloadFunc &&run_workload, CleanupFunc &&clean)
+template <typename TimeUnit>
+auto measure(size_t iterations, workload_base *workload, size_t concurrency = 1)
 {
-	std::vector<typename TimeUnit::rep> results;
-	results.reserve(iterations);
+	using ResultsType = typename TimeUnit::rep;
+
+	std::vector<ResultsType> results;
 
 	for (size_t i = 0; i < iterations; i++) {
-		init();
-		results.push_back(measure<TimeUnit>(run_workload));
-		clean();
+		workload->initialize();
+		std::vector<ResultsType> iteration_results(concurrency);
+		syncthreads_barrier syncthreads(concurrency);
+		parallel_exec(concurrency, [&](size_t id) {
+			syncthreads();
+
+			iteration_results[id] = measure<TimeUnit>([&]() { workload->perform(); });
+
+			syncthreads();
+		});
+		workload->clean();
+		results.insert(results.end(), iteration_results.begin(), iteration_results.end());
 	}
 
 	return results;
-}
-
-/* Generate vector<uint64_t> which contains byte_count rounded up to 64 bits*/
-static inline std::vector<uint64_t> generate_data(size_t bytes_count)
-{
-	size_t count = bytes_count / 8 + (bytes_count % 8 != 0);
-	std::vector<uint64_t> ret;
-	ret.reserve(count);
-
-	static std::mt19937_64 generator = []() {
-		std::random_device rd;
-		auto seed = rd();
-		return std::mt19937_64(seed);
-	}();
-
-	for (size_t i = 0; i < count; ++i) {
-		ret.push_back(generator());
-	}
-
-	return ret;
 }
 
 template <typename T>
