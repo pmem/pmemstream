@@ -130,6 +130,9 @@ if(TESTS_RAPIDCHECK)
 	build_test_rc(NAME util_popcount SRC_FILES unittest/util_popcount.cpp)
 	add_test_generic(NAME util_popcount TRACERS none)
 
+	build_test_rc(NAME util_common SRC_FILES unittest/util_common.cpp)
+	add_test_generic(NAME util_common TRACERS none)
+
 	build_test_rc(NAME iterate_validation SRC_FILES layout/iterate_validation.cpp ../src/span.c)
 	add_test_generic(NAME iterate_validation TRACERS none)
 endif()
