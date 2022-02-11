@@ -3,11 +3,14 @@
 
 /* create.cpp -- tests creation of regions and streams with various parameters */
 
+#include <array>
 #include <string>
 #include <vector>
 
 #include <rapidcheck.h>
 
+#include "common/util.h"
+#include "span.h"
 #include "stream_helpers.hpp"
 #include "unittest.hpp"
 
@@ -64,32 +67,24 @@ int main(int argc, char *argv[])
 				UT_ASSERT(pmemstream_region_free(stream.get(), region) == 0);
 			});
 
-		/* verify if a single region of size = 0 can be created */
+		/* "verify if region of unexpected arbitrary sizes cannot be created" */
 		{
 			auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE, TEST_DEFAULT_STREAM_SIZE);
-			auto region = initialize_stream_single_region(stream.get(), 0, {});
-			verify(stream.get(), region, {}, {});
-
-			/* try to append non-zero entry and expect fail */
-			std::string entry("ASDF");
-			auto ret =
-				pmemstream_append(stream.get(), region, nullptr, entry.data(), entry.size(), nullptr);
-			UT_ASSERT(ret != 0);
-
-			UT_ASSERT(pmemstream_region_free(stream.get(), region) == 0);
-		}
-
-		ret += rc::check("verify if a region of size > stream_size cannot be created", [&]() {
-			auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE, TEST_DEFAULT_STREAM_SIZE);
 			struct pmemstream_region region;
-			UT_ASSERT(pmemstream_region_allocate(stream.get(), TEST_DEFAULT_STREAM_SIZE + 1UL, &region) !=
-				  0);
-		});
+
+			std::array sizes{size_t(0), TEST_DEFAULT_STREAM_SIZE + 1UL};
+			for (size_t &size : sizes) {
+				UT_ASSERT(pmemstream_region_allocate(stream.get(), size, &region) != 0);
+			}
+		}
 
 		ret += rc::check("verify if a stream of various sizes can be created", [&]() {
 			const auto stream_size =
 				*rc::gen::inRange<std::size_t>(STREAM_METADATA_SIZE, TEST_DEFAULT_STREAM_SIZE);
 			const auto region_size = stream_size - STREAM_METADATA_SIZE;
+
+			RC_PRE(ALIGN_UP(region_size, TEST_DEFAULT_BLOCK_SIZE) <= stream_size);
+			RC_PRE(ALIGN_UP(region_size, TEST_DEFAULT_BLOCK_SIZE) > 0);
 
 			auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE, stream_size);
 			/* and initialize this stream with a single region of */
@@ -100,8 +95,9 @@ int main(int argc, char *argv[])
 		});
 
 		ret += rc::check("verify if a stream of various block_sizes can be created", [&]() {
+			size_t minimum_block_size = sizeof(span_runtime::entry);
 			const auto block_size = *rc::gen::inRange<std::size_t>(
-				1UL, TEST_DEFAULT_STREAM_SIZE / 2UL - STREAM_METADATA_SIZE);
+				minimum_block_size, TEST_DEFAULT_STREAM_SIZE / 2UL - STREAM_METADATA_SIZE);
 
 			auto stream = make_pmemstream(path, block_size, TEST_DEFAULT_STREAM_SIZE);
 			/* and initialize this stream with a single region of */
