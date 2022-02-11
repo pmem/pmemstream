@@ -48,10 +48,10 @@ int main(int argc, char *argv[])
 				const auto extra_entry = my_data.back();
 				int ret = pmemstream_append(stream.get(), region, nullptr, extra_entry.data(),
 							    extra_entry.size(), nullptr);
-				UT_ASSERT(ret == 0);
+				UT_ASSERTeq(ret, 0);
 				verify(stream.get(), region, data, my_data);
 
-				UT_ASSERT(pmemstream_region_free(stream.get(), region) == 0);
+				UT_ASSERTeq(pmemstream_region_free(stream.get(), region), 0);
 			});
 
 		ret += rc::check(
@@ -67,7 +67,7 @@ int main(int argc, char *argv[])
 					verify(stream.get(), region, data, {});
 					a_data = get_elements_in_region(stream.get(), region);
 
-					UT_ASSERT(pmemstream_region_free(stream.get(), region) == 0);
+					UT_ASSERTeq(pmemstream_region_free(stream.get(), region), 0);
 				}
 				/* publish-reserve by hand of the same 'data' (in a different file) */
 				std::vector<std::string> rp_data;
@@ -82,7 +82,7 @@ int main(int argc, char *argv[])
 					UT_ASSERT(std::equal(a_data.begin(), a_data.end(), rp_data.begin(),
 							     rp_data.end()));
 
-					UT_ASSERT(pmemstream_region_free(stream.get(), region) == 0);
+					UT_ASSERTeq(pmemstream_region_free(stream.get(), region), 0);
 				}
 			});
 
@@ -100,7 +100,7 @@ int main(int argc, char *argv[])
 						 int ret = pmemstream_reserve(stream.get(), region, nullptr,
 									      extra_entry.size(), &reserved_entry,
 									      &reserved_data);
-						 UT_ASSERT(ret == 0);
+						 UT_ASSERTeq(ret, 0);
 
 						 std::memcpy(reinterpret_cast<char *>(reserved_data),
 							     extra_entry.data(), extra_entry.size());

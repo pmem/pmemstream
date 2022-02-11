@@ -40,7 +40,7 @@ int main(int argc, char *argv[])
 			auto region = initialize_stream_single_region(stream.get(), region_size, data);
 			verify(stream.get(), region, data, {});
 
-			UT_ASSERT(pmemstream_region_free(stream.get(), region) == 0);
+			UT_ASSERTeq(pmemstream_region_free(stream.get(), region), 0);
 		});
 
 		ret += rc::check(
@@ -53,18 +53,18 @@ int main(int argc, char *argv[])
 
 				struct pmemstream_region_iterator *riter;
 				auto ret = pmemstream_region_iterator_new(&riter, stream.get());
-				UT_ASSERT(ret == 0);
+				UT_ASSERTeq(ret, 0);
 
 				struct pmemstream_region r;
 				ret = pmemstream_region_iterator_next(riter, &r);
-				UT_ASSERT(ret == 0);
-				UT_ASSERT(region.offset == r.offset);
+				UT_ASSERTeq(ret, 0);
+				UT_ASSERTeq(region.offset, r.offset);
 				/* there should be no more regions */
 				ret = pmemstream_region_iterator_next(riter, &r);
-				UT_ASSERT(ret == -1);
+				UT_ASSERTeq(ret, -1);
 
 				pmemstream_region_iterator_delete(&riter);
-				UT_ASSERT(pmemstream_region_free(stream.get(), region) == 0);
+				UT_ASSERTeq(pmemstream_region_free(stream.get(), region), 0);
 			});
 
 		/* "verify if region of unexpected arbitrary sizes cannot be created" */
@@ -91,7 +91,7 @@ int main(int argc, char *argv[])
 			auto region = initialize_stream_single_region(stream.get(), region_size, {});
 			verify(stream.get(), region, {}, {});
 
-			UT_ASSERT(pmemstream_region_free(stream.get(), region) == 0);
+			UT_ASSERTeq(pmemstream_region_free(stream.get(), region), 0);
 		});
 
 		ret += rc::check("verify if a stream of various block_sizes can be created", [&]() {
@@ -104,7 +104,7 @@ int main(int argc, char *argv[])
 			auto region = initialize_stream_single_region(stream.get(), block_size / 10UL, {});
 			verify(stream.get(), region, {}, {});
 
-			UT_ASSERT(pmemstream_region_free(stream.get(), region) == 0);
+			UT_ASSERTeq(pmemstream_region_free(stream.get(), region), 0);
 		});
 
 		/* verify if a stream of block_size = 0 cannot be created */
