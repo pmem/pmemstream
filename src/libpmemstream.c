@@ -206,6 +206,10 @@ int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region regio
 	struct span_runtime region_srt = span_get_region_runtime(stream, region.offset);
 	int ret = 0;
 
+	if (!reserved_entry) {
+		return -1;
+	}
+
 	if (!region_runtime) {
 		ret = pmemstream_region_runtime_initialize(stream, region, &region_runtime);
 		if (ret) {
@@ -236,6 +240,10 @@ int pmemstream_publish(struct pmemstream *stream, struct pmemstream_region regio
 		       struct pmemstream_region_runtime *region_runtime, const void *data, size_t size,
 		       struct pmemstream_entry *reserved_entry)
 {
+	if (!reserved_entry) {
+		return -1;
+	}
+
 	if (!region_runtime) {
 		int ret = pmemstream_region_runtime_initialize(stream, region, &region_runtime);
 		if (ret) {
