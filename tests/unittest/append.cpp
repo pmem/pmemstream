@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
 			verify(stream.get(), region, {entry}, {});
 
 			/* and try to append entry with size bigger than region's size */
-			entry = std::string(max_size + 1, 'W');
+			entry = std::string(max_size * 2, 'W');
 			ret = pmemstream_append(stream.get(), region, nullptr, entry.data(), entry.size(), nullptr);
 			UT_ASSERTeq(ret, -1);
 
