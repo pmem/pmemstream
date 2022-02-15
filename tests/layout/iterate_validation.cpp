@@ -80,7 +80,7 @@ int main(int argc, char *argv[])
 
 					pmemstream_entry_iterator_delete(&eiter);
 					/* This pointer is not safe to read - it points to uninitialized data */
-					auto data_ptr = reinterpret_cast<char *>(stream->spans) + entry.offset;
+					auto data_ptr = reinterpret_cast<char *>(stream->data.spans) + entry.offset;
 
 					auto partial_span =
 						generate_inconsistent_span(entry_span ? SPAN_ENTRY : SPAN_EMPTY);

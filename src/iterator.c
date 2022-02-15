@@ -30,7 +30,7 @@ int pmemstream_region_iterator_next(struct pmemstream_region_iterator *it, struc
 	struct span_runtime srt;
 
 	while (it->region.offset < it->stream->usable_size) {
-		srt = span_get_runtime(it->stream, it->region.offset);
+		srt = span_get_runtime(&it->stream->data, it->region.offset);
 
 		if (srt.type == SPAN_REGION) {
 			*region = it->region;
@@ -58,7 +58,7 @@ int entry_iterator_initialize(struct pmemstream_entry_iterator *iterator, struct
 			      struct pmemstream_region region,
 			      region_runtime_initialize_fn_type region_runtime_initialize_fn)
 {
-	struct span_runtime region_srt = span_get_region_runtime(stream, region.offset);
+	struct span_runtime region_srt = span_get_region_runtime(&stream->data, region.offset);
 	struct pmemstream_region_runtime *region_rt;
 
 	int ret = region_runtimes_map_get_or_create(stream->region_runtimes_map, region, &region_rt);
@@ -104,8 +104,8 @@ static int validate_entry(const struct pmemstream *stream, struct pmemstream_ent
 	 * before calling this function region_runtime is in UNINITIALIZED state but some other thread
 	 * changes it to CLEAR while span metadata is read. We might fix this using Optimistic Concurrency
 	 * Control (using region_runtime state). */
-	struct span_runtime srt = span_get_runtime(stream, entry.offset);
-	const void *entry_data = pmemstream_offset_to_ptr(stream, srt.data_offset);
+	struct span_runtime srt = span_get_runtime(&stream->data, entry.offset);
+	const void *entry_data = pmemstream_offset_to_ptr(&stream->data, srt.data_offset);
 	if (srt.type == SPAN_ENTRY && util_popcount_memory(entry_data, srt.entry.size) == srt.entry.popcount) {
 		return 0;
 	}
@@ -114,7 +114,7 @@ static int validate_entry(const struct pmemstream *stream, struct pmemstream_ent
 
 static bool pmemstream_entry_iterator_offset_is_inside_region(struct pmemstream_entry_iterator *iterator)
 {
-	struct span_runtime region_srt = span_get_region_runtime(iterator->stream, iterator->region.offset);
+	struct span_runtime region_srt = span_get_region_runtime(&iterator->stream->data, iterator->region.offset);
 	uint64_t region_end_offset = iterator->region.offset + region_srt.total_size;
 	return iterator->offset >= iterator->region.offset && iterator->offset <= region_end_offset;
 }
@@ -145,7 +145,7 @@ static bool pmemstream_entry_iterator_offset_at_valid_entry(struct pmemstream_en
 {
 	assert(pmemstream_entry_iterator_offset_is_inside_region(iterator));
 
-	struct span_runtime region_srt = span_get_region_runtime(iterator->stream, iterator->region.offset);
+	struct span_runtime region_srt = span_get_region_runtime(&iterator->stream->data, iterator->region.offset);
 	uint64_t region_end_offset = iterator->region.offset + region_srt.total_size;
 	struct pmemstream_entry entry = {.offset = iterator->offset};
 
@@ -158,7 +158,7 @@ static void pmemstream_entry_iterator_advance(struct pmemstream_entry_iterator *
 	 * increment - those checks should not fail unless stream was corrupted. */
 	assert(pmemstream_entry_iterator_offset_is_inside_region(iterator));
 
-	struct span_runtime entry_srt = span_get_entry_runtime(iterator->stream, iterator->offset);
+	struct span_runtime entry_srt = span_get_entry_runtime(&iterator->stream->data, iterator->offset);
 	iterator->offset += entry_srt.total_size;
 
 	assert(pmemstream_entry_iterator_offset_is_inside_region(iterator));

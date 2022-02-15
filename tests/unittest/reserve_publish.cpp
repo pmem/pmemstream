@@ -104,7 +104,7 @@ int main(int argc, char *argv[])
 
 						 std::memcpy(reinterpret_cast<char *>(reserved_data),
 							     extra_entry.data(), extra_entry.size());
-						 stream->persist(reserved_data, extra_entry.size());
+						 stream->data.persist(reserved_data, extra_entry.size());
 						 verify(stream.get(), region, data, {});
 					 }
 					 {
