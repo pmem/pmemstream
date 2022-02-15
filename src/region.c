@@ -238,12 +238,12 @@ static void region_runtime_clear_from_tail(struct pmemstream *stream, struct pme
 	assert(region_runtime_get_state_acquire(region_runtime) == REGION_RUNTIME_STATE_DIRTY);
 
 	uint64_t append_offset = region_runtime_get_append_offset_acquire(region_runtime);
-	struct span_runtime region_rt = span_get_region_runtime(stream, region.offset);
+	struct span_runtime region_rt = span_get_region_runtime(&stream->data, region.offset);
 	size_t region_end_offset = region.offset + region_rt.total_size;
 	size_t remaining_size = region_end_offset - append_offset;
 
 	if (remaining_size != 0) {
-		span_create_empty(stream, append_offset, remaining_size - SPAN_EMPTY_METADATA_SIZE);
+		span_create_empty(&stream->data, append_offset, remaining_size - SPAN_EMPTY_METADATA_SIZE);
 	}
 
 	__atomic_store_n(&region_runtime->state, REGION_RUNTIME_STATE_CLEAR, __ATOMIC_RELEASE);

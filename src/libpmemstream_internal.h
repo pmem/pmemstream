@@ -24,25 +24,33 @@ struct pmemstream_header {
 	uint64_t block_size;
 };
 
-struct pmemstream {
-	struct pmemstream_header *header;
+struct pmemstream_data_runtime {
 	span_bytes *spans;
-	size_t stream_size;
-	size_t usable_size;
-	size_t block_size;
 
 	pmem2_memcpy_fn memcpy;
 	pmem2_memset_fn memset;
 	pmem2_flush_fn flush;
 	pmem2_drain_fn drain;
 	pmem2_persist_fn persist;
+};
+
+struct pmemstream {
+	/* Points to pmem-resided header. */
+	struct pmemstream_header *header;
+
+	/* Describes data location and memory operations. */
+	struct pmemstream_data_runtime data;
+
+	size_t stream_size;
+	size_t usable_size;
+	size_t block_size;
 
 	struct region_runtimes_map *region_runtimes_map;
 };
 
-static inline const uint8_t *pmemstream_offset_to_ptr(const struct pmemstream *stream, uint64_t offset)
+static inline const uint8_t *pmemstream_offset_to_ptr(const struct pmemstream_data_runtime *data, uint64_t offset)
 {
-	return (const uint8_t *)stream->spans + offset;
+	return (const uint8_t *)data->spans + offset;
 }
 
 #ifdef __cplusplus

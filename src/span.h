@@ -64,27 +64,29 @@ struct span_runtime {
 #define SPAN_ENTRY_METADATA_SIZE (MEMBER_SIZE(span_runtime, entry))
 
 typedef uint64_t span_bytes;
+struct pmemstream_data_runtime;
 
 /* Convert offset to pointer to span. offset must be 8-bytes aligned. */
-const span_bytes *span_offset_to_span_ptr(const struct pmemstream *stream, uint64_t offset);
+const span_bytes *span_offset_to_span_ptr(const struct pmemstream_data_runtime *data, uint64_t offset);
 
 /* Those functions create appropriate span at specified offset. offset must be 8-bytes aligned. */
-void span_create_empty(struct pmemstream *stream, uint64_t offset, size_t data_size);
-void span_create_entry(struct pmemstream *stream, uint64_t offset, size_t data_size, size_t popcount);
-void span_create_entry_no_flush_data(struct pmemstream *stream, uint64_t offset, size_t data_size, size_t popcount);
-void span_create_region(struct pmemstream *stream, uint64_t offset, size_t size);
+void span_create_empty(struct pmemstream_data_runtime *data, uint64_t offset, size_t data_size);
+void span_create_entry(struct pmemstream_data_runtime *data, uint64_t offset, size_t data_size, size_t popcount);
+void span_create_entry_no_flush_data(struct pmemstream_data_runtime *data, uint64_t offset, size_t data_size,
+				     size_t popcount);
+void span_create_region(struct pmemstream_data_runtime *data, uint64_t offset, size_t size);
 
 uint64_t span_get_size(const span_bytes *span);
 enum span_type span_get_type(const span_bytes *span);
 
 /* Obtain span_runtime structure describing span at 'offset'. offset must be 8-bytes aligned. */
-struct span_runtime span_get_runtime(const struct pmemstream *stream, uint64_t offset);
+struct span_runtime span_get_runtime(const struct pmemstream_data_runtime *data, uint64_t offset);
 
 /* Works similar to the function above but span must be of certain type. Does not verify if span type at 'offset'
  * is correct. */
-struct span_runtime span_get_empty_runtime(const struct pmemstream *stream, uint64_t offset);
-struct span_runtime span_get_entry_runtime(const struct pmemstream *stream, uint64_t offset);
-struct span_runtime span_get_region_runtime(const struct pmemstream *stream, uint64_t offset);
+struct span_runtime span_get_empty_runtime(const struct pmemstream_data_runtime *data, uint64_t offset);
+struct span_runtime span_get_entry_runtime(const struct pmemstream_data_runtime *data, uint64_t offset);
+struct span_runtime span_get_region_runtime(const struct pmemstream_data_runtime *data, uint64_t offset);
 
 #ifdef __cplusplus
 } /* end extern "C" */
