@@ -84,7 +84,7 @@ int pmemstream_entry_iterator_new(struct pmemstream_entry_iterator **iterator, s
 		return -1;
 	}
 
-	int ret = entry_iterator_initialize(iter, stream, region, &region_runtime_initialize_dirty_locked);
+	int ret = entry_iterator_initialize(iter, stream, region, &region_runtime_initialize_for_read_locked);
 	if (ret) {
 		goto err;
 	}
