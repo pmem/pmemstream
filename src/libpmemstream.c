@@ -171,6 +171,9 @@ int pmemstream_region_allocate(struct pmemstream *stream, size_t size, struct pm
 	if (total_size > span_get_total_size(span_base))
 		return -1;
 
+	/* Update region size to avoid wasting space. */
+	span_region.span_base = span_base_create(total_size - sizeof(struct span_region), SPAN_REGION);
+
 	stream->data.memcpy((void *)span_base, &span_region, sizeof(struct span_region), 0);
 	region->offset = offset;
 

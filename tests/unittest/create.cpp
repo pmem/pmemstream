@@ -14,6 +14,26 @@
 #include "stream_helpers.hpp"
 #include "unittest.hpp"
 
+namespace
+{
+std::pair<size_t, size_t> generate_region_size_and_block_size(size_t stream_size)
+{
+	/* XXX: use CACHELINE_SIZE instead of 64 */
+	const auto minimum_block_size = 64;
+	const auto max_block_and_region_size = stream_size;
+
+	const auto block_size_pow =
+		*rc::gen::inRange<std::size_t>(log2_uint(minimum_block_size), log2_uint(max_block_and_region_size));
+	const auto block_size = (1UL << block_size_pow);
+	const auto region_size = *rc::gen::inRange<std::size_t>(1, max_block_and_region_size);
+
+	const auto available_size = ALIGN_DOWN(stream_size - std::max(STREAM_METADATA_SIZE, block_size), block_size);
+	RC_PRE(ALIGN_UP(region_size + sizeof(struct span_region), block_size) <= available_size);
+
+	return {region_size, block_size};
+}
+} // namespace
+
 int main(int argc, char *argv[])
 {
 	if (argc != 2) {
@@ -95,25 +115,21 @@ int main(int argc, char *argv[])
 		});
 
 		ret += rc::check("verify if a stream of various block_sizes can be created", [&]() {
-			/* XXX: use CACHELINE_SIZE instead of 64 */
-			const auto minimum_block_size = 64;
-			const auto max_block_and_region_size = TEST_DEFAULT_STREAM_SIZE;
-
-			const auto block_size_pow = *rc::gen::inRange<std::size_t>(
-				log2_uint(minimum_block_size), log2_uint(max_block_and_region_size));
-			const auto block_size = (1UL << block_size_pow);
-			const auto region_size = *rc::gen::inRange<std::size_t>(1, max_block_and_region_size);
-
-			const auto available_size = ALIGN_DOWN(
-				TEST_DEFAULT_STREAM_SIZE - std::max(STREAM_METADATA_SIZE, block_size), block_size);
-			RC_PRE(ALIGN_UP(region_size + sizeof(struct span_region), block_size) <= available_size);
-
+			auto [region_size, block_size] = generate_region_size_and_block_size(TEST_DEFAULT_STREAM_SIZE);
 			auto stream = make_pmemstream(path, block_size, TEST_DEFAULT_STREAM_SIZE);
 			/* and initialize this stream with a single region of */
 			auto region = initialize_stream_single_region(stream.get(), region_size, {});
 			verify(stream.get(), region, {}, {});
+		});
 
-			UT_ASSERTeq(pmemstream_region_free(stream.get(), region), 0);
+		ret += rc::check("verify if a region has expected size", [&]() {
+			auto [region_size, block_size] = generate_region_size_and_block_size(TEST_DEFAULT_STREAM_SIZE);
+			auto stream = make_pmemstream(path, block_size, TEST_DEFAULT_STREAM_SIZE);
+			/* and initialize this stream with a single region of */
+			auto region = initialize_stream_single_region(stream.get(), region_size, {});
+			size_t expected_region_size = ALIGN_UP(region_size + sizeof(struct span_region), block_size) -
+				sizeof(struct span_region);
+			UT_ASSERTeq(pmemstream_region_size(stream.get(), region), expected_region_size);
 		});
 
 		ret += rc::check(
