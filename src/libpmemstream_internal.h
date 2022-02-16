@@ -6,6 +6,8 @@
 #ifndef LIBPMEMSTREAM_INTERNAL_H
 #define LIBPMEMSTREAM_INTERNAL_H
 
+#include <assert.h>
+
 #include "iterator.h"
 #include "libpmemstream.h"
 #include "region.h"
@@ -51,6 +53,14 @@ struct pmemstream {
 static inline const uint8_t *pmemstream_offset_to_ptr(const struct pmemstream_data_runtime *data, uint64_t offset)
 {
 	return (const uint8_t *)data->spans + offset;
+}
+
+/* Convert offset to pointer to span. offset must be 8-bytes aligned. */
+static inline const struct span_base *span_offset_to_span_ptr(const struct pmemstream_data_runtime *data,
+							      uint64_t offset)
+{
+	assert(offset % sizeof(struct span_base) == 0);
+	return (const struct span_base *)pmemstream_offset_to_ptr(data, offset);
 }
 
 #ifdef __cplusplus
