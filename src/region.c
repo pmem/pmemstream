@@ -238,12 +238,19 @@ static void region_runtime_clear_from_tail(struct pmemstream *stream, struct pme
 	assert(region_runtime_get_state_acquire(region_runtime) == REGION_RUNTIME_STATE_DIRTY);
 
 	uint64_t append_offset = region_runtime_get_append_offset_acquire(region_runtime);
-	struct span_runtime region_rt = span_get_region_runtime(&stream->data, region.offset);
-	size_t region_end_offset = region.offset + region_rt.total_size;
+	const struct span_base *span_base = span_offset_to_span_ptr(&stream->data, region.offset);
+	size_t region_end_offset = region.offset + span_get_total_size(span_base);
 	size_t remaining_size = region_end_offset - append_offset;
 
 	if (remaining_size != 0) {
-		span_create_empty(&stream->data, append_offset, remaining_size - SPAN_EMPTY_METADATA_SIZE);
+		struct span_empty span_empty = {
+			.span_base = span_base_create(remaining_size - sizeof(span_empty), SPAN_EMPTY)};
+
+		uint8_t *destination = (uint8_t *)span_offset_to_span_ptr(&stream->data, append_offset);
+		stream->data.memcpy(destination, &span_empty, sizeof(span_empty), PMEM2_F_MEM_NOFLUSH);
+		stream->data.memset(destination + sizeof(span_empty), 0, remaining_size - sizeof(span_empty),
+				    PMEM2_F_MEM_NONTEMPORAL | PMEM2_F_MEM_NODRAIN);
+		stream->data.persist(destination, sizeof(span_empty));
 	}
 
 	__atomic_store_n(&region_runtime->state, REGION_RUNTIME_STATE_CLEAR, __ATOMIC_RELEASE);

@@ -106,7 +106,7 @@ int main(int argc, char *argv[])
 
 			const auto available_size = ALIGN_DOWN(
 				TEST_DEFAULT_STREAM_SIZE - std::max(STREAM_METADATA_SIZE, block_size), block_size);
-			RC_PRE(ALIGN_UP(region_size + SPAN_REGION_METADATA_SIZE, block_size) <= available_size);
+			RC_PRE(ALIGN_UP(region_size + sizeof(struct span_region), block_size) <= available_size);
 
 			auto stream = make_pmemstream(path, block_size, TEST_DEFAULT_STREAM_SIZE);
 			/* and initialize this stream with a single region of */

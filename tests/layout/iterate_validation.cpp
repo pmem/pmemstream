@@ -25,9 +25,9 @@ std::vector<uint64_t> generate_inconsistent_span(span_type stype)
 
 	size_t metadata_size = 0;
 	if (stype == SPAN_EMPTY) {
-		metadata_size = SPAN_EMPTY_METADATA_SIZE;
+		metadata_size = sizeof(struct span_empty);
 	} else if (stype == SPAN_ENTRY) {
-		metadata_size = SPAN_ENTRY_METADATA_SIZE;
+		metadata_size = sizeof(struct span_entry);
 	}
 
 	/* Use uint64_t to ensure proper alignment. */
