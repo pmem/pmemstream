@@ -55,6 +55,7 @@ endif()
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PMEMSTREAM_ROOT_DIR}/cmake)
 set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
 set(LIBPMEM2_REQUIRED_VERSION 1.10)
+set(MINIASYNC_REQUIRED_VERSION 0.1.0)
 # Only pmreorder in ver. >= 1.9 guarantees reliable output
 set(PMREORDER_REQUIRED_VERSION 1.9)
 
@@ -107,7 +108,7 @@ if(NOT WIN32)
 	find_package(PkgConfig QUIET)
 endif()
 
-# all our components require libpmem2
+# all our components require libpmem2 and libminiasync
 if(PKG_CONFIG_FOUND)
 	pkg_check_modules(LIBPMEM2 REQUIRED libpmem2>=${LIBPMEM2_REQUIRED_VERSION})
 else()
@@ -119,6 +120,18 @@ link_directories(${LIBPMEM2_LIBRARY_DIRS})
 list(APPEND PKG_CONFIG_REQUIRES "libpmem2 >= ${LIBPMEM2_REQUIRED_VERSION}")
 list(APPEND RPM_DEPENDS "libpmem2-devel >= ${LIBPMEM2_REQUIRED_VERSION}")
 list(APPEND DEB_DEPENDS "libpmem2-dev(>= ${LIBPMEM2_REQUIRED_VERSION})")
+
+if(PKG_CONFIG_FOUND)
+	pkg_check_modules(MINIASYNC REQUIRED libminiasync>=${MINIASYNC_REQUIRED_VERSION})
+else()
+	find_package(MINIASYNC REQUIRED ${MINIASYNC_REQUIRED_VERSION})
+endif()
+include_directories(${MINIASYNC_INCLUDE_DIRS})
+link_directories(${MINIASYNC_LIBRARY_DIRS})
+
+list(APPEND PKG_CONFIG_REQUIRES "libminiasync >= ${MINIASYNC_REQUIRED_VERSION}")
+list(APPEND RPM_DEPENDS "libminiasync-devel >= ${MINIASYNC_REQUIRED_VERSION}")
+list(APPEND DEB_DEPENDS "libminiasync-dev(>= ${MINIASYNC_REQUIRED_VERSION})")
 
 # Configure the ccache as compiler launcher
 find_program(CCACHE_FOUND ccache)
