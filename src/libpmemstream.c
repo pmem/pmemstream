@@ -334,3 +334,77 @@ int pmemstream_append(struct pmemstream *stream, struct pmemstream_region region
 
 	return 0;
 }
+
+static enum future_state pmemstream_append_async_impl(struct future_context *ctx, struct future_notifier *notifier)
+{
+	/* XXX: properly use/fix notifier */
+	if (notifier != NULL) {
+		notifier->notifier_used = FUTURE_NOTIFIER_NONE;
+	}
+
+	struct pmemstream_async_append_result *res = future_context_get_data(ctx);
+	struct pmemstream_async_append_output *out = future_context_get_output(ctx);
+
+	if (res->error_code != 0) {
+		out->error_code = res->error_code;
+		fprintf(stderr, "pmemstream_append_async_impl failed\n");
+		return FUTURE_STATE_COMPLETE;
+	}
+
+	struct pmemstream_async_append_data data = res->ctx;
+	/* XXX: use miniasync memcpy */
+	data.stream->data.memcpy(data.reserved_dest, data.data, data.size, PMEM2_F_MEM_NOFLUSH);
+	int ret = pmemstream_publish(data.stream, data.region, data.region_runtime, data.data, data.size,
+			   data.reserved_entry);
+
+	out->error_code = ret;
+	out->new_entry = data.reserved_entry;
+	printf("async append impl\n");
+
+	return FUTURE_STATE_COMPLETE;
+}
+
+// asynchronously appends data buffer to the end of the region
+struct pmemstream_append_future pmemstream_append_async(struct pmemstream *stream, struct pmemstream_region region,
+							 struct pmemstream_region_runtime *region_runtime,
+							 const void *data, size_t size,
+							 struct pmemstream_entry *new_entry)
+{
+	struct pmemstream_append_future future;
+	future.output.error_code = -1;
+	future.data.error_code = -1;
+
+	if (!region_runtime) {
+		int ret = pmemstream_region_runtime_initialize(stream, region, &region_runtime);
+		if (ret) {
+			return future;
+		}
+	}
+
+	struct pmemstream_entry reserved_entry;
+	void *reserved_dest;
+	int ret = pmemstream_reserve(stream, region, region_runtime, size, &reserved_entry, &reserved_dest);
+	if (ret) {
+		return future;
+	}
+
+	/* at this point, we should return no error code and a non-empty future */
+	future.data.error_code = 0;
+	future.data.ctx.stream = stream;
+	future.data.ctx.region = region;
+	future.data.ctx.region_runtime = region_runtime;
+	future.data.ctx.data = data;
+	future.data.ctx.size = size;
+	future.data.ctx.reserved_dest = reserved_dest;
+	future.data.ctx.reserved_entry = reserved_entry;
+
+	printf("async append\n");
+	FUTURE_INIT(&future, pmemstream_append_async_impl);
+
+	/* XXX use _output struct */
+	if (new_entry) {
+		new_entry->offset = reserved_entry.offset;
+	}
+
+	return future;
+}
