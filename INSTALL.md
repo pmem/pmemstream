@@ -16,6 +16,7 @@ In order to build libpmemstream, you need to have installed:
     * C compiler (e.g. `gcc`)
     * [CMake](https://cmake.org/) >= 3.16
 * **libpmem2-dev(el)**, which is part of [PMDK](https://github.com/pmem/pmdk) - Persistent Memory Development Kit 1.10
+* **miniasync** - [Mini Library for Asynchronous Programming](https://github.com/pmem/miniasync)
 * Used only for **testing**:
 	* C++ compiler (e.g. `g++`)
 	* [**valgrind**](https://github.com/pmem/valgrind) - tool for profiling and memory leak detection. *pmem* forked version with *pmemcheck*

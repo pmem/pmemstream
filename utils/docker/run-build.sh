@@ -238,6 +238,10 @@ function tests_package() {
 	compile_example_standalone 03_reserve_publish
 	run_binary_standalone 03_reserve_publish ${WORKDIR}/build/testfile2
 
+	echo "C++ example with async append:"
+	compile_example_standalone 04_basic_async
+	run_binary_standalone 04_basic_async ${WORKDIR}/build/testfile
+
 	echo "Basic append benchmark"
 	compile_benchmark_standalone append
 	run_binary_standalone benchmark-append --path ${WORKDIR}/build/testfile
