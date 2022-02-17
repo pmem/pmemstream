@@ -5,8 +5,9 @@
 #include "libpmemstream.h"
 
 #include <cassert>
-#include <cstdio>
 #include <cstring>
+#include <iostream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -30,13 +31,19 @@ void initialize_stream(const char *path, struct pmem2_map **map, struct pmemstre
 		       struct pmemstream_region *region)
 {
 	*map = example_map_open(path, EXAMPLE_STREAM_SIZE);
-	assert(*map != NULL);
+	if (*map == NULL) {
+		throw std::runtime_error("Error from example_map_open!");
+	}
 
 	int ret = pmemstream_from_map(stream, 4096, *map);
-	assert(ret == 0);
+	if (ret) {
+		throw std::runtime_error("Error from pmemstream_from_map!");
+	}
 
 	ret = pmemstream_region_allocate(*stream, 10240, region);
-	assert(ret == 0);
+	if (ret) {
+		throw std::runtime_error("Error from pmemstream_region_allocate!");
+	}
 }
 
 int verify_stream(pmemstream *stream, pmemstream_region region, data_entry my_entry)
@@ -44,20 +51,25 @@ int verify_stream(pmemstream *stream, pmemstream_region region, data_entry my_en
 	struct pmemstream_entry entry;
 	struct pmemstream_entry_iterator *eiter;
 	int ret = pmemstream_entry_iterator_new(&eiter, stream, region);
-	assert(ret == 0);
+	if (ret) {
+		throw std::runtime_error("Error from pmemstream_entry_iterator_new!");
+	}
 	ret = pmemstream_entry_iterator_next(eiter, NULL, &entry);
-	assert(ret == 0);
+	if (ret) {
+		throw std::runtime_error("Error from pmemstream_entry_iterator_next!");
+	}
 	pmemstream_entry_iterator_delete(&eiter);
 
 	auto read_data = reinterpret_cast<const data_entry *>(pmemstream_entry_data(stream, entry));
 	data_entry read_entry = *read_data;
 
 	if (read_entry != my_entry) {
-		printf("Stored entry (%lu) differs from original entry (%lu)\n", read_entry.data, my_entry.data);
+		std::cout << "Stored entry " << read_entry.data << " differs from original entry " << my_entry.data
+			  << std::endl;
 		return -1;
 	}
 
-	printf("Hooray, everything works fine\n");
+	std::cout << "Hooray, everything works fine" << std::endl;
 	return 0;
 }
 
@@ -70,7 +82,7 @@ int verify_stream(pmemstream *stream, pmemstream_region region, data_entry my_en
 int main(int argc, char *argv[])
 {
 	if (argc < 2) {
-		printf("Usage: %s file\n", argv[0]);
+		std::cout << "Usage: " << argv[0] << " file" << std::endl;
 		return -1;
 	}
 
@@ -78,7 +90,11 @@ int main(int argc, char *argv[])
 	struct pmem2_map *map;
 	struct pmemstream *stream;
 	struct pmemstream_region region;
-	initialize_stream(argv[1], &map, &stream, &region);
+	try {
+		initialize_stream(argv[1], &map, &stream, &region);
+	} catch (std::runtime_error &e) {
+		std::cout << e.what() << std::endl;
+	}
 
 	data_entry my_entry(42);
 
@@ -89,7 +105,7 @@ int main(int argc, char *argv[])
 	void *reserved_data;
 	int ret = pmemstream_reserve(stream, region, nullptr, sizeof(data_entry), &reserved_entry, &reserved_data);
 	if (ret != 0) {
-		fprintf(stderr, "pmemstream_reserve failed\n");
+		std::cerr << "pmemstream_reserve failed" << std::endl;
 		return ret;
 	}
 
@@ -104,12 +120,16 @@ int main(int argc, char *argv[])
 	/* And we have to publish, what we've written down. */
 	ret = pmemstream_publish(stream, region, nullptr, emplaced_data, sizeof(data_entry), &reserved_entry);
 	if (ret != 0) {
-		fprintf(stderr, "pmemstream_publish failed\n");
+		std::cerr << "pmemstream_publish failed" << std::endl;
 		return ret;
 	}
 
 	/* Now, we make sure the only entry is stored as expected. */
-	verify_stream(stream, region, my_entry);
+	try {
+		verify_stream(stream, region, my_entry);
+	} catch (std::runtime_error &e) {
+		std::cout << e.what() << std::endl;
+	}
 
 	/* Finally we have to clean up */
 	pmemstream_region_free(stream, region);
