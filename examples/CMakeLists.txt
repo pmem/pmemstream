@@ -31,12 +31,14 @@ endfunction()
 add_cppstyle(examples ${CMAKE_CURRENT_SOURCE_DIR}/*.[ch]
 					${CMAKE_CURRENT_SOURCE_DIR}/01_basic_iterate/*.[ch]
 					${CMAKE_CURRENT_SOURCE_DIR}/02_visual_iterator/*.[ch]pp
-					${CMAKE_CURRENT_SOURCE_DIR}/03_reserve_publish/*.[ch]pp)
+					${CMAKE_CURRENT_SOURCE_DIR}/03_reserve_publish/*.[ch]pp
+					${CMAKE_CURRENT_SOURCE_DIR}/04_basic_async/*.[ch]pp)
 
 add_check_whitespace(examples ${CMAKE_CURRENT_SOURCE_DIR}/*.*
 							${CMAKE_CURRENT_SOURCE_DIR}/01_basic_iterate/*.*
 							${CMAKE_CURRENT_SOURCE_DIR}/02_visual_iterator/*.*
-							${CMAKE_CURRENT_SOURCE_DIR}/03_reserve_publish/*.*)
+							${CMAKE_CURRENT_SOURCE_DIR}/03_reserve_publish/*.*
+							${CMAKE_CURRENT_SOURCE_DIR}/04_basic_async/*.*)
 
 # ----------------------------------------------------------------- #
 ## Add examples
@@ -49,3 +51,6 @@ target_link_libraries(example-02_visual_iterator ${LIBPMEM2_LIBRARIES})
 
 add_example(03_reserve_publish 03_reserve_publish/main.cpp)
 target_link_libraries(example-03_reserve_publish ${LIBPMEM2_LIBRARIES})
+
+add_example(04_basic_async 04_basic_async/main.cpp)
+target_link_libraries(example-04_basic_async ${LIBPMEM2_LIBRARIES} ${MINIASYNC_LIBRARIES})
