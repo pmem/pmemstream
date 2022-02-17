@@ -56,8 +56,7 @@ int entry_iterator_initialize(struct pmemstream_entry_iterator *iterator, struct
 			      struct pmemstream_region region,
 			      region_runtime_initialize_fn_type region_runtime_initialize_fn)
 {
-	const struct span_base *span_base = span_offset_to_span_ptr(&stream->data, region.offset);
-	assert(span_get_type(span_base) == SPAN_REGION);
+	assert(span_get_type(span_offset_to_span_ptr(&stream->data, region.offset)) == SPAN_REGION);
 
 	struct pmemstream_region_runtime *region_rt;
 	int ret = region_runtimes_map_get_or_create(stream->region_runtimes_map, region, &region_rt);
@@ -116,12 +115,14 @@ static int validate_entry(const struct pmemstream *stream, struct pmemstream_ent
 	return -1;
 }
 
+#ifndef NDEBUG
 static bool pmemstream_entry_iterator_offset_is_inside_region(struct pmemstream_entry_iterator *iterator)
 {
 	const struct span_base *span_base = span_offset_to_span_ptr(&iterator->stream->data, iterator->region.offset);
 	uint64_t region_end_offset = iterator->region.offset + span_get_total_size(span_base);
 	return iterator->offset >= iterator->region.offset && iterator->offset <= region_end_offset;
 }
+#endif
 
 /* Precondition: region_runtime is initialized. */
 static bool pmemstream_entry_iterator_offset_is_below_committed(struct pmemstream_entry_iterator *iterator)
