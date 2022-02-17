@@ -18,6 +18,7 @@ LIBPMEMSTREAM_1.0 {
 		pmemstream_region_iterator_next;
 		pmemstream_region_size;
 		pmemstream_append;
+		pmemstream_append_async;
 		pmemstream_publish;
 		pmemstream_reserve;
 		pmemstream_region_allocate;
