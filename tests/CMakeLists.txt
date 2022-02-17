@@ -183,10 +183,12 @@ if(BUILD_EXAMPLES)
 	add_dependencies(tests
 				example-01_basic_iterate
 				example-02_visual_iterator
-				example-03_reserve_publish)
+				example-03_reserve_publish
+				example-04_basic_async)
 	add_test_generic(NAME example-01_basic_iterate TRACERS none)
 	add_test_generic(NAME example-02_visual_iterator TRACERS none)
 	add_test_generic(NAME example-03_reserve_publish TRACERS none)
+	add_test_generic(NAME example-04_basic_async TRACERS none)
 endif()
 
 # ----------------------------------------------------------------- #

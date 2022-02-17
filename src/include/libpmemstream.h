@@ -6,6 +6,11 @@
 #ifndef LIBPMEMSTREAM_H
 #define LIBPMEMSTREAM_H
 
+/*
+ * XXX: put async functions into separate file...?
+ * We wouldn't require then, miniasync installation everytime.
+ */
+#include <libminiasync.h>
 #include <libpmem2.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -27,6 +32,35 @@ struct pmemstream_region {
 struct pmemstream_entry {
 	uint64_t offset;
 };
+
+/* async append data, filled with data from user and from pmemstream_reserve */
+struct pmemstream_async_append_data {
+	struct pmemstream *stream;
+	struct pmemstream_region region;
+	struct pmemstream_region_runtime *region_runtime;
+	const void *data;
+	size_t size;
+	void *reserved_dest;
+	struct pmemstream_entry reserved_entry;
+};
+
+/*
+ * A helper wrapper, for returning errors;
+ * on success (error_code = 0) future can be safely used.
+ */
+struct pmemstream_async_append_result {
+	int error_code;
+	struct pmemstream_async_append_data ctx;
+};
+
+/* async append returns new entry's offset on success (error_code = 0) */
+struct pmemstream_async_append_output {
+	int error_code;
+	struct pmemstream_entry new_entry;
+};
+
+/* XXX: we can split this into 'commit' & 'persist' futures */
+FUTURE(pmemstream_append_future, struct pmemstream_async_append_result, struct pmemstream_async_append_output);
 
 // manages lifecycle of the stream. Can be based on top of a raw pmem2_map
 // or a pmemset (TBD).
@@ -90,6 +124,11 @@ int pmemstream_publish(struct pmemstream *stream, struct pmemstream_region regio
 int pmemstream_append(struct pmemstream *stream, struct pmemstream_region region,
 		      struct pmemstream_region_runtime *region_runtime, const void *data, size_t size,
 		      struct pmemstream_entry *new_entry);
+
+/* asynchronous append, using libminiasync */
+struct pmemstream_append_future pmemstream_append_async(struct pmemstream *stream, struct pmemstream_region region,
+							struct pmemstream_region_runtime *region_runtime,
+							const void *data, size_t size);
 
 // returns pointer to the data of the entry
 const void *pmemstream_entry_data(struct pmemstream *stream, struct pmemstream_entry entry);
