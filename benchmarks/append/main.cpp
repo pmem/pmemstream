@@ -249,7 +249,7 @@ class pmemstream_workload : public benchmark::workload_base {
 	config cfg;
 	struct pmemstream_region region;
 	pmemstream_region_runtime *region_runtime_ptr = nullptr;
-	std::unique_ptr<struct pmemstream, std::function<void(struct pmemstream *)>> stream;
+	std::shared_ptr<struct pmemstream> stream;
 };
 
 int main(int argc, char *argv[])
