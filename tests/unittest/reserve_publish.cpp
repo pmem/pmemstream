@@ -24,35 +24,39 @@ int main(int argc, char *argv[])
 
 	auto path = std::string(argv[1]);
 
-	return run_test([&] {
+	struct test_config_type test_config;
+	test_config.filename = std::string(argv[1]);
+
+	return run_test(test_config, [&] {
 		return_check ret;
 
-		ret += rc::check(
-			"verify if mixing reserve+publish with append works fine",
-			[&](const std::vector<std::string> &data, const std::vector<std::string> &extra_data,
-			    const bool use_append, const bool is_runtime_initialized) {
-				auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE, TEST_DEFAULT_STREAM_SIZE);
-				auto region =
-					initialize_stream_single_region(stream.get(), TEST_DEFAULT_REGION_SIZE, data);
-				verify(stream.get(), region, data, {});
+		ret += rc::check("verify if mixing reserve+publish with append works fine",
+				 [&](const std::vector<std::string> &data, const std::vector<std::string> &extra_data,
+				     const bool use_append, const bool is_runtime_initialized) {
+					 pmemstream_sut stream(path, TEST_DEFAULT_BLOCK_SIZE, TEST_DEFAULT_STREAM_SIZE);
+					 auto region = stream.helpers.initialize_single_region(TEST_DEFAULT_REGION_SIZE,
+											       data);
+					 stream.helpers.verify(region, data, {});
 
-				if (use_append) {
-					append(stream.get(), region, nullptr, extra_data);
-				} else {
-					reserve_and_publish(stream.get(), region, is_runtime_initialized, extra_data);
-				}
+					 if (use_append) {
+						 stream.helpers.append(region, extra_data);
+					 } else {
+						 if (!is_runtime_initialized)
+							 stream.helpers.region_runtime_initialize(region);
 
-				/* add one more "regular" append */
-				std::vector<std::string> my_data(extra_data);
-				my_data.emplace_back(1024, 'Z');
-				const auto extra_entry = my_data.back();
-				int ret = pmemstream_append(stream.get(), region, nullptr, extra_entry.data(),
-							    extra_entry.size(), nullptr);
-				UT_ASSERTeq(ret, 0);
-				verify(stream.get(), region, data, my_data);
+						 stream.helpers.reserve_and_publish(region, extra_data);
+					 }
 
-				UT_ASSERTeq(pmemstream_region_free(stream.get(), region), 0);
-			});
+					 /* add one more "regular" append */
+					 std::vector<std::string> my_data(extra_data);
+					 my_data.emplace_back(1024, 'Z');
+					 const auto extra_entry = my_data.back();
+					 auto [ret, new_entry] = stream.append(region, extra_entry);
+					 UT_ASSERTeq(ret, 0);
+					 stream.helpers.verify(region, data, my_data);
+
+					 UT_ASSERTeq(stream.region_free(region), 0);
+				 });
 
 		ret += rc::check(
 			"verify if reserve+publish by hand will behave the same as regular append",
@@ -60,58 +64,50 @@ int main(int argc, char *argv[])
 				/* regular append of 'data' */
 				std::vector<std::string> a_data;
 				{
-					auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE,
-								      TEST_DEFAULT_STREAM_SIZE);
-					auto region = initialize_stream_single_region(stream.get(),
-										      TEST_DEFAULT_REGION_SIZE, data);
-					verify(stream.get(), region, data, {});
-					a_data = get_elements_in_region(stream.get(), region);
+					pmemstream_sut stream(path, TEST_DEFAULT_BLOCK_SIZE, TEST_DEFAULT_STREAM_SIZE);
+					auto region =
+						stream.helpers.initialize_single_region(TEST_DEFAULT_REGION_SIZE, data);
+					stream.helpers.verify(region, data, {});
+					a_data = stream.helpers.get_elements_in_region(region);
 
-					UT_ASSERTeq(pmemstream_region_free(stream.get(), region), 0);
+					UT_ASSERTeq(stream.region_free(region), 0);
 				}
 				/* publish-reserve by hand of the same 'data' (in a different file) */
 				std::vector<std::string> rp_data;
 				{
-					auto stream = make_pmemstream(path + "_2", TEST_DEFAULT_BLOCK_SIZE,
-								      TEST_DEFAULT_STREAM_SIZE);
-					auto region = initialize_stream_single_region(stream.get(),
-										      TEST_DEFAULT_REGION_SIZE, {});
-					reserve_and_publish(stream.get(), region, is_runtime_initialized, data);
-					rp_data = get_elements_in_region(stream.get(), region);
+					pmemstream_sut stream(path + "_2", TEST_DEFAULT_BLOCK_SIZE,
+							      TEST_DEFAULT_STREAM_SIZE);
+					auto region =
+						stream.helpers.initialize_single_region(TEST_DEFAULT_REGION_SIZE, {});
+					if (!is_runtime_initialized)
+						stream.helpers.region_runtime_initialize(region);
+					stream.helpers.reserve_and_publish(region, data);
+					rp_data = stream.helpers.get_elements_in_region(region);
 
 					UT_ASSERT(std::equal(a_data.begin(), a_data.end(), rp_data.begin(),
 							     rp_data.end()));
 
-					UT_ASSERTeq(pmemstream_region_free(stream.get(), region), 0);
+					UT_ASSERTeq(stream.region_free(region), 0);
 				}
 			});
 
 		ret += rc::check("verify if not calling publish does not result in data being visible",
 				 [&](const std::vector<std::string> &data, const std::string &extra_entry) {
-					 pmemstream_region region;
-					 {
-						 auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE,
-									       TEST_DEFAULT_STREAM_SIZE);
-						 region = initialize_stream_single_region(
-							 stream.get(), TEST_DEFAULT_REGION_SIZE, data);
+					 pmemstream_sut stream(path, TEST_DEFAULT_BLOCK_SIZE, TEST_DEFAULT_STREAM_SIZE);
+					 pmemstream_region region = stream.helpers.initialize_single_region(
+						 TEST_DEFAULT_REGION_SIZE, data);
 
-						 void *reserved_data;
-						 pmemstream_entry reserved_entry;
-						 int ret = pmemstream_reserve(stream.get(), region, nullptr,
-									      extra_entry.size(), &reserved_entry,
-									      &reserved_data);
-						 UT_ASSERTeq(ret, 0);
+					 auto [ret, reserved_entry, reserved_data] =
+						 stream.reserve(region, extra_entry.size());
+					 UT_ASSERTeq(ret, 0);
 
-						 std::memcpy(reinterpret_cast<char *>(reserved_data),
-							     extra_entry.data(), extra_entry.size());
-						 stream->data.persist(reserved_data, extra_entry.size());
-						 verify(stream.get(), region, data, {});
-					 }
-					 {
-						 auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE,
-									       TEST_DEFAULT_STREAM_SIZE, false);
-						 verify(stream.get(), region, data, {});
-					 }
+					 std::memcpy(reinterpret_cast<char *>(reserved_data), extra_entry.data(),
+						     extra_entry.size());
+					 stream.helpers.verify(region, data, {});
+
+					 stream.reopen();
+
+					 stream.helpers.verify(region, data, {});
 				 });
 	});
 }

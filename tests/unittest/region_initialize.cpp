@@ -26,7 +26,10 @@ int main(int argc, char *argv[])
 
 	auto path = std::string(argv[1]);
 
-	return run_test([&] {
+	struct test_config_type test_config;
+	test_config.filename = std::string(argv[1]);
+
+	return run_test(test_config, [&] {
 		{
 			auto region_runtimes_map = make_region_runtimes_map();
 

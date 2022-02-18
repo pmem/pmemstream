@@ -17,7 +17,7 @@
 
 #include "measure.hpp"
 /* XXX: Change this header when make_pmemstream moved to public API */
-#include "unittest.hpp"
+#include "stream_helpers.hpp"
 
 #include <libpmemlog.h>
 
