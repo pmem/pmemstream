@@ -16,7 +16,7 @@ static constexpr size_t num_repeats = 1000;
 auto make_region_runtimes_map = make_instance_ctor(region_runtimes_map_new, region_runtimes_map_destroy);
 } // namespace
 
-/* XXX: create similar test for region_runtime_initialize_clear_locked */
+/* XXX: create similar test for region_runtime_initialize_for_write_locked */
 int main(int argc, char *argv[])
 {
 	if (argc != 2) {
@@ -46,10 +46,10 @@ int main(int argc, char *argv[])
 
 					syncthreads();
 
-					region_runtime_initialize_dirty_locked(region_runtime, entry);
+					region_runtime_initialize_for_read_locked(region_runtime, entry);
 
 					UT_ASSERTeq(region_runtime_get_state_acquire(region_runtime),
-						    REGION_RUNTIME_STATE_DIRTY);
+						    REGION_RUNTIME_STATE_READ_READY);
 				} else {
 					syncthreads();
 
@@ -58,7 +58,7 @@ int main(int argc, char *argv[])
 							REGION_RUNTIME_STATE_UNINITIALIZED;
 						if (initialized) {
 							UT_ASSERTeq(region_runtime_get_state_acquire(region_runtime),
-								    REGION_RUNTIME_STATE_DIRTY);
+								    REGION_RUNTIME_STATE_READ_READY);
 							auto append_offset = region_runtime_get_append_offset_acquire(
 								region_runtime);
 							auto committed_offset =
@@ -71,7 +71,7 @@ int main(int argc, char *argv[])
 				}
 			});
 
-			UT_ASSERTeq(region_runtime_get_state_acquire(region_runtime), REGION_RUNTIME_STATE_DIRTY);
+			UT_ASSERTeq(region_runtime_get_state_acquire(region_runtime), REGION_RUNTIME_STATE_READ_READY);
 
 			region_runtimes_map_remove(region_runtimes_map.get(), region);
 		}

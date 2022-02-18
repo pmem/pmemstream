@@ -235,7 +235,7 @@ int pmemstream_region_runtime_initialize(struct pmemstream *stream, struct pmems
 
 	assert(*region_runtime);
 
-	return region_runtime_initialize_clear_locked(stream, region, *region_runtime);
+	return region_runtime_initialize_for_write_locked(stream, region, *region_runtime);
 }
 
 static size_t pmemstream_entry_total_size_aligned(size_t size)
