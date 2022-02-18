@@ -61,39 +61,37 @@ int main(int argc, char *argv[])
 		ret += rc::check(
 			"verify if stream does not treat inconsistent spans as valid entries",
 			[&](const std::vector<std::string> &data, bool entry_span) {
-				pmemstream_region region;
 				{
-					auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE,
-								      TEST_DEFAULT_STREAM_SIZE);
-					region = initialize_stream_single_region(stream.get(), TEST_DEFAULT_REGION_SIZE,
-										 data);
+					RC_PRE(data.size() > 0);
+
+					pmemstream_sut stream(path, TEST_DEFAULT_BLOCK_SIZE, TEST_DEFAULT_STREAM_SIZE);
+					auto region =
+						stream.helpers.initialize_single_region(TEST_DEFAULT_REGION_SIZE, data);
 
 					std::vector<std::string> result;
 
-					struct pmemstream_entry_iterator *eiter;
-					UT_ASSERTeq(pmemstream_entry_iterator_new(&eiter, stream.get(), region), 0);
-
+					auto eiter = stream.entry_iterator(region);
 					struct pmemstream_entry entry;
-					while (pmemstream_entry_iterator_next(eiter, nullptr, &entry) == 0) {
-						/* NOP */
+					char *base_ptr = nullptr;
+					while (pmemstream_entry_iterator_next(eiter.get(), nullptr, &entry) == 0) {
+						if (!base_ptr) {
+							auto ptr = stream.get_entry(entry).data() - entry.offset;
+							base_ptr = const_cast<char *>(ptr);
+						}
 					}
 
-					pmemstream_entry_iterator_delete(&eiter);
 					/* This pointer is not safe to read - it points to uninitialized data */
-					auto data_ptr = reinterpret_cast<char *>(stream->data.spans) + entry.offset;
-
+					auto data_ptr = base_ptr + entry.offset;
 					auto partial_span =
 						generate_inconsistent_span(entry_span ? SPAN_ENTRY : SPAN_EMPTY);
 					auto partial_span_ptr = reinterpret_cast<char *>(partial_span.data());
 					std::memcpy(static_cast<char *>(data_ptr), partial_span_ptr,
 						    partial_span.size() * sizeof(partial_span[0]));
-				}
-				{
-					auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE,
-								      TEST_DEFAULT_STREAM_SIZE, false);
-					auto stream_data = get_elements_in_region(stream.get(), region);
+
+					stream.reopen();
+
+					auto stream_data = stream.helpers.get_elements_in_region(region);
 					UT_ASSERT(std::equal(data.begin(), data.end(), stream_data.begin()));
-					UT_ASSERTeq(pmemstream_region_free(stream.get(), region), 0);
 				}
 			});
 	});

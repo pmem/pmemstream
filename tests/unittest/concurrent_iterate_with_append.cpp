@@ -17,30 +17,25 @@ static constexpr size_t region_size = stream_size - STREAM_METADATA_SIZE;
 
 namespace
 {
-void concurrent_iterate_verify(pmemstream *stream, pmemstream_region region, const std::vector<std::string> &data,
+void concurrent_iterate_verify(pmemstream_sut &stream, pmemstream_region region, const std::vector<std::string> &data,
 			       const std::vector<std::string> &extra_data)
 {
 	std::vector<std::string> result;
 
-	struct pmemstream_entry_iterator *eiter;
-	UT_ASSERTeq(pmemstream_entry_iterator_new(&eiter, stream, region), 0);
-
+	auto eiter = stream.entry_iterator(region);
 	struct pmemstream_entry entry;
 
 	/* Loop until all entries are found. */
 	while (result.size() < data.size() + extra_data.size()) {
-		int next = pmemstream_entry_iterator_next(eiter, NULL, &entry);
+		int next = pmemstream_entry_iterator_next(eiter.get(), NULL, &entry);
 		if (next == 0) {
-			auto data_ptr = reinterpret_cast<const char *>(pmemstream_entry_data(stream, entry));
-			result.emplace_back(data_ptr, pmemstream_entry_length(stream, entry));
+			result.emplace_back(stream.get_entry(entry));
 		}
 	}
 
 	UT_ASSERT(std::equal(data.begin(), data.end(), result.begin()));
 	UT_ASSERT(
 		std::equal(extra_data.begin(), extra_data.end(), result.begin() + static_cast<long long>(data.size())));
-
-	pmemstream_entry_iterator_delete(&eiter);
 }
 } // namespace
 
@@ -64,22 +59,20 @@ int main(int argc, char *argv[])
 		ret += rc::check(
 			"verify if iterators concurrent to append work do not return garbage (no preinitialization)",
 			[&](std::vector<std::string> &&extra_data, bool use_region_runtime) {
-				auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE, stream_size);
-				auto region = initialize_stream_single_region(stream.get(), region_size, {});
+				pmemstream_sut stream(path, TEST_DEFAULT_BLOCK_SIZE, stream_size);
+				auto region = stream.helpers.initialize_single_region(region_size, {});
 
 				parallel_exec(concurrency, [&](size_t tid) {
 					if (tid == 0) {
 						/* appender */
-						pmemstream_region_runtime *region_runtime = nullptr;
 						if (use_region_runtime) {
-							pmemstream_region_runtime_initialize(stream.get(), region,
-											     &region_runtime);
+							stream.region_runtime_initialize(region);
 						}
-						append(stream.get(), region, region_runtime, extra_data);
-						verify(stream.get(), region, extra_data, {});
+						stream.helpers.append(region, extra_data);
+						stream.helpers.verify(region, extra_data, {});
 					} else {
 						/* iterators */
-						concurrent_iterate_verify(stream.get(), region, extra_data, {});
+						concurrent_iterate_verify(stream, region, extra_data, {});
 					}
 				});
 			});
@@ -87,53 +80,47 @@ int main(int argc, char *argv[])
 		ret += rc::check("verify if iterators concurrent to append work do not return garbage",
 				 [&](const std::vector<std::string> &data, const std::vector<std::string> &extra_data,
 				     bool use_region_runtime) {
-					 auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE, stream_size);
-					 auto region = initialize_stream_single_region(stream.get(), region_size, data);
+					 pmemstream_sut stream(path, TEST_DEFAULT_BLOCK_SIZE, stream_size);
+					 auto region = stream.helpers.initialize_single_region(region_size, data);
 
 					 parallel_exec(concurrency, [&](size_t tid) {
 						 if (tid == 0) {
 							 /* appender */
-							 pmemstream_region_runtime *region_runtime = nullptr;
 							 if (use_region_runtime) {
-								 pmemstream_region_runtime_initialize(
-									 stream.get(), region, &region_runtime);
+								 stream.region_runtime_initialize(region);
 							 }
-							 append(stream.get(), region, region_runtime, extra_data);
-							 verify(stream.get(), region, data, extra_data);
+							 stream.helpers.append(region, extra_data);
+							 stream.helpers.verify(region, data, extra_data);
 						 } else {
 							 /* iterators */
-							 concurrent_iterate_verify(stream.get(), region, data,
-										   extra_data);
+							 concurrent_iterate_verify(stream, region, data, extra_data);
 						 }
 					 });
 				 });
 
-		ret += rc::check(
-			"verify if iterators concurrent to append work do not return garbage after reopen",
-			[&](const std::vector<std::string> &data, const std::vector<std::string> &extra_data,
-			    bool use_region_runtime) {
-				pmemstream_region region;
-				{
-					auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE, stream_size);
-					region = initialize_stream_single_region(stream.get(), region_size, data);
-				}
+		ret += rc::check("verify if iterators concurrent to append work do not return garbage after reopen",
+				 [&](const std::vector<std::string> &data, const std::vector<std::string> &extra_data,
+				     bool use_region_runtime) {
+					 pmemstream_region region;
+					 {
+						 pmemstream_sut stream(path, TEST_DEFAULT_BLOCK_SIZE, stream_size);
+						 region = stream.helpers.initialize_single_region(region_size, data);
+					 }
 
-				auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE, stream_size, false);
-				parallel_exec(concurrency, [&](size_t tid) {
-					if (tid == 0) {
-						/* appender */
-						pmemstream_region_runtime *region_runtime = nullptr;
-						if (use_region_runtime) {
-							pmemstream_region_runtime_initialize(stream.get(), region,
-											     &region_runtime);
-						}
-						append(stream.get(), region, region_runtime, extra_data);
-						verify(stream.get(), region, data, extra_data);
-					} else {
-						/* iterators */
-						concurrent_iterate_verify(stream.get(), region, data, extra_data);
-					}
-				});
-			});
+					 pmemstream_sut stream(path, TEST_DEFAULT_BLOCK_SIZE, stream_size, false);
+					 parallel_exec(concurrency, [&](size_t tid) {
+						 if (tid == 0) {
+							 /* appender */
+							 if (use_region_runtime) {
+								 stream.region_runtime_initialize(region);
+							 }
+							 stream.helpers.append(region, extra_data);
+							 stream.helpers.verify(region, data, extra_data);
+						 } else {
+							 /* iterators */
+							 concurrent_iterate_verify(stream, region, data, extra_data);
+						 }
+					 });
+				 });
 	});
 }

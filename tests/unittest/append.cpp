@@ -26,129 +26,108 @@ int main(int argc, char *argv[])
 		 * 3. Append extra_data to the end.
 		 * 4. Verify that all data matches.
 		 */
-		ret += rc::check(
-			"verify if iteration return proper elements after append",
-			[&](const std::vector<std::string> &data, const std::vector<std::string> &extra_data) {
-				auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE, TEST_DEFAULT_STREAM_SIZE);
-				auto region =
-					initialize_stream_single_region(stream.get(), TEST_DEFAULT_REGION_SIZE, data);
-				verify(stream.get(), region, data, {});
-				append(stream.get(), region, NULL, extra_data);
-				verify(stream.get(), region, data, extra_data);
-				UT_ASSERTeq(pmemstream_region_free(stream.get(), region), 0);
-			});
+		ret += rc::check("verify if iteration return proper elements after append",
+				 [&](const std::vector<std::string> &data, const std::vector<std::string> &extra_data) {
+					 pmemstream_sut stream(path, TEST_DEFAULT_BLOCK_SIZE, TEST_DEFAULT_STREAM_SIZE);
+					 auto region = stream.helpers.initialize_single_region(TEST_DEFAULT_REGION_SIZE,
+											       data);
+					 stream.helpers.verify(region, data, {});
+					 stream.helpers.append(region, extra_data);
+					 stream.helpers.verify(region, data, extra_data);
+				 });
 
 		/* verify if an entry of size = 0 can be appended and entry with size > region's size cannot */
 		{
 			const size_t max_size = 1024UL;
-			auto stream = make_pmemstream(path, max_size, TEST_DEFAULT_STREAM_SIZE);
-			auto region = initialize_stream_single_region(stream.get(), max_size, {});
-			verify(stream.get(), region, {}, {});
+			pmemstream_sut stream(path, max_size, TEST_DEFAULT_STREAM_SIZE);
+			auto region = stream.helpers.initialize_single_region(max_size, {});
+			stream.helpers.verify(region, {}, {});
 
 			/* append an entry with size = 0 */
 			std::string entry;
-			auto ret =
-				pmemstream_append(stream.get(), region, nullptr, entry.data(), entry.size(), nullptr);
+			auto [ret, new_entry] = stream.append(region, entry);
 			UT_ASSERTeq(ret, 0);
-			verify(stream.get(), region, {entry}, {});
+			stream.helpers.verify(region, {entry}, {});
 
 			/* and try to append entry with size bigger than region's size */
 			entry = std::string(max_size * 2, 'W');
-			ret = pmemstream_append(stream.get(), region, nullptr, entry.data(), entry.size(), nullptr);
+			std::tie(ret, new_entry) = stream.append(region, entry);
 			UT_ASSERTeq(ret, -1);
-
-			UT_ASSERTeq(pmemstream_region_free(stream.get(), region), 0);
 		}
 
-		ret += rc::check(
-			"verify if appending entry of size = 0 and invalid address do not cause segfault",
-			[&](const uintptr_t &invalid_data_address) {
-				auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE, TEST_DEFAULT_STREAM_SIZE);
-				auto region =
-					initialize_stream_single_region(stream.get(), TEST_DEFAULT_REGION_SIZE, {});
-				verify(stream.get(), region, {}, {});
+		ret += rc::check("verify if appending entry of size = 0 and invalid address do not cause segfault",
+				 [&](const uintptr_t &invalid_data_address) {
+					 pmemstream_sut stream(path, TEST_DEFAULT_BLOCK_SIZE, TEST_DEFAULT_STREAM_SIZE);
+					 auto region =
+						 stream.helpers.initialize_single_region(TEST_DEFAULT_REGION_SIZE, {});
+					 stream.helpers.verify(region, {}, {});
 
-				/* append an entry with size = 0 and invalid address */
-				std::string entry;
+					 /* append an entry with size = 0 and invalid address */
+					 std::string entry;
 
-				auto invalid_data_ptr = reinterpret_cast<void *>(invalid_data_address);
-				auto ret =
-					pmemstream_append(stream.get(), region, nullptr, invalid_data_ptr, 0, nullptr);
-				UT_ASSERTeq(ret, 0);
-				verify(stream.get(), region, {entry}, {});
-			});
+					 auto invalid_data_ptr = reinterpret_cast<char *>(invalid_data_address);
+					 auto [ret, new_entry] =
+						 stream.append(region, std::string_view(invalid_data_ptr, 0));
+					 UT_ASSERTeq(ret, 0);
+					 stream.helpers.verify(region, {entry}, {});
+				 });
 
 		ret += rc::check("verify append will work until OOM", [&]() {
-			auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE, TEST_DEFAULT_STREAM_SIZE);
-			auto region = initialize_stream_single_region(stream.get(), TEST_DEFAULT_REGION_SIZE, {});
+			pmemstream_sut stream(path, TEST_DEFAULT_BLOCK_SIZE, TEST_DEFAULT_STREAM_SIZE);
+			auto region = stream.helpers.initialize_single_region(TEST_DEFAULT_REGION_SIZE, {});
 
 			size_t elems = 10;
 			const size_t e_size = TEST_DEFAULT_REGION_SIZE / elems - TEST_DEFAULT_BLOCK_SIZE;
 			std::string e = *rc::gen::container<std::string>(e_size, rc::gen::character<char>());
 
-			struct pmemstream_entry ne = {0}, prev_ne = {0};
+			struct pmemstream_entry prev_ne = {0};
 			while (elems-- > 0) {
-				auto ret = pmemstream_append(stream.get(), region, nullptr, e.data(), e.size(), &ne);
+				auto [ret, new_entry] = stream.append(region, e);
 				UT_ASSERTeq(ret, 0);
-				UT_ASSERT(ne.offset > prev_ne.offset);
-				prev_ne = ne;
+				UT_ASSERT(new_entry.offset > prev_ne.offset);
+				prev_ne = new_entry;
 			}
 			/* next append should not fit */
-			auto ret = pmemstream_append(stream.get(), region, nullptr, e.data(), e.size(), &ne);
-			UT_ASSERTeq(ne.offset, prev_ne.offset);
+			auto [ret, new_entry] = stream.append(region, e);
+			UT_ASSERTeq(new_entry.offset, prev_ne.offset);
 			/* XXX: should be updated with the real error code, when available */
 			UT_ASSERTeq(ret, -1);
 			e.resize(4);
 			/* ... but smaller entry should fit just in */
-			ret = pmemstream_append(stream.get(), region, nullptr, e.data(), e.size(), &ne);
-			UT_ASSERT(ne.offset > prev_ne.offset);
+			std::tie(ret, new_entry) = stream.append(region, e);
+			UT_ASSERT(new_entry.offset > prev_ne.offset);
 			UT_ASSERTeq(ret, 0);
 
-			UT_ASSERTeq(pmemstream_region_free(stream.get(), region), 0);
+			UT_ASSERTeq(stream.region_free(region), 0);
 		});
 
 		ret += rc::check("verify if iteration return proper elements after pmemstream reopen",
 				 [&](const std::vector<std::string> &data, const std::vector<std::string> &extra_data) {
-					 pmemstream_region region;
-					 {
-						 auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE,
-									       TEST_DEFAULT_STREAM_SIZE);
-						 region = initialize_stream_single_region(
-							 stream.get(), TEST_DEFAULT_REGION_SIZE, data);
-						 verify(stream.get(), region, data, {});
-					 }
-					 {
-						 auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE,
-									       TEST_DEFAULT_STREAM_SIZE, false);
-						 verify(stream.get(), region, data, {});
-						 UT_ASSERTeq(pmemstream_region_free(stream.get(), region), 0);
-					 }
+					 pmemstream_sut stream(path, TEST_DEFAULT_BLOCK_SIZE, TEST_DEFAULT_STREAM_SIZE);
+					 pmemstream_region region = stream.helpers.initialize_single_region(
+						 TEST_DEFAULT_REGION_SIZE, data);
+					 stream.helpers.verify(region, data, {});
+					 stream.reopen();
+					 stream.helpers.verify(region, data, {});
+					 UT_ASSERTeq(stream.region_free(region), 0);
 				 });
 
 		ret += rc::check("verify if iteration return proper elements after append after pmemstream reopen",
 				 [&](const std::vector<std::string> &data, const std::vector<std::string> &extra_data,
 				     bool user_created_runtime) {
-					 pmemstream_region region;
-					 {
-						 auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE,
-									       TEST_DEFAULT_STREAM_SIZE);
-						 region = initialize_stream_single_region(
-							 stream.get(), TEST_DEFAULT_REGION_SIZE, data);
-						 verify(stream.get(), region, data, {});
-					 }
-					 {
-						 auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE,
-									       TEST_DEFAULT_STREAM_SIZE, false);
-						 pmemstream_region_runtime *runtime = NULL;
-						 if (user_created_runtime) {
-							 pmemstream_region_runtime_initialize(stream.get(), region,
-											      &runtime);
-						 }
+					 pmemstream_sut stream(path, TEST_DEFAULT_BLOCK_SIZE, TEST_DEFAULT_STREAM_SIZE);
+					 pmemstream_region region = stream.helpers.initialize_single_region(
+						 TEST_DEFAULT_REGION_SIZE, data);
+					 stream.helpers.verify(region, data, {});
+					 stream.reopen();
 
-						 append(stream.get(), region, runtime, extra_data);
-						 verify(stream.get(), region, data, extra_data);
-						 UT_ASSERTeq(pmemstream_region_free(stream.get(), region), 0);
+					 if (user_created_runtime) {
+						 stream.region_runtime_initialize(region);
 					 }
+
+					 stream.helpers.append(region, extra_data);
+					 stream.helpers.verify(region, data, extra_data);
+					 UT_ASSERTeq(stream.region_free(region), 0);
 				 });
 	});
 }

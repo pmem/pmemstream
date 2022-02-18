@@ -105,27 +105,6 @@ struct return_check {
 	bool status = true;
 };
 
-std::unique_ptr<struct pmemstream, std::function<void(struct pmemstream *)>>
-make_pmemstream(const std::string &file, size_t block_size, size_t size, bool truncate = true)
-{
-	struct pmem2_map *map = map_open(file.c_str(), size, truncate);
-	if (map == NULL) {
-		throw std::runtime_error(pmem2_errormsg());
-	}
-
-	auto map_delete = [](struct pmem2_map *map) { pmem2_map_delete(&map); };
-	auto map_sptr = std::shared_ptr<struct pmem2_map>(map, map_delete);
-
-	struct pmemstream *stream;
-	int ret = pmemstream_from_map(&stream, block_size, map);
-	if (ret == -1) {
-		throw std::runtime_error("pmemstream_from_map failed");
-	}
-
-	auto stream_delete = [map_sptr](struct pmemstream *stream) { pmemstream_delete(&stream); };
-	return std::unique_ptr<struct pmemstream, std::function<void(struct pmemstream *)>>(stream, stream_delete);
-}
-
 /* Return function which constructs (creates unique_ptr) an instance of an object using ctor().
  * Its main purpose is to wrap C-like interface with _new and _destroy functions in unique_ptr. */
 template <typename Ctor, typename Dtor>
