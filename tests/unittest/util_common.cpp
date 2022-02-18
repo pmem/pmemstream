@@ -11,7 +11,9 @@
 
 int main()
 {
-	return run_test([] {
+	struct test_config_type test_config;
+
+	return run_test(test_config, [] {
 		return_check ret;
 
 		ret += rc::check("check if IS_POW2 == (x == 1 << log2(x))", [](const size_t value) {
