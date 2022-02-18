@@ -11,44 +11,39 @@
 #include <cstring>
 #include <vector>
 
-static void test(int argc, char *argv[])
+static void test(char mode)
 {
-	if (argc != 3 || strchr("abi", argv[1][0]) == nullptr)
-		UT_FATAL("usage: %s <a|b|i> file-path ", argv[0]);
-
-	auto path = std::string(argv[2]);
-
 	std::vector<std::string> init_data;
 	init_data.emplace_back("DEADBEEF");
 	init_data.emplace_back("NONEMPTYDATA");
 	init_data.emplace_back("mydata");
 
-	if (argv[1][0] == 'a') {
+	if (mode == 'a') {
 		/* append initial data to a new stream */
 
-		auto s = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE, TEST_DEFAULT_STREAM_SIZE);
-		initialize_stream_single_region(s.get(), TEST_DEFAULT_REGION_SIZE, init_data);
+		pmemstream_sut s(get_test_config().filename, TEST_DEFAULT_BLOCK_SIZE, TEST_DEFAULT_STREAM_SIZE);
+		s.helpers.initialize_single_region(TEST_DEFAULT_REGION_SIZE, init_data);
 
-	} else if (argv[1][0] == 'b') {
+	} else if (mode == 'b') {
 		/* break in the middle of an append */
 
-		auto s = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE, 0, false);
-		auto r = get_first_region(s.get());
+		pmemstream_sut s(get_test_config().filename, TEST_DEFAULT_BLOCK_SIZE, 0, false);
+		auto r = s.helpers.get_first_region();
 
 		/* append (gdb script should tear the memcpy) */
 		/* add entry longer than 512 */
 		std::string buf(1500, '~');
-		pmemstream_append(s.get(), r, NULL, buf.data(), buf.size(), nullptr);
+		s.append(r, buf);
 		UT_ASSERT_UNREACHABLE;
 
-	} else if (argv[1][0] == 'i') {
+	} else if (mode == 'i') {
 		/* iterate all entries */
 
-		auto s = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE, 0, false);
-		auto r = get_first_region(s.get());
+		pmemstream_sut s(get_test_config().filename, TEST_DEFAULT_BLOCK_SIZE, 0, false);
+		auto r = s.helpers.get_first_region();
 
 		/* read back data and count for the same output */
-		auto read_elements = get_elements_in_region(s.get(), r);
+		auto read_elements = s.helpers.get_elements_in_region(r);
 		/* While iterating over all entries, entry torn
 		 * in the previous append should be cleared now. */
 		auto cnt = read_elements.size();
@@ -61,5 +56,12 @@ static void test(int argc, char *argv[])
 
 int main(int argc, char *argv[])
 {
-	return run_test([&] { test(argc, argv); });
+	if (argc != 3 || strchr("abi", argv[1][0]) == nullptr)
+		UT_FATAL("usage: %s <a|b|i> file-path ", argv[0]);
+
+	struct test_config_type test_config;
+	test_config.filename = std::string(argv[2]);
+
+	auto mode = argv[1][0];
+	return run_test(test_config, [&] { test(mode); });
 }

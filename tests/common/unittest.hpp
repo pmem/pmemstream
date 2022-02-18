@@ -62,9 +62,20 @@ bool all_equal(const R &r)
 	return r.empty() ? true : std::equal(r.begin() + 1, r.end(), r.begin());
 }
 
-static inline int run_test(std::function<void()> test)
+struct test_config_type {
+	std::string filename = "";
+};
+
+static const test_config_type &get_test_config()
+{
+	static test_config_type test_config;
+	return test_config;
+}
+
+static inline int run_test(test_config_type config, std::function<void()> test)
 {
 	test_register_sighandlers();
+	const_cast<test_config_type &>(get_test_config()) = config;
 
 	try {
 		test();
@@ -77,6 +88,11 @@ static inline int run_test(std::function<void()> test)
 	}
 
 	return 0;
+}
+
+static inline int run_test(std::function<void()> test)
+{
+	return run_test({}, test);
 }
 
 /* Helper structure for verifying return values from function.
@@ -104,27 +120,6 @@ struct return_check {
 
 	bool status = true;
 };
-
-std::unique_ptr<struct pmemstream, std::function<void(struct pmemstream *)>>
-make_pmemstream(const std::string &file, size_t block_size, size_t size, bool truncate = true)
-{
-	struct pmem2_map *map = map_open(file.c_str(), size, truncate);
-	if (map == NULL) {
-		throw std::runtime_error(pmem2_errormsg());
-	}
-
-	auto map_delete = [](struct pmem2_map *map) { pmem2_map_delete(&map); };
-	auto map_sptr = std::shared_ptr<struct pmem2_map>(map, map_delete);
-
-	struct pmemstream *stream;
-	int ret = pmemstream_from_map(&stream, block_size, map);
-	if (ret == -1) {
-		throw std::runtime_error("pmemstream_from_map failed");
-	}
-
-	auto stream_delete = [map_sptr](struct pmemstream *stream) { pmemstream_delete(&stream); };
-	return std::unique_ptr<struct pmemstream, std::function<void(struct pmemstream *)>>(stream, stream_delete);
-}
 
 /* Return function which constructs (creates unique_ptr) an instance of an object using ctor().
  * Its main purpose is to wrap C-like interface with _new and _destroy functions in unique_ptr. */
