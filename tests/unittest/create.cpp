@@ -41,9 +41,10 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
-	auto path = std::string(argv[1]);
+	struct test_config_type test_config;
+	test_config.filename = std::string(argv[1]);
 
-	return run_test([&] {
+	return run_test(test_config, [&] {
 		return_check ret;
 
 		ret += rc::check("verify if a single region of various sizes (>0) can be created", [&]() {
@@ -56,45 +57,43 @@ int main(int argc, char *argv[])
 										   rc::gen::character<char>()));
 			}
 
-			auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE, TEST_DEFAULT_STREAM_SIZE);
-			auto region = initialize_stream_single_region(stream.get(), region_size, data);
-			verify(stream.get(), region, data, {});
+			pmemstream_sut stream(get_test_config().filename, TEST_DEFAULT_BLOCK_SIZE,
+					      TEST_DEFAULT_STREAM_SIZE);
+			auto region = stream.helpers.initialize_single_region(region_size, data);
+			stream.helpers.verify(region, data, {});
 
-			UT_ASSERTeq(pmemstream_region_free(stream.get(), region), 0);
+			UT_ASSERTeq(stream.region_free(region), 0);
 		});
 
-		ret += rc::check(
-			"verify if a region_iterator finds the only region created",
-			[&](const std::vector<std::string> &data) {
-				auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE, TEST_DEFAULT_STREAM_SIZE);
-				auto region =
-					initialize_stream_single_region(stream.get(), TEST_DEFAULT_REGION_SIZE, data);
-				verify(stream.get(), region, data, {});
+		ret += rc::check("verify if a region_iterator finds the only region created",
+				 [&](const std::vector<std::string> &data) {
+					 pmemstream_sut stream(get_test_config().filename, TEST_DEFAULT_BLOCK_SIZE,
+							       TEST_DEFAULT_STREAM_SIZE);
+					 auto region = stream.helpers.initialize_single_region(TEST_DEFAULT_REGION_SIZE,
+											       data);
+					 stream.helpers.verify(region, data, {});
 
-				struct pmemstream_region_iterator *riter;
-				auto ret = pmemstream_region_iterator_new(&riter, stream.get());
-				UT_ASSERTeq(ret, 0);
+					 auto riter = stream.region_iterator();
 
-				struct pmemstream_region r;
-				ret = pmemstream_region_iterator_next(riter, &r);
-				UT_ASSERTeq(ret, 0);
-				UT_ASSERTeq(region.offset, r.offset);
-				/* there should be no more regions */
-				ret = pmemstream_region_iterator_next(riter, &r);
-				UT_ASSERTeq(ret, -1);
+					 struct pmemstream_region r;
+					 int ret = pmemstream_region_iterator_next(riter.get(), &r);
+					 UT_ASSERTeq(ret, 0);
+					 UT_ASSERTeq(region.offset, r.offset);
+					 /* there should be no more regions */
+					 ret = pmemstream_region_iterator_next(riter.get(), &r);
+					 UT_ASSERTeq(ret, -1);
 
-				pmemstream_region_iterator_delete(&riter);
-				UT_ASSERTeq(pmemstream_region_free(stream.get(), region), 0);
-			});
+					 UT_ASSERTeq(stream.region_free(region), 0);
+				 });
 
 		/* "verify if region of unexpected arbitrary sizes cannot be created" */
 		{
-			auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE, TEST_DEFAULT_STREAM_SIZE);
-			struct pmemstream_region region;
-
+			pmemstream_sut stream(get_test_config().filename, TEST_DEFAULT_BLOCK_SIZE,
+					      TEST_DEFAULT_STREAM_SIZE);
 			std::array sizes{size_t(0), TEST_DEFAULT_STREAM_SIZE + 1UL};
 			for (size_t &size : sizes) {
-				UT_ASSERT(pmemstream_region_allocate(stream.get(), size, &region) != 0);
+				auto [ret, region] = stream.region_allocate(size);
+				UT_ASSERTne(ret, 0);
 			}
 		}
 
@@ -106,30 +105,30 @@ int main(int argc, char *argv[])
 			RC_PRE(ALIGN_UP(region_size, TEST_DEFAULT_BLOCK_SIZE) + TEST_DEFAULT_BLOCK_SIZE <= stream_size);
 			RC_PRE(ALIGN_UP(region_size, TEST_DEFAULT_BLOCK_SIZE) > 0);
 
-			auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE, stream_size);
+			pmemstream_sut stream(get_test_config().filename, TEST_DEFAULT_BLOCK_SIZE, stream_size);
 			/* and initialize this stream with a single region of */
-			auto region = initialize_stream_single_region(stream.get(), region_size, {});
-			verify(stream.get(), region, {}, {});
+			auto region = stream.helpers.initialize_single_region(region_size, {});
+			stream.helpers.verify(region, {}, {});
 
-			UT_ASSERTeq(pmemstream_region_free(stream.get(), region), 0);
+			UT_ASSERTeq(stream.region_free(region), 0);
 		});
 
 		ret += rc::check("verify if a stream of various block_sizes can be created", [&]() {
 			auto [region_size, block_size] = generate_region_size_and_block_size(TEST_DEFAULT_STREAM_SIZE);
-			auto stream = make_pmemstream(path, block_size, TEST_DEFAULT_STREAM_SIZE);
+			pmemstream_sut stream(get_test_config().filename, block_size, TEST_DEFAULT_STREAM_SIZE);
 			/* and initialize this stream with a single region of */
-			auto region = initialize_stream_single_region(stream.get(), region_size, {});
-			verify(stream.get(), region, {}, {});
+			auto region = stream.helpers.initialize_single_region(region_size, {});
+			stream.helpers.verify(region, {}, {});
 		});
 
 		ret += rc::check("verify if a region has expected size", [&]() {
 			auto [region_size, block_size] = generate_region_size_and_block_size(TEST_DEFAULT_STREAM_SIZE);
-			auto stream = make_pmemstream(path, block_size, TEST_DEFAULT_STREAM_SIZE);
+			pmemstream_sut stream(get_test_config().filename, block_size, TEST_DEFAULT_STREAM_SIZE);
 			/* and initialize this stream with a single region of */
-			auto region = initialize_stream_single_region(stream.get(), region_size, {});
+			auto region = stream.helpers.initialize_single_region(region_size, {});
 			size_t expected_region_size = ALIGN_UP(region_size + sizeof(struct span_region), block_size) -
 				sizeof(struct span_region);
-			UT_ASSERTeq(pmemstream_region_size(stream.get(), region), expected_region_size);
+			UT_ASSERTeq(stream.region_size(region), expected_region_size);
 		});
 
 		ret += rc::check(
@@ -141,7 +140,8 @@ int main(int argc, char *argv[])
 				RC_PRE(block_size % 64 != 0 || !IS_POW2(block_size));
 
 				try {
-					make_pmemstream(path, block_size, TEST_DEFAULT_STREAM_SIZE);
+					make_pmemstream(get_test_config().filename, block_size,
+							TEST_DEFAULT_STREAM_SIZE);
 					UT_ASSERT_UNREACHABLE;
 				} catch (std::runtime_error &e) {
 				} catch (...) {
@@ -152,7 +152,7 @@ int main(int argc, char *argv[])
 		/* verify if a stream of block_size = 0 cannot be created */
 		{
 			try {
-				make_pmemstream(path, 0, TEST_DEFAULT_STREAM_SIZE);
+				make_pmemstream(get_test_config().filename, 0, TEST_DEFAULT_STREAM_SIZE);
 				UT_ASSERT_UNREACHABLE;
 			} catch (std::runtime_error &e) {
 				/* noop */

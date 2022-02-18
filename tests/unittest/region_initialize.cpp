@@ -24,9 +24,9 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
-	auto path = std::string(argv[1]);
+	struct test_config_type test_config;
 
-	return run_test([&] {
+	return run_test(test_config, [&] {
 		{
 			auto region_runtimes_map = make_region_runtimes_map();
 

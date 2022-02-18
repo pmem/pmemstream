@@ -17,7 +17,9 @@ auto make_thread_id = make_instance_ctor(thread_id_new, thread_id_destroy);
 
 int main()
 {
-	return run_test([] {
+	struct test_config_type test_config;
+
+	return run_test(test_config, [] {
 		/* verify if max thread id is not bigger than number of threads */
 		{
 			auto thread_id = make_thread_id();

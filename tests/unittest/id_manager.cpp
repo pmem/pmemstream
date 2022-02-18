@@ -32,7 +32,9 @@ void release_ids(id_manager *manager, size_t size, It &&it)
 
 int main()
 {
-	return run_test([] {
+	struct test_config_type test_config;
+
+	return run_test(test_config, [] {
 		return_check ret;
 
 		/* Verify if ids are returned in an increasing order. */

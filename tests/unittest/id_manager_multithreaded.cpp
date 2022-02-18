@@ -21,7 +21,9 @@ auto make_id_manager = make_instance_ctor(id_manager_new, id_manager_destroy);
 
 int main(int argc, char *argv[])
 {
-	return run_test([] {
+	struct test_config_type test_config;
+
+	return run_test(test_config, [] {
 		/* Simple multi-threaded test. */
 
 		static constexpr size_t num_ops_per_thread_base = 16;

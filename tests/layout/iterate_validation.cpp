@@ -54,9 +54,10 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
-	auto path = std::string(argv[1]);
+	struct test_config_type test_config;
+	test_config.filename = std::string(argv[1]);
 
-	return run_test([&] {
+	return run_test(test_config, [&] {
 		return_check ret;
 
 		ret += rc::check(
@@ -64,46 +65,36 @@ int main(int argc, char *argv[])
 			[&](const std::vector<std::string> &data, bool entry_span) {
 				RC_PRE(data.size() > 0);
 
-				pmemstream_region region;
-				{
-					auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE,
-								      TEST_DEFAULT_STREAM_SIZE);
-					region = initialize_stream_single_region(stream.get(), TEST_DEFAULT_REGION_SIZE,
-										 data);
+				pmemstream_sut stream(get_test_config().filename, TEST_DEFAULT_BLOCK_SIZE,
+						      TEST_DEFAULT_STREAM_SIZE);
+				auto region = stream.helpers.initialize_single_region(TEST_DEFAULT_REGION_SIZE, data);
 
-					std::vector<std::string> result;
+				std::vector<std::string> result;
 
-					struct pmemstream_entry_iterator *eiter;
-					UT_ASSERTeq(pmemstream_entry_iterator_new(&eiter, stream.get(), region), 0);
-
-					struct pmemstream_entry entry = {UINT64_MAX};
-					while (pmemstream_entry_iterator_next(eiter, nullptr, &entry) == 0) {
-						/* NOP */
+				auto eiter = stream.entry_iterator(region);
+				struct pmemstream_entry entry = {UINT64_MAX};
+				char *base_ptr = nullptr;
+				while (pmemstream_entry_iterator_next(eiter.get(), nullptr, &entry) == 0) {
+					if (!base_ptr) {
+						auto ptr = stream.get_entry(entry).data() - entry.offset;
+						base_ptr = const_cast<char *>(ptr);
 					}
-					UT_ASSERTne(entry.offset, UINT64_MAX);
-
-					pmemstream_entry_iterator_delete(&eiter);
-
-					auto next_entry_offset =
-						ALIGN_UP(entry.offset + data.back().size() + sizeof(struct span_entry),
-							 sizeof(span_bytes));
-					/* This pointer is not safe to read - it points to uninitialized data */
-					auto data_ptr =
-						reinterpret_cast<char *>(stream->data.spans) + next_entry_offset;
-
-					auto partial_span =
-						generate_inconsistent_span(entry_span ? SPAN_ENTRY : SPAN_EMPTY);
-					auto partial_span_ptr = reinterpret_cast<char *>(partial_span.data());
-					std::memcpy(static_cast<char *>(data_ptr), partial_span_ptr,
-						    partial_span.size() * sizeof(partial_span[0]));
 				}
-				{
-					auto stream = make_pmemstream(path, TEST_DEFAULT_BLOCK_SIZE,
-								      TEST_DEFAULT_STREAM_SIZE, false);
-					auto stream_data = get_elements_in_region(stream.get(), region);
-					UT_ASSERT(std::equal(data.begin(), data.end(), stream_data.begin()));
-					UT_ASSERTeq(pmemstream_region_free(stream.get(), region), 0);
-				}
+				UT_ASSERTne(entry.offset, UINT64_MAX);
+
+				/* This pointer is not safe to read - it points to uninitialized data */
+				auto data_ptr = base_ptr +
+					ALIGN_UP(entry.offset + data.back().size() + sizeof(struct span_entry),
+						 sizeof(span_bytes));
+				auto partial_span = generate_inconsistent_span(entry_span ? SPAN_ENTRY : SPAN_EMPTY);
+				auto partial_span_ptr = reinterpret_cast<char *>(partial_span.data());
+				std::memcpy(static_cast<char *>(data_ptr), partial_span_ptr,
+					    partial_span.size() * sizeof(partial_span[0]));
+
+				stream.reopen();
+
+				auto stream_data = stream.helpers.get_elements_in_region(region);
+				UT_ASSERT(std::equal(data.begin(), data.end(), stream_data.begin()));
 			});
 	});
 }
