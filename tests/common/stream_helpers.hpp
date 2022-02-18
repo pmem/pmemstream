@@ -14,8 +14,8 @@
 
 #include "unittest.hpp"
 
-std::unique_ptr<struct pmemstream, std::function<void(struct pmemstream *)>>
-make_pmemstream(const std::string &file, size_t block_size, size_t size, bool truncate = true)
+std::shared_ptr<struct pmemstream> make_pmemstream(const std::string &file, size_t block_size, size_t size,
+						   bool truncate = true)
 {
 	struct pmem2_map *map = map_open(file.c_str(), size, truncate);
 	if (map == NULL) {
@@ -32,14 +32,14 @@ make_pmemstream(const std::string &file, size_t block_size, size_t size, bool tr
 	}
 
 	auto stream_delete = [map_sptr](struct pmemstream *stream) { pmemstream_delete(&stream); };
-	return std::unique_ptr<struct pmemstream, std::function<void(struct pmemstream *)>>(stream, stream_delete);
+	return std::shared_ptr<struct pmemstream>(stream, stream_delete);
 }
 
 struct pmemstream_sut {
-	pmemstream_sut(const std::string &file, size_t block_size, size_t size, bool truncate = true) : helpers(*this)
+	pmemstream_sut(const std::string &file, size_t block_size, size_t size, bool truncate = true)
+	    : stream(make_pmemstream(file, block_size, size, truncate)), helpers(stream)
 	{
 		args = std::tuple<std::string, size_t, size_t>(file, block_size, size);
-		stream = make_pmemstream(file, block_size, size, truncate);
 	};
 
 	/* This function closes and reopens the stream. All pointers to stream data, iterators, etc. are invalidated. */
@@ -129,14 +129,14 @@ struct pmemstream_sut {
 
 	/* Implements additional functions, useful for testing. */
 	struct helpers_type {
-		helpers_type(pmemstream_sut &s) : s(s)
+		helpers_type(std::shared_ptr<struct pmemstream> stream) : stream(stream)
 		{
 		}
 
 		void append(struct pmemstream_region region, const std::vector<std::string> &data)
 		{
 			for (const auto &e : data) {
-				auto ret = pmemstream_append(s.stream.get(), region, region_runtime[region.offset],
+				auto ret = pmemstream_append(stream.get(), region, region_runtime[region.offset],
 							     e.data(), e.size(), nullptr);
 				UT_ASSERTeq(ret, 0);
 			}
@@ -145,7 +145,7 @@ struct pmemstream_sut {
 		void region_runtime_initialize(struct pmemstream_region region)
 		{
 			struct pmemstream_region_runtime *runtime;
-			pmemstream_region_runtime_initialize(s.stream.get(), region, &runtime);
+			pmemstream_region_runtime_initialize(stream.get(), region, &runtime);
 			region_runtime[region.offset] = runtime;
 		}
 
@@ -153,9 +153,9 @@ struct pmemstream_sut {
 								  const std::vector<std::string> &data)
 		{
 			struct pmemstream_region new_region;
-			UT_ASSERTeq(pmemstream_region_allocate(s.stream.get(), region_size, &new_region), 0);
+			UT_ASSERTeq(pmemstream_region_allocate(stream.get(), region_size, &new_region), 0);
 			/* region_size is aligned up to block_size, on allocation, so it may be bigger than expected */
-			UT_ASSERT(pmemstream_region_size(s.stream.get(), new_region) >= region_size);
+			UT_ASSERT(pmemstream_region_size(stream.get(), new_region) >= region_size);
 
 			append(new_region, data);
 
@@ -170,15 +170,15 @@ struct pmemstream_sut {
 				/* reserve space for given data */
 				struct pmemstream_entry reserved_entry;
 				void *reserved_data;
-				int ret = pmemstream_reserve(s.stream.get(), region, nullptr, d.size(), &reserved_entry,
+				int ret = pmemstream_reserve(stream.get(), region, nullptr, d.size(), &reserved_entry,
 							     &reserved_data);
 				UT_ASSERTeq(ret, 0);
 
 				/* write into the reserved space and publish (persist) it */
 				memcpy(reserved_data, d.data(), d.size());
 
-				ret = pmemstream_publish(s.stream.get(), region, region_runtime[region.offset],
-							 d.data(), d.size(), &reserved_entry);
+				ret = pmemstream_publish(stream.get(), region, region_runtime[region.offset], d.data(),
+							 d.size(), &reserved_entry);
 				UT_ASSERTeq(ret, 0);
 			}
 		}
@@ -186,7 +186,7 @@ struct pmemstream_sut {
 		struct pmemstream_region get_first_region()
 		{
 			struct pmemstream_region_iterator *riter;
-			int ret = pmemstream_region_iterator_new(&riter, s.stream.get());
+			int ret = pmemstream_region_iterator_new(&riter, stream.get());
 			UT_ASSERTne(ret, -1);
 
 			struct pmemstream_region region;
@@ -200,7 +200,7 @@ struct pmemstream_sut {
 		struct pmemstream_entry get_last_entry(pmemstream_region region)
 		{
 			struct pmemstream_entry_iterator *eiter;
-			UT_ASSERTeq(pmemstream_entry_iterator_new(&eiter, s.stream.get(), region), 0);
+			UT_ASSERTeq(pmemstream_entry_iterator_new(&eiter, stream.get(), region), 0);
 
 			struct pmemstream_entry last_entry = {0};
 			struct pmemstream_entry tmp_entry;
@@ -221,15 +221,15 @@ struct pmemstream_sut {
 			std::vector<std::string> result;
 
 			struct pmemstream_entry_iterator *eiter;
-			UT_ASSERTeq(pmemstream_entry_iterator_new(&eiter, s.stream.get(), region), 0);
+			UT_ASSERTeq(pmemstream_entry_iterator_new(&eiter, stream.get(), region), 0);
 
 			struct pmemstream_entry entry;
 			struct pmemstream_region r;
 			while (pmemstream_entry_iterator_next(eiter, &r, &entry) == 0) {
 				UT_ASSERTeq(r.offset, region.offset);
 				auto data_ptr =
-					reinterpret_cast<const char *>(pmemstream_entry_data(s.stream.get(), entry));
-				result.emplace_back(data_ptr, pmemstream_entry_length(s.stream.get(), entry));
+					reinterpret_cast<const char *>(pmemstream_entry_data(stream.get(), entry));
+				result.emplace_back(data_ptr, pmemstream_entry_length(stream.get(), entry));
 			}
 
 			pmemstream_entry_iterator_delete(&eiter);
@@ -249,15 +249,16 @@ struct pmemstream_sut {
 			UT_ASSERT(std::equal(extra_data_start, all_elements.end(), extra_data.begin()));
 		}
 
-		pmemstream_sut &s;
+		std::shared_ptr<struct pmemstream> stream;
 		std::map<uint64_t, pmemstream_region_runtime *> region_runtime;
 	};
 
-	helpers_type helpers;
-
  private:
 	std::tuple<std::string, size_t, size_t> args;
-	std::unique_ptr<struct pmemstream, std::function<void(struct pmemstream *)>> stream;
+	std::shared_ptr<struct pmemstream> stream;
+
+ public:
+	helpers_type helpers;
 };
 
 #endif /* LIBPMEMSTREAM_STREAM_HELPERS_HPP */
