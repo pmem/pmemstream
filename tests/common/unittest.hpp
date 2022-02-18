@@ -115,4 +115,10 @@ auto make_instance_ctor(Ctor &&ctor, Dtor &&dtor)
 	};
 }
 
+struct test_config_type {
+	std::string filename = "";
+};
+
+static test_config_type test_config;
+
 #endif /* LIBPMEMSTREAM_UNITTEST_HPP */
