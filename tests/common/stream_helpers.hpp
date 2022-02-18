@@ -42,6 +42,11 @@ struct pmemstream_sut {
 		stream = make_pmemstream(file, block_size, size, truncate);
 	};
 
+	pmemstream_sut(const pmemstream_sut &) = delete;
+	pmemstream_sut(pmemstream_sut &&rhs) : helpers(*this), args(rhs.args), stream(std::move(rhs.stream))
+	{
+	}
+
 	/* This function closes and reopens the stream. All pointers to stream data, iterators, etc. are invalidated. */
 	void reopen()
 	{
