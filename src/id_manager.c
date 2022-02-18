@@ -79,10 +79,12 @@ static bool id_manager_critnib_get_min_key(critnib *ids, uint64_t *key)
 	return id_manager_critnib_get_ge_key(ids, 0, key);
 }
 
+#ifndef NDEBUG
 static bool id_manager_critnib_get_max_key(critnib *ids, uint64_t *key)
 {
 	return id_manager_critnib_get_le_key(ids, UINT64_MAX, key);
 }
+#endif
 
 uint64_t id_manager_acquire(struct id_manager *manager)
 {
@@ -131,6 +133,7 @@ static void id_manager_do_compaction(struct id_manager *manager)
 	}
 }
 
+#ifndef NDEBUG
 static bool id_manager_release_invariants(struct id_manager *manager)
 {
 	uint64_t max_key;
@@ -142,6 +145,7 @@ static bool id_manager_release_invariants(struct id_manager *manager)
 
 	return true;
 }
+#endif
 
 int id_manager_release(struct id_manager *manager, uint64_t id)
 {

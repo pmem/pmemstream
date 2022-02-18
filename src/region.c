@@ -8,7 +8,9 @@
 #include <assert.h>
 #include <errno.h>
 
+#ifndef NDEBUG
 #define PMEMSTREAM_OFFSET_UNINITIALIZED 0ULL
+#endif
 
 /*
  * It contains all runtime data specific to a region.
