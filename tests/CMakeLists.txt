@@ -127,6 +127,9 @@ if(TESTS_RAPIDCHECK)
 	build_test_rc(NAME reserve_publish_integrity SRC_FILES integrity/reserve_publish.cpp)
 	add_test_generic(NAME reserve_publish_integrity TRACERS none pmemcheck)
 
+	build_test_rc(NAME region_allocator SRC_FILES unittest/region_allocator.cpp ../src/span.c)
+	add_test_generic(NAME region_allocator TRACERS none)
+
 	build_test_rc(NAME util_popcount SRC_FILES unittest/util_popcount.cpp)
 	add_test_generic(NAME util_popcount TRACERS none)
 
