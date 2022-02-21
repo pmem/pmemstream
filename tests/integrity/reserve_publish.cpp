@@ -11,6 +11,7 @@
 
 #include <rapidcheck.h>
 
+#include "rapidcheck_helpers.hpp"
 #include "stream_helpers.hpp"
 #include "unittest.hpp"
 
@@ -27,19 +28,11 @@ int main(int argc, char *argv[])
 		return_check ret;
 
 		ret += rc::check("verify if mixing reserve+publish with append works fine",
-				 [](const std::vector<std::string> &data, const std::vector<std::string> &extra_data,
-				    const bool use_append, const bool is_runtime_initialized) {
-					 pmemstream_sut stream(get_test_config().filename, TEST_DEFAULT_BLOCK_SIZE,
-							       TEST_DEFAULT_STREAM_SIZE);
-					 auto region = stream.helpers.initialize_single_region(TEST_DEFAULT_REGION_SIZE,
-											       data);
-					 stream.helpers.verify(region, data, {});
-
-					 if (!is_runtime_initialized)
-						 stream.region_runtime_initialize(region);
-
+				 [&](pmemstream_with_single_empty_region &&stream, const std::vector<std::string> &data,
+				     const std::vector<std::string> &extra_data) {
+					 auto region = stream.helpers.get_first_region();
+					 stream.helpers.append(region, data);
 					 stream.helpers.reserve_and_publish(region, extra_data);
-
 					 stream.helpers.verify(region, data, extra_data);
 				 });
 	});
