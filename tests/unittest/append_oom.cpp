@@ -21,32 +21,21 @@ int main(int argc, char *argv[])
 		return_check ret;
 
 		ret += rc::check(
-			"verify append will work until OOM", [&](pmemstream_with_single_empty_region &&stream) {
-				auto region = stream.sut.helpers.get_first_region();
+			"verify append will work until OOM", [&](pmemstream_empty &&stream, const std::string &value) {
+				RC_PRE(value.size() > 0);
 
-				size_t elems = 10;
-				const size_t e_size = TEST_DEFAULT_REGION_SIZE / elems - TEST_DEFAULT_BLOCK_SIZE;
-				std::string e = *rc::gen::container<std::string>(e_size, rc::gen::character<char>());
+				auto region = stream.sut.helpers.initialize_single_region(
+					REGION_METADATA_SIZE + *rc::gen::inRange<size_t>(0, TEST_DEFAULT_REGION_SIZE),
+					{});
 
-				struct pmemstream_entry prev_ne = {0};
-				while (elems-- > 0) {
-					auto [ret, new_entry] = stream.sut.append(region, e);
-					UT_ASSERTeq(ret, 0);
-					UT_ASSERT(new_entry.offset > prev_ne.offset);
-					prev_ne = new_entry;
+				while (true) {
+					auto [ret, new_entry] = stream.sut.append(region, value);
+					if (ret != 0) {
+						/* XXX: should be updated with the real error code, when available */
+						UT_ASSERTeq(ret, -1);
+						break;
+					}
 				}
-				/* next append should not fit */
-				auto [ret, new_entry] = stream.sut.append(region, e);
-				UT_ASSERTeq(new_entry.offset, prev_ne.offset);
-				/* XXX: should be updated with the real error code, when available */
-				UT_ASSERTeq(ret, -1);
-				e.resize(4);
-				/* ... but smaller entry should fit just in */
-				std::tie(ret, new_entry) = stream.sut.append(region, e);
-				UT_ASSERT(new_entry.offset > prev_ne.offset);
-				UT_ASSERTeq(ret, 0);
-
-				UT_ASSERTeq(stream.sut.region_free(region), 0);
 			});
 	});
 }
