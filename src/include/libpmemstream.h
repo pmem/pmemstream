@@ -71,7 +71,7 @@ int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region regio
  * size of the entry have to match the previous reservation and the actual size of the data written by user. */
 int pmemstream_publish(struct pmemstream *stream, struct pmemstream_region region,
 		       struct pmemstream_region_runtime *region_runtime, const void *data, size_t size,
-		       struct pmemstream_entry *reserved_entry);
+		       struct pmemstream_entry reserved_entry);
 
 /* Synchronously appends data buffer after last valid entry in region.
  * Fails if no space is available.
