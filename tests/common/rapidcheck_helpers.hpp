@@ -14,12 +14,10 @@
  * Ref: https://github.com/emil-e/rapidcheck/blob/master/doc/state.md
  */
 struct pmemstream_model {
-	bool is_runtime_initialized = false;
-	bool is_runtime_initialized_after_reopen = false;
 	std::map<uint64_t, std::vector<std::string>> regions;
 };
 
-using pmemstream_command = rc::state::Command<pmemstream_model, pmemstream_sut>;
+using pmemstream_command = rc::state::Command<pmemstream_model, pmemstream_test_base>;
 
 /* Command which appends data to all existing regions (present in model). */
 struct rc_append_command : public pmemstream_command {
@@ -40,13 +38,8 @@ struct rc_append_command : public pmemstream_command {
 		}
 	}
 
-	void run(const pmemstream_model &m, pmemstream_sut &s) const override
+	void run(const pmemstream_model &m, pmemstream_test_base &s) const override
 	{
-		if (!m.is_runtime_initialized) {
-			for (auto &region : m.regions)
-				s.helpers.region_runtime_initialize(pmemstream_region{region.first});
-		}
-
 		for (auto &data : data_to_append) {
 			s.helpers.append(pmemstream_region{data.first}, {data.second});
 		}
@@ -54,18 +47,14 @@ struct rc_append_command : public pmemstream_command {
 };
 
 struct rc_reopen_command : public pmemstream_command {
-	void run(const pmemstream_model &m, pmemstream_sut &s) const override
+	void run(const pmemstream_model &m, pmemstream_test_base &s) const override
 	{
 		s.reopen();
-		if (!m.is_runtime_initialized_after_reopen) {
-			for (auto &region : m.regions)
-				s.helpers.region_runtime_initialize(pmemstream_region{region.first});
-		}
 	}
 };
 
 struct rc_verify_command : public pmemstream_command {
-	void run(const pmemstream_model &m, pmemstream_sut &s) const override
+	void run(const pmemstream_model &m, pmemstream_test_base &s) const override
 	{
 		for (auto data : m.regions) {
 			s.helpers.verify(pmemstream_region{data.first}, {data.second}, {});
@@ -79,10 +68,21 @@ namespace rc
 
 /* XXX: add shrinking support for pmemstream? */
 template <>
+struct Arbitrary<pmemstream_test_base> {
+	static Gen<pmemstream_test_base> arbitrary()
+	{
+		return gen::noShrink(gen::construct<pmemstream_test_base>(
+			gen::just(get_test_config().filename), gen::just(get_test_config().block_size),
+			gen::just(get_test_config().stream_size), gen::just(true), gen::arbitrary<bool>(),
+			gen::arbitrary<bool>()));
+	}
+};
+
+template <>
 struct Arbitrary<pmemstream_empty> {
 	static Gen<pmemstream_empty> arbitrary()
 	{
-		return gen::noShrink(gen::construct<pmemstream_empty>());
+		return gen::noShrink(gen::construct<pmemstream_empty>(gen::arbitrary<pmemstream_test_base>()));
 	}
 };
 
@@ -90,7 +90,8 @@ template <>
 struct Arbitrary<pmemstream_with_single_empty_region> {
 	static Gen<pmemstream_with_single_empty_region> arbitrary()
 	{
-		return gen::noShrink(gen::construct<pmemstream_with_single_empty_region>());
+		return gen::noShrink(
+			gen::construct<pmemstream_with_single_empty_region>(gen::arbitrary<pmemstream_test_base>()));
 	}
 };
 
@@ -98,8 +99,8 @@ template <>
 struct Arbitrary<pmemstream_with_single_init_region> {
 	static Gen<pmemstream_with_single_init_region> arbitrary()
 	{
-		return gen::noShrink(
-			gen::construct<pmemstream_with_single_init_region>(gen::arbitrary<std::vector<std::string>>()));
+		return gen::noShrink(gen::construct<pmemstream_with_single_init_region>(
+			gen::arbitrary<pmemstream_test_base>(), gen::arbitrary<std::vector<std::string>>()));
 	}
 };
 

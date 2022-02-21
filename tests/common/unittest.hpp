@@ -64,6 +64,8 @@ bool all_equal(const R &r)
 
 struct test_config_type {
 	std::string filename = "";
+	size_t stream_size = TEST_DEFAULT_STREAM_SIZE;
+	size_t block_size = TEST_DEFAULT_BLOCK_SIZE;
 };
 
 static const test_config_type &get_test_config()

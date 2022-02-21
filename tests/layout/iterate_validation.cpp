@@ -14,6 +14,7 @@
 
 #include "common/util.h"
 #include "libpmemstream_internal.h"
+#include "rapidcheck_helpers.hpp"
 #include "span.h"
 #include "stream_helpers.hpp"
 #include "unittest.hpp"
@@ -62,21 +63,18 @@ int main(int argc, char *argv[])
 
 		ret += rc::check(
 			"verify if stream does not treat inconsistent spans as valid entries",
-			[&](const std::vector<std::string> &data, bool entry_span) {
+			[&](pmemstream_empty &&stream, const std::vector<std::string> &data, bool entry_span) {
 				RC_PRE(data.size() > 0);
-
-				pmemstream_sut stream(get_test_config().filename, TEST_DEFAULT_BLOCK_SIZE,
-						      TEST_DEFAULT_STREAM_SIZE);
 				auto region = stream.helpers.initialize_single_region(TEST_DEFAULT_REGION_SIZE, data);
 
 				std::vector<std::string> result;
 
-				auto eiter = stream.entry_iterator(region);
+				auto eiter = stream.sut.entry_iterator(region);
 				struct pmemstream_entry entry = {UINT64_MAX};
 				char *base_ptr = nullptr;
 				while (pmemstream_entry_iterator_next(eiter.get(), nullptr, &entry) == 0) {
 					if (!base_ptr) {
-						auto ptr = stream.get_entry(entry).data() - entry.offset;
+						auto ptr = stream.sut.get_entry(entry).data() - entry.offset;
 						base_ptr = const_cast<char *>(ptr);
 					}
 				}
