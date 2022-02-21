@@ -6,6 +6,7 @@
 #include <rapidcheck.h>
 
 #include "env_setter.hpp"
+#include "rapidcheck_helpers.hpp"
 #include "stream_helpers.hpp"
 #include "thread_helpers.hpp"
 #include "unittest.hpp"
@@ -17,25 +18,45 @@ static constexpr size_t region_size = stream_size - STREAM_METADATA_SIZE;
 
 namespace
 {
-void concurrent_iterate_verify(pmemstream_sut &stream, pmemstream_region region, const std::vector<std::string> &data,
-			       const std::vector<std::string> &extra_data)
+void concurrent_iterate_verify(pmemstream_test_base &stream, pmemstream_region region,
+			       const std::vector<std::string> &data, const std::vector<std::string> &extra_data)
 {
 	std::vector<std::string> result;
 
-	auto eiter = stream.entry_iterator(region);
+	auto eiter = stream.sut.entry_iterator(region);
 	struct pmemstream_entry entry;
 
 	/* Loop until all entries are found. */
 	while (result.size() < data.size() + extra_data.size()) {
 		int next = pmemstream_entry_iterator_next(eiter.get(), NULL, &entry);
 		if (next == 0) {
-			result.emplace_back(stream.get_entry(entry));
+			result.emplace_back(stream.sut.get_entry(entry));
 		}
 	}
 
 	UT_ASSERT(std::equal(data.begin(), data.end(), result.begin()));
 	UT_ASSERT(
 		std::equal(extra_data.begin(), extra_data.end(), result.begin() + static_cast<long long>(data.size())));
+}
+
+void verify_no_garbage(pmemstream_test_base &&stream, const std::vector<std::string> &data,
+		       const std::vector<std::string> &extra_data, bool reopen)
+{
+	auto region = stream.helpers.get_first_region();
+
+	if (reopen)
+		stream.reopen();
+
+	parallel_exec(concurrency, [&](size_t tid) {
+		if (tid == 0) {
+			/* appender */
+			stream.helpers.append(region, extra_data);
+			stream.helpers.verify(region, data, extra_data);
+		} else {
+			/* iterators */
+			concurrent_iterate_verify(stream, region, data, extra_data);
+		}
+	});
 }
 } // namespace
 
@@ -48,6 +69,8 @@ int main(int argc, char *argv[])
 
 	struct test_config_type test_config;
 	test_config.filename = std::string(argv[1]);
+	test_config.stream_size = stream_size;
+	test_config.block_size = TEST_DEFAULT_BLOCK_SIZE;
 
 	return run_test(test_config, [&] {
 		return_check ret;
@@ -59,72 +82,15 @@ int main(int argc, char *argv[])
 
 		ret += rc::check(
 			"verify if iterators concurrent to append work do not return garbage (no preinitialization)",
-			[&](std::vector<std::string> &&extra_data, bool use_region_runtime) {
-				pmemstream_sut stream(get_test_config().filename, TEST_DEFAULT_BLOCK_SIZE, stream_size);
-				auto region = stream.helpers.initialize_single_region(region_size, {});
-
-				parallel_exec(concurrency, [&](size_t tid) {
-					if (tid == 0) {
-						/* appender */
-						if (use_region_runtime) {
-							stream.region_runtime_initialize(region);
-						}
-						stream.helpers.append(region, extra_data);
-						stream.helpers.verify(region, extra_data, {});
-					} else {
-						/* iterators */
-						concurrent_iterate_verify(stream, region, extra_data, {});
-					}
-				});
+			[&](pmemstream_empty &&stream, const std::vector<std::string> &extra_data, bool reopen) {
+				stream.helpers.initialize_single_region(region_size, {});
+				verify_no_garbage(std::move(stream), {}, extra_data, reopen);
 			});
-
-		ret += rc::check("verify if iterators concurrent to append work do not return garbage",
-				 [&](const std::vector<std::string> &data, const std::vector<std::string> &extra_data,
-				     bool use_region_runtime) {
-					 pmemstream_sut stream(get_test_config().filename, TEST_DEFAULT_BLOCK_SIZE,
-							       stream_size);
-					 auto region = stream.helpers.initialize_single_region(region_size, data);
-
-					 parallel_exec(concurrency, [&](size_t tid) {
-						 if (tid == 0) {
-							 /* appender */
-							 if (use_region_runtime) {
-								 stream.region_runtime_initialize(region);
-							 }
-							 stream.helpers.append(region, extra_data);
-							 stream.helpers.verify(region, data, extra_data);
-						 } else {
-							 /* iterators */
-							 concurrent_iterate_verify(stream, region, data, extra_data);
-						 }
-					 });
-				 });
-
-		ret += rc::check("verify if iterators concurrent to append work do not return garbage after reopen",
-				 [&](const std::vector<std::string> &data, const std::vector<std::string> &extra_data,
-				     bool use_region_runtime) {
-					 pmemstream_region region;
-					 {
-						 pmemstream_sut stream(get_test_config().filename,
-								       TEST_DEFAULT_BLOCK_SIZE, stream_size);
-						 region = stream.helpers.initialize_single_region(region_size, data);
-					 }
-
-					 pmemstream_sut stream(get_test_config().filename, TEST_DEFAULT_BLOCK_SIZE,
-							       stream_size, false);
-					 parallel_exec(concurrency, [&](size_t tid) {
-						 if (tid == 0) {
-							 /* appender */
-							 if (use_region_runtime) {
-								 stream.region_runtime_initialize(region);
-							 }
-							 stream.helpers.append(region, extra_data);
-							 stream.helpers.verify(region, data, extra_data);
-						 } else {
-							 /* iterators */
-							 concurrent_iterate_verify(stream, region, data, extra_data);
-						 }
-					 });
+		ret += rc::check("verify if iterators concurrent to append work do not return garbage ",
+				 [&](pmemstream_empty &&stream, const std::vector<std::string> &data,
+				     const std::vector<std::string> &extra_data, bool reopen) {
+					 stream.helpers.initialize_single_region(region_size, data);
+					 verify_no_garbage(std::move(stream), data, extra_data, reopen);
 				 });
 	});
 }

@@ -20,27 +20,29 @@ int main(int argc, char *argv[])
 
 	struct test_config_type test_config;
 	test_config.filename = std::string(argv[1]);
+	test_config.stream_size = TEST_DEFAULT_STREAM_SIZE;
+	test_config.block_size = TEST_DEFAULT_BLOCK_SIZE;
 
 	return run_test(test_config, [&] {
 		return_check ret;
 
-		ret += rc::check("verify if each concurrent iteration observes the same data",
-				 [&](const std::vector<std::string> &data, bool reopen) {
-					 pmemstream_sut stream(get_test_config().filename, TEST_DEFAULT_BLOCK_SIZE,
-							       TEST_DEFAULT_STREAM_SIZE);
-					 auto region = stream.helpers.initialize_single_region(TEST_DEFAULT_REGION_SIZE,
-											       data);
+		ret += rc::check(
+			"verify if each concurrent iteration observes the same data",
+			[&](const std::vector<std::string> &data, bool reopen) {
+				pmemstream_test_base stream(get_test_config().filename, get_test_config().block_size,
+							    get_test_config().stream_size);
+				auto region = stream.helpers.initialize_single_region(TEST_DEFAULT_REGION_SIZE, data);
 
-					 if (reopen)
-						 stream.reopen();
+				if (reopen)
+					stream.reopen();
 
-					 std::vector<std::vector<std::string>> threads_data(concurrency);
-					 parallel_exec(concurrency, [&](size_t tid) {
-						 threads_data[tid] = stream.helpers.get_elements_in_region(region);
-					 });
+				std::vector<std::vector<std::string>> threads_data(concurrency);
+				parallel_exec(concurrency, [&](size_t tid) {
+					threads_data[tid] = stream.helpers.get_elements_in_region(region);
+				});
 
-					 UT_ASSERT(all_of(threads_data, predicates::equal(data)));
-					 UT_ASSERTeq(stream.region_free(region), 0);
-				 });
+				UT_ASSERT(all_of(threads_data, predicates::equal(data)));
+				UT_ASSERTeq(stream.sut.region_free(region), 0);
+			});
 	});
 }
