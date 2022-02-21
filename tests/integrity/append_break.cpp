@@ -26,25 +26,25 @@ static void test(int argc, char *argv[])
 	if (argv[1][0] == 'a') {
 		/* append initial data to a new stream */
 
-		pmemstream_sut s(path, TEST_DEFAULT_BLOCK_SIZE, TEST_DEFAULT_STREAM_SIZE);
+		pmemstream_test_base s(path, get_test_config().block_size, get_test_config().stream_size);
 		s.helpers.initialize_single_region(TEST_DEFAULT_REGION_SIZE, init_data);
 
 	} else if (argv[1][0] == 'b') {
 		/* break in the middle of an append */
 
-		pmemstream_sut s(path, TEST_DEFAULT_BLOCK_SIZE, 0, false);
+		pmemstream_test_base s(path, get_test_config().block_size, 0, false);
 		auto r = s.helpers.get_first_region();
 
 		/* append (gdb script should tear the memcpy) */
 		/* add entry longer than 512 */
 		std::string buf(1500, '~');
-		s.append(r, buf);
+		s.sut.append(r, buf);
 		UT_ASSERT_UNREACHABLE;
 
 	} else if (argv[1][0] == 'i') {
 		/* iterate all entries */
 
-		pmemstream_sut s(path, TEST_DEFAULT_BLOCK_SIZE, 0, false);
+		pmemstream_test_base s(path, get_test_config().block_size, 0, false);
 		auto r = s.helpers.get_first_region();
 
 		/* read back data and count for the same output */
@@ -63,6 +63,8 @@ int main(int argc, char *argv[])
 {
 	struct test_config_type test_config;
 	test_config.filename = std::string(argv[1]);
+	test_config.stream_size = TEST_DEFAULT_STREAM_SIZE;
+	test_config.block_size = TEST_DEFAULT_BLOCK_SIZE;
 
 	return run_test(test_config, [&] { test(argc, argv); });
 }

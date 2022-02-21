@@ -28,6 +28,8 @@ int main(int argc, char *argv[])
 
 	struct test_config_type test_config;
 	test_config.filename = std::string(argv[1]);
+	test_config.stream_size = TEST_DEFAULT_STREAM_SIZE;
+	test_config.block_size = TEST_DEFAULT_BLOCK_SIZE;
 
 	return run_test(test_config, [&] {
 		{

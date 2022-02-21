@@ -6,6 +6,7 @@
 #include <rapidcheck.h>
 
 #include "common/util.h"
+#include "rapidcheck_helpers.hpp"
 #include "stream_helpers.hpp"
 #include "thread_helpers.hpp"
 #include "unittest.hpp"
@@ -23,6 +24,8 @@ int main(int argc, char *argv[])
 
 	struct test_config_type test_config;
 	test_config.filename = std::string(argv[1]);
+	test_config.stream_size = TEST_DEFAULT_STREAM_SIZE;
+	test_config.block_size = TEST_DEFAULT_BLOCK_SIZE;
 
 	return run_test(test_config, [&] {
 		return_check ret;
@@ -31,12 +34,13 @@ int main(int argc, char *argv[])
 			"verify pmemstream_region_runtime_initialize return the same value for all threads", [&]() {
 				const auto concurrency = *rc::gen::inRange<std::size_t>(0, max_concurrency);
 
-				pmemstream_sut stream(path, TEST_DEFAULT_BLOCK_SIZE, TEST_DEFAULT_STREAM_SIZE);
+				pmemstream_test_base stream(path, get_test_config().block_size,
+							    get_test_config().stream_size);
 				auto region = stream.helpers.initialize_single_region(TEST_DEFAULT_REGION_SIZE, {});
 
 				std::vector<pmemstream_region_runtime *> threads_data(concurrency);
 				parallel_exec(concurrency, [&](size_t tid) {
-					auto [ret, rr] = stream.region_runtime_initialize(region);
+					auto [ret, rr] = stream.sut.region_runtime_initialize(region);
 					UT_ASSERTeq(ret, 0);
 					threads_data[tid] = rr;
 
@@ -54,14 +58,15 @@ int main(int argc, char *argv[])
 					 pmemstream_region region;
 					 pmemstream_entry last_entry;
 
-					 pmemstream_sut stream(path, TEST_DEFAULT_BLOCK_SIZE, TEST_DEFAULT_STREAM_SIZE);
+					 pmemstream_test_base stream(path, get_test_config().block_size,
+								     get_test_config().stream_size);
 
 					 auto garbage_destination = [&](pmemstream_entry last_entry) {
 						 /* garbage_destination is surely bigger than end offset of last_entry
 						  * (including any padding). */
-						 auto last_entry_data = stream.get_entry(last_entry);
+						 auto last_entry_data = stream.sut.get_entry(last_entry);
 						 auto *data = const_cast<char *>(last_entry_data.data());
-						 return data + last_entry_data.size() + TEST_DEFAULT_BLOCK_SIZE;
+						 return data + last_entry_data.size() + get_test_config().block_size;
 					 };
 
 					 region = stream.helpers.initialize_single_region(TEST_DEFAULT_REGION_SIZE,
@@ -73,7 +78,7 @@ int main(int argc, char *argv[])
 					 std::memcpy(garbage_dst, garbage.data(), garbage.size());
 
 					 stream.reopen();
-					 stream.region_runtime_initialize(region);
+					 stream.sut.region_runtime_initialize(region);
 
 					 garbage_dst = garbage_destination(last_entry);
 					 for (size_t i = 0; i < garbage.size(); i++) {
