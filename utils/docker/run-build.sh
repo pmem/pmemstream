@@ -139,7 +139,7 @@ function tests_gcc_debug_cpp17_no_valgrind() {
 function tests_gcc_debug_cpp17_valgrind() {
 	printf "\n$(tput setaf 1)$(tput setab 7)BUILD ${FUNCNAME[0]} START$(tput sgr 0)\n"
 	build_gcc_debug_cpp17
-	ctest -R " _memcheck|_drd|_helgrind|_pmemcheck" --timeout ${TEST_TIMEOUT} --output-on-failure
+	ctest -R "_memcheck|_drd|_helgrind|_pmemcheck" --timeout ${TEST_TIMEOUT} --output-on-failure
 	workspace_cleanup
 	printf "$(tput setaf 1)$(tput setab 7)BUILD ${FUNCNAME[0]} END$(tput sgr 0)\n\n"
 }
