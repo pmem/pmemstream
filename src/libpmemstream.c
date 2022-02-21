@@ -277,7 +277,7 @@ int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region regio
 
 int pmemstream_publish(struct pmemstream *stream, struct pmemstream_region region,
 		       struct pmemstream_region_runtime *region_runtime, const void *data, size_t size,
-		       struct pmemstream_entry *reserved_entry)
+		       struct pmemstream_entry reserved_entry)
 {
 	if (!region_runtime) {
 		int ret = pmemstream_region_runtime_initialize(stream, region, &region_runtime);
@@ -289,7 +289,7 @@ int pmemstream_publish(struct pmemstream *stream, struct pmemstream_region regio
 	struct span_entry span_entry = {.span_base = span_base_create(size, SPAN_ENTRY),
 					.popcount = util_popcount_memory(data, size)};
 
-	uint8_t *destination = (uint8_t *)span_offset_to_span_ptr(&stream->data, reserved_entry->offset);
+	uint8_t *destination = (uint8_t *)span_offset_to_span_ptr(&stream->data, reserved_entry.offset);
 	stream->data.memcpy(destination, &span_entry, sizeof(span_entry), PMEM2_F_MEM_NOFLUSH);
 	/* 'data' is already copied - we only need to persist. */
 	stream->data.persist(destination, pmemstream_entry_total_size_aligned(size));
