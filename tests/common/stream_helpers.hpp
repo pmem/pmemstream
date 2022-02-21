@@ -85,11 +85,11 @@ struct pmemstream_sut {
 		return {ret, reserved_entry, reserved_data};
 	}
 
-	std::tuple<int, pmemstream_entry> publish(struct pmemstream_region region, void *data, size_t size)
+	std::tuple<int, pmemstream_entry> publish(struct pmemstream_region region, void *data, size_t size,
+						  struct pmemstream_entry reserved_entry)
 	{
-		pmemstream_entry reserved_entry = {0};
 		int ret = pmemstream_publish(stream.get(), region, helpers.region_runtime[region.offset], data, size,
-					     &reserved_entry);
+					     reserved_entry);
 		return {ret, reserved_entry};
 	}
 
@@ -191,7 +191,7 @@ struct pmemstream_sut {
 				memcpy(reserved_data, d.data(), d.size());
 
 				ret = pmemstream_publish(s.stream.get(), region, region_runtime[region.offset],
-							 d.data(), d.size(), &reserved_entry);
+							 d.data(), d.size(), reserved_entry);
 				UT_ASSERTeq(ret, 0);
 			}
 		}
