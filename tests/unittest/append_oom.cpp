@@ -22,7 +22,7 @@ int main(int argc, char *argv[])
 
 		ret += rc::check(
 			"verify append will work until OOM", [&](pmemstream_empty &&stream, const std::string &value) {
-				auto region = stream.sut.helpers.initialize_single_region(
+				auto region = stream.helpers.initialize_single_region(
 					REGION_METADATA_SIZE + *rc::gen::inRange<size_t>(0, TEST_DEFAULT_REGION_SIZE),
 					{});
 
