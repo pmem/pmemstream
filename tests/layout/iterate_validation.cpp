@@ -46,6 +46,39 @@ std::vector<uint64_t> generate_inconsistent_span(span_type stype)
 
 	return garbage;
 }
+
+std::vector<uint64_t> generate_consistent_entry_span()
+{
+	static constexpr size_t max_entry_size = 1024;
+
+	size_t metadata_size = sizeof(struct span_entry);
+	auto size = *rc::gen::inRange<size_t>(0, max_entry_size);
+
+	std::vector<uint64_t> data = *rc::gen::container<std::vector<uint64_t>>(
+		(metadata_size + size + sizeof(uint64_t)) / sizeof(uint64_t), rc::gen::arbitrary<uint64_t>());
+
+	data[0] = size | static_cast<uint64_t>(SPAN_ENTRY);
+	data[1] = util_popcount_memory(reinterpret_cast<const uint8_t *>(data.data()) + metadata_size, size);
+
+	return data;
+}
+
+void write_custom_span_at_tail(pmemstream_test_base &stream, pmemstream_region region,
+			       const std::vector<uint64_t> &span)
+{
+	auto span_data_size = span[0] & SPAN_EXTRA_MASK;
+
+	/* Valid append */
+	auto [ret, entry] = stream.sut.append(region, std::string(span_data_size, 'x'));
+	UT_ASSERTeq(ret, 0);
+
+	auto entry_view = stream.sut.get_entry(entry);
+	auto span_ptr = reinterpret_cast<const char *>(entry_view.data()) - sizeof(span_entry);
+
+	/* Now, overwrite the valid entry in stream with custom one. */
+	std::memcpy(const_cast<char *>(span_ptr), span.data(), span_data_size + sizeof(span_entry));
+	stream.sut.c_ptr()->data.persist(span_ptr, span_data_size + sizeof(span_entry));
+}
 } // namespace
 
 int main(int argc, char *argv[])
@@ -61,38 +94,34 @@ int main(int argc, char *argv[])
 	return run_test(test_config, [&] {
 		return_check ret;
 
-		ret += rc::check(
-			"verify if stream does not treat inconsistent spans as valid entries",
-			[&](pmemstream_empty &&stream, const std::vector<std::string> &data, bool entry_span) {
-				RC_PRE(data.size() > 0);
-				auto region = stream.helpers.initialize_single_region(TEST_DEFAULT_REGION_SIZE, data);
+		ret += rc::check("verify if stream does not treat inconsistent spans as valid entries",
+				 [&](pmemstream_empty &&stream, const std::vector<std::string> &data, bool entry_span) {
+					 auto region = stream.helpers.initialize_single_region(TEST_DEFAULT_REGION_SIZE,
+											       data);
 
-				std::vector<std::string> result;
+					 auto span = generate_inconsistent_span(entry_span ? SPAN_ENTRY : SPAN_EMPTY);
+					 write_custom_span_at_tail(stream, region, span);
 
-				auto eiter = stream.sut.entry_iterator(region);
-				struct pmemstream_entry entry = {UINT64_MAX};
-				char *base_ptr = nullptr;
-				while (pmemstream_entry_iterator_next(eiter.get(), nullptr, &entry) == 0) {
-					if (!base_ptr) {
-						auto ptr = stream.sut.get_entry(entry).data() - entry.offset;
-						base_ptr = const_cast<char *>(ptr);
-					}
-				}
-				UT_ASSERTne(entry.offset, UINT64_MAX);
+					 stream.reopen();
 
-				/* This pointer is not safe to read - it points to uninitialized data */
-				auto data_ptr = base_ptr +
-					ALIGN_UP(entry.offset + data.back().size() + sizeof(struct span_entry),
-						 sizeof(span_bytes));
-				auto partial_span = generate_inconsistent_span(entry_span ? SPAN_ENTRY : SPAN_EMPTY);
-				auto partial_span_ptr = reinterpret_cast<char *>(partial_span.data());
-				std::memcpy(static_cast<char *>(data_ptr), partial_span_ptr,
-					    partial_span.size() * sizeof(partial_span[0]));
+					 auto stream_data = stream.helpers.get_elements_in_region(region);
+					 UT_ASSERTeq(stream_data.size(), data.size());
+					 UT_ASSERT(std::equal(data.begin(), data.end(), stream_data.begin()));
+				 });
 
-				stream.reopen();
+		ret += rc::check("verify if stream does treat consistent entry spans as valid entries",
+				 [&](pmemstream_empty &&stream, const std::vector<std::string> &data) {
+					 auto region = stream.helpers.initialize_single_region(TEST_DEFAULT_REGION_SIZE,
+											       data);
 
-				auto stream_data = stream.helpers.get_elements_in_region(region);
-				UT_ASSERT(std::equal(data.begin(), data.end(), stream_data.begin()));
-			});
+					 auto span = generate_consistent_entry_span();
+					 write_custom_span_at_tail(stream, region, span);
+
+					 stream.reopen();
+
+					 auto stream_data = stream.helpers.get_elements_in_region(region);
+					 UT_ASSERTeq(stream_data.size(), data.size() + 1);
+					 UT_ASSERT(std::equal(data.begin(), data.end(), stream_data.begin()));
+				 });
 	});
 }
