@@ -5,9 +5,11 @@
 
 #include "id_manager.h"
 
+#include <set>
 #include <vector>
 
 #include <rapidcheck.h>
+#include <rapidcheck/state.h>
 
 #include "thread_helpers.hpp"
 #include "unittest.hpp"
@@ -27,6 +29,84 @@ void release_ids(id_manager *manager, size_t size, It &&it)
 		++it;
 	}
 }
+
+struct id_wrapper {
+	id_wrapper() : sut(make_id_manager())
+	{
+	}
+
+	decltype(make_id_manager()) sut;
+};
+
+struct id_model {
+	id_model()
+	{
+		for (size_t i = 0; i < max_num_id_requests; i++) {
+			available.insert(i);
+		}
+	}
+
+	std::set<uint64_t> available;
+	std::set<uint64_t> used;
+};
+
+using rc_id_command = rc::state::Command<id_model, id_wrapper>;
+
+struct rc_acquire_id_command : public rc_id_command {
+
+	void checkPreconditions(const id_model &m) const override
+	{
+		RC_PRE(m.available.size() > 0);
+	}
+
+	void apply(id_model &m) const override
+	{
+		/* Prints distribution of m.used.size():
+		 * https://github.com/emil-e/rapidcheck/blob/master/doc/distribution.md */
+		RC_TAG(m.used.size());
+
+		auto id = *m.available.begin();
+		m.available.erase(id);
+		m.used.insert(id);
+	}
+
+	void run(const id_model &m, id_wrapper &id) const override
+	{
+		auto acquired_id = id_manager_acquire(id.sut.get());
+
+		/* ids were assigned from smallest available. */
+		UT_ASSERTeq(acquired_id, *m.available.begin());
+
+		/* id was not used before */
+		UT_ASSERT(m.used.count(acquired_id) == 0);
+	}
+};
+
+struct rc_release_id_command : public rc_id_command {
+
+	size_t to_release;
+
+	explicit rc_release_id_command(const id_model &m)
+	{
+		to_release = *rc::gen::elementOf(m.used);
+	}
+
+	void checkPreconditions(const id_model &m) const override
+	{
+		RC_PRE(m.used.count(to_release) == 1);
+	}
+
+	void apply(id_model &m) const override
+	{
+		m.used.erase(to_release);
+		m.available.insert(to_release);
+	}
+
+	void run(const id_model &m, id_wrapper &id) const override
+	{
+		id_manager_release(id.sut.get(), to_release);
+	}
+};
 
 } // namespace
 
@@ -58,54 +138,11 @@ int main()
 			}
 		}
 
-		ret += rc::check("verify if ids are reused", [](bool release_from_biggest) {
-			/* Generate a vector of acquire/release operations.
-			 * XXX: create a dedicated generator for this. */
-			static constexpr size_t max_acquire_release_ops = 1024;
-			std::vector<std::pair<unsigned, unsigned>> acquire_release;
-			size_t num_elements = *rc::gen::inRange<size_t>(1, max_num_id_requests);
-			auto gen_acq_rel = rc::gen::inRange<unsigned>(0, max_acquire_release_ops);
-			for (size_t i = 0; i < num_elements; i++) {
-				acquire_release.emplace_back(*gen_acq_rel, *gen_acq_rel);
-			}
-
-			auto manager = make_id_manager();
-			std::vector<uint64_t> acquired_ids;
-
-			for (auto &p : acquire_release) {
-				auto to_acquire = p.first;
-				auto to_release = p.second;
-
-				for (unsigned i = 0; i < to_acquire; i++) {
-					auto id = id_manager_acquire(manager.get());
-
-					/* Id will either be bigger than all existing (==
-					 * acquired_ids.size()) or will be a reused one. */
-					UT_ASSERT(id <= acquired_ids.size());
-
-					acquired_ids.emplace_back(id);
-				}
-
-				if (acquired_ids.size() < to_release)
-					to_release = acquired_ids.size();
-
-				if (release_from_biggest) {
-					release_ids(manager.get(), to_release, acquired_ids.rbegin());
-				} else {
-					release_ids(manager.get(), to_release, acquired_ids.begin());
-					/* Move remaining items into the place of released ones. */
-					std::rotate(acquired_ids.begin(),
-						    acquired_ids.begin() + static_cast<int64_t>(to_release),
-						    acquired_ids.end());
-				}
-				acquired_ids.resize(acquired_ids.size() - to_release);
-			}
-
-			if (release_from_biggest) {
-				/* Since release was always done in reverse order, all ids should be
-				 * sorted. */
-				UT_ASSERT(std::is_sorted(acquired_ids.begin(), acquired_ids.end()));
-			}
+		ret += rc::check("verify if ids are reused", []() {
+			id_wrapper id{};
+			rc::state::check(
+				id_model{}, id,
+				rc::state::gen::execOneOfWithArgs<rc_acquire_id_command, rc_release_id_command>());
 		});
 
 		ret += rc::check("verify if reacquired ids are assigned in increasing order", []() {
