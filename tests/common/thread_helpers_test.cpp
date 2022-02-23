@@ -15,7 +15,9 @@ static constexpr size_t concurrency = 128;
 
 int main()
 {
-	return run_test([] {
+	struct test_config_type test_config;
+
+	return run_test(test_config, [] {
 		std::atomic<size_t> counter;
 		counter = 0;
 

@@ -19,13 +19,6 @@ auto make_region_runtimes_map = make_instance_ctor(region_runtimes_map_new, regi
 /* XXX: create similar test for region_runtime_initialize_for_write_locked */
 int main(int argc, char *argv[])
 {
-	if (argc != 2) {
-		std::cout << "Usage: " << argv[0] << " file-path" << std::endl;
-		return -1;
-	}
-
-	auto path = std::string(argv[1]);
-
 	return run_test([&] {
 		{
 			auto region_runtimes_map = make_region_runtimes_map();

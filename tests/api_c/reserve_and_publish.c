@@ -31,7 +31,7 @@ void test_reserve_and_publish(char *path)
 	UT_ASSERTeq(ret, 0);
 	UT_ASSERTne(data_address, NULL);
 
-	ret = pmemstream_publish(stream, region, NULL, &data, sizeof(data), &entry);
+	ret = pmemstream_publish(stream, region, NULL, &data, sizeof(data), entry);
 	UT_ASSERTeq(ret, 0);
 
 	pmemstream_region_free(stream, region);
@@ -60,7 +60,7 @@ void test_reserve_and_publish_with_memcpy(char *path)
 
 	memcpy(&data_address, &data, sizeof(data));
 
-	ret = pmemstream_publish(stream, region, NULL, &data, sizeof(data), &entry);
+	ret = pmemstream_publish(stream, region, NULL, &data, sizeof(data), entry);
 	UT_ASSERTeq(ret, 0);
 
 	pmemstream_region_free(stream, region);
