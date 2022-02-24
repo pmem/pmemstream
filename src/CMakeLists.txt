@@ -17,6 +17,7 @@ set(SOURCES critnib/critnib.c
 			id_manager.c
 			iterator.c
 			region.c
+			region_allocator.c
 			span.c
 			thread_id.c
 			libpmemstream.c)
