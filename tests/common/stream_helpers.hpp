@@ -12,9 +12,10 @@
 #include <tuple>
 #include <vector>
 
+#include "stream_span_helpers.hpp"
 #include "unittest.hpp"
 
-std::unique_ptr<struct pmemstream, std::function<void(struct pmemstream *)>>
+static inline std::unique_ptr<struct pmemstream, std::function<void(struct pmemstream *)>>
 make_pmemstream(const std::string &file, size_t block_size, size_t size, bool truncate = true)
 {
 	struct pmem2_map *map = map_open(file.c_str(), size, truncate);
@@ -48,6 +49,16 @@ struct stream {
 	stream(stream &&) = default;
 	stream &operator=(const stream &) = delete;
 	stream &operator=(stream &&) = default;
+
+	pmemstream *c_ptr()
+	{
+		return c_stream.get();
+	}
+
+	const pmemstream *c_ptr() const
+	{
+		return c_stream.get();
+	}
 
 	void close()
 	{
@@ -316,7 +327,19 @@ struct pmemstream_test_base {
 	bool call_initialize_region_runtime_after_reopen = false;
 };
 
-auto make_default_test_stream()
+static inline std::ostream &operator<<(std::ostream &os, const pmemstream_test_base &stream)
+{
+	os << "filename: " << stream.file << std::endl;
+	os << "block_size: " << stream.block_size << std::endl;
+	os << "size: " << stream.size << std::endl;
+	os << "call_initialize_region_runtime: " << stream.call_initialize_region_runtime << std::endl;
+	os << "call_initialize_region_runtime_after_reopen: " << stream.call_initialize_region_runtime_after_reopen
+	   << std::endl;
+	os << span_runtimes_from_stream(stream.sut, 0, UINT64_MAX);
+	return os;
+}
+
+static inline auto make_default_test_stream()
 {
 	return pmemstream_test_base(get_test_config().filename, get_test_config().block_size,
 				    get_test_config().stream_size, true);
