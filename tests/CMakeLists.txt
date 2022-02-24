@@ -48,6 +48,7 @@ add_library(test_backtrace STATIC common/test_backtrace.c)
 if(LIBUNWIND_FOUND)
 	target_compile_definitions(test_backtrace PUBLIC USE_LIBUNWIND=1)
 endif()
+add_library(stream_span_helpers STATIC common/stream_span_helpers.cpp ../src/span.c)
 
 # Set variable to know if debug tests can be run
 if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
@@ -135,6 +136,9 @@ if(TESTS_RAPIDCHECK)
 
 	build_test_rc(NAME util_common SRC_FILES unittest/util_common.cpp)
 	add_test_generic(NAME util_common TRACERS none)
+
+	build_test_rc(NAME iterate_all SRC_FILES layout/iterate_all.cpp ../src/span.c)
+	add_test_generic(NAME iterate_all TRACERS none)
 
 	build_test_rc(NAME iterate_validation SRC_FILES layout/iterate_validation.cpp ../src/span.c)
 	add_test_generic(NAME iterate_validation TRACERS none memcheck pmemcheck)
