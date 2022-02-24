@@ -22,6 +22,8 @@ LIBPMEMSTREAM_1.0 {
 		pmemstream_reserve;
 		pmemstream_region_allocate;
 		pmemstream_region_free;
+		initialize_memory;
+		is_free_empty;
 	local:
 		*;
 };
