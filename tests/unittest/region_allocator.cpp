@@ -3,83 +3,62 @@
 
 /* region_allocator.cpp -- tests region allocator */
 
+#include "region_allocator.h"
 #include "../examples/examples_helpers.h"
 #include "libpmemstream.h"
 #include "libpmemstream_internal.h"
 #include "span.h"
 #include "unittest.hpp"
 
+#include <cstddef>
 #include <iostream>
-#include <stdint.h>
-#include <string.h>
 
 #include <rapidcheck.h>
 
-const uint64_t EMPTY_OBJ = UINT64_MAX;
+#define DRAM
 
-struct allocator_header {
-	uint64_t magic;
-	uint64_t first_free;	  // first empty span = 0
-	uint64_t first_allocated; // first allocated region offset
-	uint64_t padding[5];
-	uint64_t data[];
-} * header;
-
-/* API */
-uint64_t allocate_region(uint64_t region_size);
-void free_region(uint64_t region_offset);
-uint64_t get_region_iterator();
-uint64_t get_empty_iterator();
-uint64_t next(uint64_t it);
-
-void initialize_memory(uint64_t *ptr, size_t size)
-{
-	const uint64_t header_id = 26985;
-	header = (struct allocator_header *)ptr;
-	if (header->magic == header_id)
-		return;
-
-	header->first_free = 0;
-	header->first_allocated = EMPTY_OBJ;
-	header->magic = header_id;
-
-	span_empty se;
-	se.span_base = span_base_create(size - sizeof(struct span_region), SPAN_EMPTY);
-	memcpy(header->data, &se, sizeof(se));
-}
-
-uint64_t *pointer_to_offset(uint64_t *base, uint64_t offset)
-{
-	return (uint64_t *)((uint8_t *)base + offset);
-}
-
-int is_free_empty(uint64_t *ptr)
-{
-	if (span_get_type((span_base *)&ptr[0]) == SPAN_EMPTY) { // retrieve first element from list
-		return 1;
+class test_allocator {
+ public:
+	test_allocator(uint64_t size)
+	{
+		area = new std::byte[size];
+		region_allocator_new(&alloc_header, (uint64_t *)area, size);
 	}
-	return 0;
-}
+	size_t count_freelist()
+	{
+		return count_list(SPAN_EMPTY);
+	}
 
-uint64_t split(uint64_t *ptr, size_t size)
-{
-	if (header->first_free == EMPTY_OBJ) {
-		return EMPTY_OBJ;
+	size_t count_alloclist()
+	{
+		return count_list(SPAN_REGION);
 	}
-	uint64_t free_size = span_get_total_size((span_base *)pointer_to_offset(header->data, header->first_free));
-	if (size > free_size + sizeof(struct span_empty)) {
-		return EMPTY_OBJ;
+
+	~test_allocator()
+	{
+		delete[] area;
 	}
-	span_empty se[2] = {0};
-	size_t target_size[2] = {size, free_size - size}; // size plus metadata size (for empty or region?)
-	uint64_t target_offset[2] = {header->first_free, header->first_free + size};
-	se[0].span_base = span_base_create(target_size[0], SPAN_EMPTY);
-	se[1].span_base = span_base_create(target_size[1], SPAN_EMPTY);
-	se[0].next = target_offset[1];
-	memcpy(pointer_to_offset(header->data, target_offset[0]), &se[0], sizeof(span_empty));
-	memcpy(pointer_to_offset(header->data, target_offset[1]), &se[1], sizeof(span_empty));
-	return 0;
-}
+
+	struct allocator_header *get_alloc_header()
+	{
+		return alloc_header;
+	}
+
+ private:
+	std::byte *area;
+	struct allocator_header *alloc_header;
+
+	size_t count_list(enum span_type type)
+	{
+		auto it = get_iterator_for_type(alloc_header, type);
+		size_t i = 0;
+		while (it != EMPTY_OBJ) {
+			it = next(alloc_header, it);
+			++i;
+		}
+		return i;
+	}
+};
 
 int main(int argc, char *argv[])
 {
@@ -88,7 +67,10 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
-	u_int64_t size = 16 * 1024;
+	uint64_t size = 16 * 1024;
+#ifdef DRAM
+	// uint64_t *spans = new uint64_t[size / sizeof(uint64_t)];
+#else
 	struct pmem2_map *map = example_map_open(argv[1], size);
 	if (map == NULL) {
 		pmem2_perror("pmem2_map");
@@ -100,24 +82,64 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "pmemstream_from_map failed\n");
 		return -1;
 	}
-	uint64_t *spans = stream->data.spans;
-	initialize_memory(spans, size);
+	// uint64_t *spans = stream->data.spans;
+#endif
+	test_allocator alloc(size);
+	struct allocator_header *alloc_header = alloc.get_alloc_header();
 
 	return_check ret;
-	ret += rc::check("is free empty", [spans]() {
-		if (is_free_empty(spans) == true) {
-			return true;
-		} else {
-			return false;
-		}
+	ret += rc::check("Initialize new allocator", [alloc_header]() {
+		RC_ASSERT(get_iterator_for_type(alloc_header, SPAN_REGION) == EMPTY_OBJ);
+		RC_ASSERT(get_iterator_for_type(alloc_header, SPAN_EMPTY) != EMPTY_OBJ);
 	});
 
-	split(spans, 2048);
-	/* iterate through free list */
-	split(spans, 512);
-	/* iterate through free list */
+	// auto res = split(alloc_header, get_iterator_for_type(alloc_header, SPAN_EMPTY), 512);
+	// split(alloc_header, res, 256);
 
+	// auto removed_elem = remove_head(alloc_header, &alloc_header->free_list);
+	// push_back(alloc_header, &alloc_header->alloc_list, removed_elem);
+	// set_next(alloc_header, removed_elem, EMPTY_OBJ);
+
+	// removed_elem = remove_head(alloc_header, &alloc_header->free_list);
+	// push_back(alloc_header, &alloc_header->alloc_list, removed_elem);
+	// set_next(alloc_header, removed_elem, EMPTY_OBJ);
+
+	// ret += rc::check("Split empty span", [res]() { RC_ASSERT(res != EMPTY_OBJ); });
+	std::cout << "Allocation block on: " << region_allocator_allocate(alloc_header, 256, 64) << std::endl;
+	std::cout << "Allocation block on: " << region_allocator_allocate(alloc_header, 500, 64) << std::endl;
+
+	// ret += rc::check("is allocated-list empty",
+	//		 [alloc_header]() { return (get_iterator_for_type(alloc_header, SPAN_REGION) == EMPTY_OBJ); });
+	// ret += rc::check("is free-list not empty",
+	//		 [alloc_header]() { return (get_iterator_for_type(alloc_header, SPAN_EMPTY) != EMPTY_OBJ); });
+	/* iterate through free list and count items */
+
+	std::cout << "Free list:" << std::endl;
+	std::cout << "HEAD: " << alloc_header->free_list.head << std::endl;
+	std::cout << "TAIL: " << alloc_header->free_list.tail << std::endl;
+	auto it = get_iterator_for_type(alloc_header, SPAN_EMPTY);
+	if (it == EMPTY_OBJ)
+		std::cout << "EMPTY FREE LIST" << std::endl;
+	while (it != EMPTY_OBJ) {
+		std::cout << it << std::endl;
+		it = next(alloc_header, it);
+	}
+	std::cout << "Alloc list:" << std::endl;
+	std::cout << "HEAD: " << alloc_header->alloc_list.head << std::endl;
+	std::cout << "TAIL: " << alloc_header->alloc_list.tail << std::endl;
+	it = get_iterator_for_type(alloc_header, SPAN_REGION);
+	if (it == EMPTY_OBJ)
+		std::cout << "EMPTY ALLOC LIST" << std::endl;
+	while (it != EMPTY_OBJ) {
+		std::cout << it << std::endl;
+		it = next(alloc_header, it);
+	}
+
+#ifdef DRAM
+
+#else
 	pmemstream_delete(&stream);
 	pmem2_map_delete(&map);
+#endif
 	return 0;
 }
