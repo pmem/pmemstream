@@ -131,6 +131,9 @@ if(TESTS_RAPIDCHECK)
 	build_test_rc(NAME multi_region SRC_FILES unittest/multi_region.cpp)
 	add_test_generic(NAME multi_region TRACERS none)
 
+	build_test_rc(NAME publish_append_async SRC_FILES unittest/publish_append_async.cpp LIBS miniasync)
+	add_test_generic(NAME publish_append_async TRACERS none)
+
 	build_test_rc(NAME region_runtime_initialize SRC_FILES unittest/region_runtime_initialize.cpp)
 	add_test_generic(NAME region_runtime_initialize TRACERS none memcheck)
 
