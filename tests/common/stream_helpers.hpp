@@ -54,6 +54,11 @@ struct stream {
 		c_stream.reset();
 	}
 
+	pmemstream *c_ptr()
+	{
+		return c_stream.get();
+	}
+
 	std::tuple<int, struct pmemstream_region_runtime *> region_runtime_initialize(struct pmemstream_region region)
 	{
 		struct pmemstream_region_runtime *runtime = nullptr;

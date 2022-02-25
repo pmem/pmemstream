@@ -137,7 +137,7 @@ if(TESTS_RAPIDCHECK)
 	add_test_generic(NAME util_common TRACERS none)
 
 	build_test_rc(NAME iterate_validation SRC_FILES layout/iterate_validation.cpp ../src/span.c)
-	add_test_generic(NAME iterate_validation TRACERS none)
+	add_test_generic(NAME iterate_validation TRACERS none memcheck pmemcheck)
 endif()
 
 if(GDB AND DEBUG_BUILD)
