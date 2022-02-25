@@ -66,20 +66,34 @@ int main(int argc, char *argv[])
 	}
 
 	/* async append, executed in the libminiasync runtime */
-	struct data_entry e2;
-	e2.data = 2;
-	struct pmemstream_append_future append_async_2 = pmemstream_append_async(stream, region, NULL, &e2, sizeof(e2));
-	struct data_entry e4;
-	e4.data = 4;
-	struct pmemstream_append_future append_async_4 = pmemstream_append_async(stream, region, NULL, &e4, sizeof(e4));
+	struct data_mover_threads *dmt = data_mover_threads_default();
+	if (dmt == NULL) {
+		fprintf(stderr, "Failed to allocate data mover.\n");
+		return -1;
+	}
+	struct vdm *thread_mover = data_mover_threads_get_vdm(dmt);
 
-	struct future *futures[] = {FUTURE_AS_RUNNABLE(&append_async_2), FUTURE_AS_RUNNABLE(&append_async_4)};
+	struct data_entry e1;
+	e1.data = 2;
+	struct pmemstream_async_append_fut append_async_1 =
+		pmemstream_async_append(thread_mover, stream, region, NULL, &e1, sizeof(e1));
+	// struct data_entry e2;
+	// e2.data = 1024;
+	// struct pmemstream_async_append_fut append_async_2 =
+	// pmemstream_async_append(thread_mover, stream, region, NULL, &e2, sizeof(e2));
+
+	if (append_async_1.output.error_code != 0) {
+		fprintf(stderr, "pmemstream_append_async (1) failed\n");
+		return append_async_1.output.error_code;
+	}
+
+	struct future *futures[] = {FUTURE_AS_RUNNABLE(&append_async_1)}; /*, FUTURE_AS_RUNNABLE(&append_async_2)*/
 	struct runtime *r = runtime_new();
-	runtime_wait_multiple(r, futures, 2);
+	runtime_wait_multiple(r, futures, 1);
 	runtime_delete(r);
 
 	/* read out the data one of the async appends */
-	struct pmemstream_async_append_output *out = FUTURE_OUTPUT(&append_async_2);
+	struct pmemstream_async_append_output *out = FUTURE_OUTPUT(&append_async_1);
 	if (out->error_code != 0) {
 		fprintf(stderr, "pmemstream_append_async failed\n");
 		return ret;
