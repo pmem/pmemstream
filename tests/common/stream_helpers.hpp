@@ -81,6 +81,13 @@ struct stream {
 		return {ret, new_entry};
 	}
 
+	pmemstream_async_append_fut async_append(struct vdm *vdm, struct pmemstream_region region,
+						 const std::string_view &data,
+						 pmemstream_region_runtime *region_runtime = nullptr)
+	{
+		return pmemstream_async_append(c_stream.get(), vdm, region, region_runtime, data.data(), data.size());
+	}
+
 	std::tuple<int, struct pmemstream_entry, void *> reserve(struct pmemstream_region region, size_t size,
 								 pmemstream_region_runtime *region_runtime = nullptr)
 	{
@@ -95,6 +102,13 @@ struct stream {
 		    struct pmemstream_entry reserved_entry, pmemstream_region_runtime *region_runtime = nullptr)
 	{
 		return pmemstream_publish(c_stream.get(), region, region_runtime, data, size, reserved_entry);
+	}
+
+	pmemstream_async_publish_fut async_publish(struct pmemstream_region region, const void *data, size_t size,
+						   struct pmemstream_entry reserved_entry,
+						   pmemstream_region_runtime *region_runtime = nullptr)
+	{
+		return pmemstream_async_publish(c_stream.get(), region, region_runtime, data, size, reserved_entry);
 	}
 
 	std::tuple<int, struct pmemstream_region> region_allocate(size_t size)
@@ -168,6 +182,35 @@ struct pmemstream_helpers_type {
 			auto [ret, entry] = stream.append(region, e, region_runtime[region.offset]);
 			UT_ASSERTeq(ret, 0);
 		}
+	}
+
+	void async_append(struct pmemstream_region region, const std::vector<std::string> &data)
+	{
+		struct data_mover_threads *dmt = data_mover_threads_default();
+		UT_ASSERT(dmt != NULL);
+		struct vdm *thread_mover = data_mover_threads_get_vdm(dmt);
+
+		auto futures = std::vector<struct pmemstream_async_append_fut>();
+		for (size_t i = 0; i < data.size(); ++i) {
+			auto fut = stream.async_append(thread_mover, region, data[i], region_runtime[region.offset]);
+			UT_ASSERTeq(fut.output.error_code, 0);
+			futures.push_back(fut);
+		}
+
+		/* poll all async appends */
+		auto completed_futures = std::vector<bool>(data.size());
+		size_t completed = 0;
+		do {
+			for (size_t i = 0; i < data.size(); ++i) {
+				if (!completed_futures[i] &&
+				    future_poll(FUTURE_AS_RUNNABLE(&futures[i]), NULL) == FUTURE_STATE_COMPLETE) {
+					completed_futures[i] = true;
+					completed++;
+				}
+			}
+		} while (completed < data.size());
+
+		data_mover_threads_delete(dmt);
 	}
 
 	struct pmemstream_region initialize_single_region(size_t region_size, const std::vector<std::string> &data)
