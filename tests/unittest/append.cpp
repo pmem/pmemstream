@@ -16,7 +16,7 @@ int main(int argc, char *argv[])
 	}
 
 	struct test_config_type test_config;
-	test_config.filename = std::string(argv[1]);
+	test_config.filename = argv[1];
 
 	return run_test(test_config, [&] {
 		return_check ret;
