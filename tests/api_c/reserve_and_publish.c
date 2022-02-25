@@ -17,6 +17,7 @@ void test_reserve_and_publish(char *path)
 	int ret;
 	void *data_address = NULL;
 	struct entry_data data;
+	data.data = 128;
 	struct pmemstream_entry entry;
 	struct pmem2_map *map = map_open(path, TEST_DEFAULT_STREAM_SIZE, true);
 	struct pmemstream *stream;
@@ -44,6 +45,7 @@ void test_reserve_and_publish_with_memcpy(char *path)
 	int ret;
 	void *data_address = NULL;
 	struct entry_data data;
+	data.data = 1024;
 	struct pmemstream_entry entry;
 	struct pmem2_map *map = map_open(path, TEST_DEFAULT_STREAM_SIZE, true);
 	struct pmemstream *stream;
