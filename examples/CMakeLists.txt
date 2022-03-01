@@ -49,3 +49,6 @@ target_link_libraries(example-03_reserve_publish ${LIBPMEM2_LIBRARIES})
 
 add_example(04_basic_async 04_basic_async/main.cpp)
 target_link_libraries(example-04_basic_async ${LIBPMEM2_LIBRARIES} ${MINIASYNC_LIBRARIES})
+
+add_example(05_ringbuffer 05_ringbuffer/main.c 05_ringbuffer/ringbuffer.c)
+target_link_libraries(example-05_ringbuffer ${LIBPMEM2_LIBRARIES} pthread)
