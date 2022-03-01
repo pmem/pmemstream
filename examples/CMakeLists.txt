@@ -46,3 +46,6 @@ target_link_libraries(example-02_visual_iterator ${LIBPMEM2_LIBRARIES})
 
 add_example(03_reserve_publish 03_reserve_publish/main.cpp)
 target_link_libraries(example-03_reserve_publish ${LIBPMEM2_LIBRARIES})
+
+add_example(04_ringbuffer 04_ringbuffer/main.c 04_ringbuffer/ringbuffer.c)
+target_link_libraries(example-04_ringbuffer ${LIBPMEM2_LIBRARIES} pthread)
