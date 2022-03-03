@@ -44,6 +44,11 @@ int pmemstream_region_iterator_next(struct pmemstream_region_iterator *it, struc
 	return -1;
 }
 
+bool pmemstream_region_iterator_equal(struct pmemstream_region_iterator *lhs, struct pmemstream_region_iterator *rhs)
+{
+	return lhs->region.offset == rhs->region.offset;
+}
+
 void pmemstream_region_iterator_delete(struct pmemstream_region_iterator **iterator)
 {
 	struct pmemstream_region_iterator *iter = *iterator;
@@ -94,6 +99,16 @@ int pmemstream_entry_iterator_new(struct pmemstream_entry_iterator **iterator, s
 err:
 	free(iter);
 	return ret;
+}
+
+bool pmemstream_entry_iterator_equal(struct pmemstream_entry_iterator *lhs, struct pmemstream_entry_iterator *rhs)
+{
+	if (lhs->region.offset == rhs->region.offset) {
+		if (lhs->offset == rhs->offset) {
+			return true;
+		}
+	}
+	return false;
 }
 
 static int validate_entry(const struct pmemstream *stream, struct pmemstream_entry entry)
