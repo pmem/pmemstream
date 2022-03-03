@@ -7,6 +7,7 @@
 #define LIBPMEMSTREAM_H
 
 #include <libpmem2.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/types.h>
@@ -103,6 +104,9 @@ int pmemstream_region_iterator_new(struct pmemstream_region_iterator **iterator,
 
 int pmemstream_region_iterator_next(struct pmemstream_region_iterator *iterator, struct pmemstream_region *region);
 
+/* Check if two region iterators points to the same region */
+bool pmemstream_region_iterator_equal(struct pmemstream_region_iterator *lhs, struct pmemstream_region_iterator *rhs);
+
 void pmemstream_region_iterator_delete(struct pmemstream_region_iterator **iterator);
 
 int pmemstream_entry_iterator_new(struct pmemstream_entry_iterator **iterator, struct pmemstream *stream,
@@ -112,6 +116,9 @@ int pmemstream_entry_iterator_new(struct pmemstream_entry_iterator **iterator, s
 // right after last valid entry or to a beggining of region if there are no valid entries
 int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iterator, struct pmemstream_region *region,
 				   struct pmemstream_entry *entry);
+
+/* Check if two region iterators points to the same entry */
+bool pmemstream_entry_iterator_equal(struct pmemstream_entry_iterator *lhs, struct pmemstream_entry_iterator *rhs);
 
 void pmemstream_entry_iterator_delete(struct pmemstream_entry_iterator **iterator);
 
