@@ -3,6 +3,7 @@
 
 #include "common/util.h"
 #include "span.h"
+#include "stream_helpers.h"
 #include "unittest.h"
 
 /**
@@ -16,177 +17,149 @@ struct entry_data {
 
 void valid_input_test(char *path)
 {
+	pmemstream_test_env env = pmemstream_test_make_default(path);
+
 	int ret;
 	struct entry_data data;
 	data.data = UINT64_MAX;
 	const struct entry_data *entry_data;
 	struct pmemstream_entry entry;
 
-	struct pmem2_map *map = map_open(path, TEST_DEFAULT_STREAM_SIZE, true);
-	struct pmemstream *stream;
-	ret = pmemstream_from_map(&stream, TEST_DEFAULT_BLOCK_SIZE, map);
-	UT_ASSERTeq(ret, 0);
-
 	struct pmemstream_region region;
-	ret = pmemstream_region_allocate(stream, TEST_DEFAULT_REGION_SIZE, &region);
+	ret = pmemstream_region_allocate(env.stream, TEST_DEFAULT_REGION_SIZE, &region);
 	UT_ASSERTeq(ret, 0);
 
-	ret = pmemstream_append(stream, region, NULL, &data, sizeof(data), &entry);
+	ret = pmemstream_append(env.stream, region, NULL, &data, sizeof(data), &entry);
 	UT_ASSERTeq(ret, 0);
 
-	entry_data = pmemstream_entry_data(stream, entry);
+	entry_data = pmemstream_entry_data(env.stream, entry);
 	UT_ASSERTne(entry_data, NULL);
 	UT_ASSERTeq(entry_data->data, data.data);
 
-	UT_ASSERTeq(pmemstream_entry_length(stream, entry), sizeof(data));
+	UT_ASSERTeq(pmemstream_entry_length(env.stream, entry), sizeof(data));
 
-	pmemstream_region_free(stream, region);
-	pmemstream_delete(&stream);
-	pmem2_map_delete(&map);
+	pmemstream_test_teardown(env);
 }
 
 void invalid_region_test(char *path)
 {
+	pmemstream_test_env env = pmemstream_test_make_default(path);
+
 	int ret;
 	struct entry_data data;
 	data.data = UINT64_MAX;
 	struct pmemstream_entry *entry = NULL;
 
-	struct pmem2_map *map = map_open(path, TEST_DEFAULT_STREAM_SIZE, true);
-	struct pmemstream *stream;
-	ret = pmemstream_from_map(&stream, TEST_DEFAULT_BLOCK_SIZE, map);
-	UT_ASSERTeq(ret, 0);
-
 	struct pmemstream_region region = {.offset = ALIGN_DOWN(UINT64_MAX, sizeof(span_bytes))};
 
-	ret = pmemstream_append(stream, region, NULL, &data, sizeof(data), entry);
+	ret = pmemstream_append(env.stream, region, NULL, &data, sizeof(data), entry);
 	UT_ASSERTeq(ret, -1);
 	UT_ASSERTeq(entry, NULL);
 
-	pmemstream_delete(&stream);
-	pmem2_map_delete(&map);
+	pmemstream_test_teardown(env);
 }
 
 void null_region_runtime_test(char *path)
 {
+	pmemstream_test_env env = pmemstream_test_make_default(path);
+
 	int ret;
 	struct entry_data data;
 	data.data = UINT64_MAX;
 	struct pmemstream_entry *entry = NULL;
 
-	struct pmem2_map *map = map_open(path, TEST_DEFAULT_STREAM_SIZE, true);
-	struct pmemstream *stream;
-	ret = pmemstream_from_map(&stream, TEST_DEFAULT_BLOCK_SIZE, map);
-	UT_ASSERTeq(ret, 0);
-
 	struct pmemstream_region region;
-	ret = pmemstream_region_allocate(stream, TEST_DEFAULT_REGION_SIZE, &region);
+	ret = pmemstream_region_allocate(env.stream, TEST_DEFAULT_REGION_SIZE, &region);
 	UT_ASSERTeq(ret, 0);
 
-	ret = pmemstream_append(stream, region, NULL, &data, 0, entry);
+	ret = pmemstream_append(env.stream, region, NULL, &data, 0, entry);
 	UT_ASSERTeq(ret, 0);
 
-	pmemstream_region_free(stream, region);
-	pmemstream_delete(&stream);
-	pmem2_map_delete(&map);
+	pmemstream_test_teardown(env);
 }
 
 void non_null_region_runtime_test(char *path)
 {
+	pmemstream_test_env env = pmemstream_test_make_default(path);
+
 	int ret;
 	struct entry_data data;
 	data.data = UINT64_MAX;
 	struct pmemstream_entry *entry = NULL;
 
-	struct pmem2_map *map = map_open(path, TEST_DEFAULT_STREAM_SIZE, true);
-	struct pmemstream *stream;
-	ret = pmemstream_from_map(&stream, TEST_DEFAULT_BLOCK_SIZE, map);
-	UT_ASSERTeq(ret, 0);
-
 	struct pmemstream_region region;
-	ret = pmemstream_region_allocate(stream, TEST_DEFAULT_REGION_SIZE, &region);
+	ret = pmemstream_region_allocate(env.stream, TEST_DEFAULT_REGION_SIZE, &region);
 	UT_ASSERTeq(ret, 0);
 
 	struct pmemstream_region_runtime *region_runtime;
-	ret = pmemstream_region_runtime_initialize(stream, region, &region_runtime);
+	ret = pmemstream_region_runtime_initialize(env.stream, region, &region_runtime);
 	UT_ASSERTeq(ret, 0);
 
-	ret = pmemstream_append(stream, region, region_runtime, &data, 0, entry);
+	ret = pmemstream_append(env.stream, region, region_runtime, &data, 0, entry);
 	UT_ASSERTeq(ret, 0);
 
-	pmemstream_region_free(stream, region);
-	pmemstream_delete(&stream);
-	pmem2_map_delete(&map);
+	pmemstream_region_free(env.stream, region);
+
+	pmemstream_test_teardown(env);
 }
 
 void null_data_test(char *path)
 {
+	pmemstream_test_env env = pmemstream_test_make_default(path);
+
 	int ret;
 	struct pmemstream_entry *entry = NULL;
 
-	struct pmem2_map *map = map_open(path, TEST_DEFAULT_STREAM_SIZE, true);
-	struct pmemstream *stream;
-	ret = pmemstream_from_map(&stream, TEST_DEFAULT_BLOCK_SIZE, map);
-	UT_ASSERTeq(ret, 0);
-
 	struct pmemstream_region region;
-	ret = pmemstream_region_allocate(stream, TEST_DEFAULT_REGION_SIZE, &region);
+	ret = pmemstream_region_allocate(env.stream, TEST_DEFAULT_REGION_SIZE, &region);
 	UT_ASSERTeq(ret, 0);
 
-	ret = pmemstream_append(stream, region, NULL, NULL, 0, entry);
+	ret = pmemstream_append(env.stream, region, NULL, NULL, 0, entry);
 	UT_ASSERTeq(ret, 0);
 	UT_ASSERTeq(entry, NULL);
 
-	pmemstream_region_free(stream, region);
-	pmemstream_delete(&stream);
-	pmem2_map_delete(&map);
+	pmemstream_region_free(env.stream, region);
+
+	pmemstream_test_teardown(env);
 }
 
 void null_entry_test(char *path)
 {
+	pmemstream_test_env env = pmemstream_test_make_default(path);
+
 	int ret;
 	struct entry_data data;
 	data.data = PTRDIFF_MAX;
 	struct pmemstream_entry *entry = NULL;
 
-	struct pmem2_map *map = map_open(path, TEST_DEFAULT_STREAM_SIZE, true);
-	struct pmemstream *stream;
-	ret = pmemstream_from_map(&stream, TEST_DEFAULT_BLOCK_SIZE, map);
-	UT_ASSERTeq(ret, 0);
-
 	struct pmemstream_region region;
-	ret = pmemstream_region_allocate(stream, TEST_DEFAULT_REGION_SIZE, &region);
+	ret = pmemstream_region_allocate(env.stream, TEST_DEFAULT_REGION_SIZE, &region);
 	UT_ASSERTeq(ret, 0);
 
-	ret = pmemstream_append(stream, region, NULL, &data, sizeof(data), entry);
+	ret = pmemstream_append(env.stream, region, NULL, &data, sizeof(data), entry);
 	UT_ASSERTeq(ret, 0);
 	UT_ASSERTeq(entry, NULL);
 
-	pmemstream_region_free(stream, region);
-	pmemstream_delete(&stream);
-	pmem2_map_delete(&map);
+	pmemstream_region_free(env.stream, region);
+
+	pmemstream_test_teardown(env);
 }
 
 void invalid_entry_test(char *path)
 {
-	int ret;
+
+	pmemstream_test_env env = pmemstream_test_make_default(path);
 	struct entry_data e;
 	e.data = PTRDIFF_MAX;
 	const struct entry_data *entry_data = &e;
 	struct pmemstream_entry entry = {.offset = ALIGN_DOWN(UINT64_MAX, sizeof(span_bytes))};
 
-	struct pmem2_map *map = map_open(path, TEST_DEFAULT_STREAM_SIZE, true);
-	struct pmemstream *stream;
-	ret = pmemstream_from_map(&stream, TEST_DEFAULT_BLOCK_SIZE, map);
-	UT_ASSERTeq(ret, 0);
-
-	entry_data = pmemstream_entry_data(stream, entry);
+	entry_data = pmemstream_entry_data(env.stream, entry);
 	UT_ASSERTeq(entry_data, NULL);
 
-	UT_ASSERTeq(pmemstream_entry_length(stream, entry), 0);
+	UT_ASSERTeq(pmemstream_entry_length(env.stream, entry), 0);
 
-	pmemstream_delete(&stream);
-	pmem2_map_delete(&map);
+	pmemstream_test_teardown(env);
 }
 
 int main(int argc, char *argv[])
