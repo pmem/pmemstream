@@ -3,6 +3,7 @@
 
 #include "common/util.h"
 #include "span.h"
+#include "stream_helpers.h"
 #include "unittest.h"
 
 /**
@@ -12,19 +13,15 @@
 
 void valid_input_test(char *path)
 {
-	int ret;
+	pmemstream_test_env env = pmemstream_test_default_prepare(path);
+
 	struct pmemstream_region_iterator *riter;
 
-	struct pmem2_map *map = map_open(path, TEST_DEFAULT_STREAM_SIZE, true);
-	struct pmemstream *stream;
-	ret = pmemstream_from_map(&stream, TEST_DEFAULT_BLOCK_SIZE, map);
-	UT_ASSERTeq(ret, 0);
-
 	struct pmemstream_region region;
-	ret = pmemstream_region_allocate(stream, TEST_DEFAULT_REGION_SIZE, &region);
+	int ret = pmemstream_region_allocate(env.stream, TEST_DEFAULT_REGION_SIZE, &region);
 	UT_ASSERTeq(ret, 0);
 
-	ret = pmemstream_region_iterator_new(&riter, stream);
+	ret = pmemstream_region_iterator_new(&riter, env.stream);
 	UT_ASSERTeq(ret, 0);
 	UT_ASSERTne(riter, NULL);
 
@@ -36,22 +33,20 @@ void valid_input_test(char *path)
 
 	pmemstream_region_iterator_delete(&riter);
 	UT_ASSERTeq(riter, NULL);
-	pmemstream_region_free(stream, region);
-	pmemstream_delete(&stream);
-	pmem2_map_delete(&map);
+	pmemstream_region_free(env.stream, region);
+
+	pmemstream_test_teardown(env);
 }
 
 void invalid_region_test(char *path)
 {
+	pmemstream_test_env env = pmemstream_test_default_prepare(path);
+
 	const uint64_t invalid_offset = ALIGN_DOWN(UINT64_MAX, sizeof(span_bytes));
-	struct pmem2_map *map = map_open(path, TEST_DEFAULT_STREAM_SIZE, true);
-	struct pmemstream *stream;
-	pmemstream_from_map(&stream, TEST_DEFAULT_BLOCK_SIZE, map);
 	struct pmemstream_region_iterator *riter = NULL;
 	struct pmemstream_region invalid_region = {.offset = invalid_offset};
-	int ret;
 
-	ret = pmemstream_region_iterator_new(&riter, stream);
+	int ret = pmemstream_region_iterator_new(&riter, env.stream);
 	UT_ASSERTeq(ret, 0);
 	UT_ASSERTne(riter, NULL);
 
@@ -60,8 +55,8 @@ void invalid_region_test(char *path)
 	UT_ASSERTeq(invalid_region.offset, invalid_offset);
 
 	pmemstream_region_iterator_delete(&riter);
-	pmemstream_delete(&stream);
-	pmem2_map_delete(&map);
+
+	pmemstream_test_teardown(env);
 }
 
 void null_stream_test()
