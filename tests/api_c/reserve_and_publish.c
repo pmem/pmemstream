@@ -165,8 +165,8 @@ void null_entry_test(char *path)
 	UT_ASSERTeq(ret, 0);
 
 	ret = pmemstream_reserve(stream, region, NULL, sizeof(struct entry_data), NULL, &data_address);
-	UT_ASSERTeq(ret, 0);
-	UT_ASSERTne(data_address, NULL);
+	UT_ASSERTeq(ret, -1);
+	UT_ASSERTeq(data_address, NULL);
 
 	pmemstream_region_free(stream, region);
 	pmemstream_delete(&stream);
@@ -189,8 +189,7 @@ int main(int argc, char *argv[])
 	// invalid_region_test(path);
 	null_data_test(path);
 	zero_size_test(path);
-	// https://github.com/pmem/pmemstream/issues/101
-	// null_entry_test(path);
+	null_entry_test(path);
 
 	return 0;
 }

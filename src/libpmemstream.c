@@ -253,6 +253,10 @@ int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region regio
 	assert(span_get_type(span_region) == SPAN_REGION);
 	int ret = 0;
 
+	if (!reserved_entry) {
+		return -1;
+	}
+
 	if (!region_runtime) {
 		ret = pmemstream_region_runtime_initialize(stream, region, &region_runtime);
 		if (ret) {
