@@ -74,7 +74,7 @@ void invalid_region_test(char *path)
 	pmemstream_test_env env = pmemstream_test_make_default(path);
 
 	void *data_address = NULL;
-	struct entry_data data;
+	struct entry_data data = {.data = 0xDEADBEEF};
 	struct pmemstream_entry entry;
 
 	struct pmemstream_region invalid_region = {.offset = ALIGN_DOWN(UINT64_MAX, sizeof(span_bytes))};
