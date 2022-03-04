@@ -36,9 +36,9 @@ int main(int argc, char *argv[])
 
 				std::vector<pmemstream_region_runtime *> threads_data(concurrency);
 				parallel_exec(concurrency, [&](size_t tid) {
-					auto [ret, rr] = stream.sut.region_runtime_initialize(region);
+					auto [ret, region_runtime] = stream.sut.region_runtime_initialize(region);
 					UT_ASSERTeq(ret, 0);
-					threads_data[tid] = rr;
+					threads_data[tid] = region_runtime;
 
 					auto is_nullptr = threads_data[tid] == nullptr;
 					UT_ASSERT(!is_nullptr);
