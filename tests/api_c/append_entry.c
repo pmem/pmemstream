@@ -148,14 +148,12 @@ void null_entry_test(char *path)
 
 void invalid_entry_test(char *path)
 {
-
 	pmemstream_test_env env = pmemstream_test_make_default(path);
-	struct entry_data data = {.data = PTRDIFF_MAX};
-	const struct entry_data *data_ptr = &data;
+
 	struct pmemstream_entry invalid_entry = {.offset = ALIGN_DOWN(UINT64_MAX, sizeof(span_bytes))};
 
-	data_ptr = pmemstream_entry_data(env.stream, invalid_entry);
-	UT_ASSERTeq(data_ptr, NULL);
+	const struct entry_data *data = (const struct entry_data *)pmemstream_entry_data(env.stream, invalid_entry);
+	UT_ASSERTeq(data, NULL);
 
 	UT_ASSERTeq(pmemstream_entry_length(env.stream, invalid_entry), 0);
 
