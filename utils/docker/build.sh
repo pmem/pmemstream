@@ -76,7 +76,6 @@ if [[ -z "${COMMAND}" ]]; then
 		COMMAND="./run-doc-update.sh";
 		;;
 	commits)
-		# XXX: export CI_LAST_MERGE in set_ci_vars
 		COMMAND="./test_all_commits.sh ${CI_LAST_MERGE}";
 		;;
 	*)
