@@ -11,5 +11,16 @@
 set -e
 
 base=${1}
-script_dir=$(dirname ${0})
-git rebase --exec "${script_dir}/run-build.sh  build_gcc_release_cpp17" ${base}
+
+if [[ -z "${WORKDIR}" ]]; then
+	echo "ERROR: The variable WORKDIR has to contain a path to the root " \
+		"of this project"
+	exit 1
+fi
+
+tmp_dir=$(mktemp -d -t pmemstream-XXXXX)
+git clone ${WORKDIR} ${tmp_dir}
+
+pushd ${tmp_dir}
+git rebase --exec "WORKDIR=${tmp_dir} ${tmp_dir}/utils/docker/run-build.sh  build_gcc_release_cpp17" ${base}
+popd
