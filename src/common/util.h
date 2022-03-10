@@ -25,13 +25,14 @@ static inline size_t util_popcount_memory(const uint8_t *data, size_t size)
 	size_t count = 0;
 	size_t i = 0;
 
-	for (; i < ALIGN_DOWN(size, sizeof(uint64_t)); i += sizeof(uint64_t)) {
-		count += util_popcount64(*(const uint64_t *)(data + i));
+	if (data != NULL) {
+		for (; i < ALIGN_DOWN(size, sizeof(uint64_t)); i += sizeof(uint64_t)) {
+			count += util_popcount64(*(const uint64_t *)(data + i));
+		}
+		for (; i < size; i++) {
+			count += util_popcount64(data[i]);
+		}
 	}
-	for (; i < size; i++) {
-		count += util_popcount64(data[i]);
-	}
-
 	return count;
 }
 
