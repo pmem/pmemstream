@@ -137,6 +137,9 @@ if(TESTS_RAPIDCHECK)
 	build_test_rc(NAME util_common SRC_FILES unittest/util_common.cpp)
 	add_test_generic(NAME util_common TRACERS none)
 
+	build_test_rc(NAME slist SRC_FILES unittest/slist.cpp)
+	add_test_generic(NAME slist TRACERS none)
+
 	build_test_rc(NAME iterate_all SRC_FILES layout/iterate_all.cpp ../src/span.c)
 	add_test_generic(NAME iterate_all TRACERS none)
 
