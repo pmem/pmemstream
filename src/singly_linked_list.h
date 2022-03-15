@@ -32,9 +32,28 @@ struct singly_linked_list {
 		(list)->head = offset;                                                                                 \
 	} while (0)
 
+#define SLIST_INSERT_TAIL(runtime, list, offset, type, field)                                                          \
+	do {                                                                                                           \
+		((type *)(pmemstream_offset_to_ptr(runtime, offset)))->field = UINT64_MAX;                             \
+		if ((list)->head == UINT64_MAX) {                                                                      \
+			(list)->head = (offset);                                                                       \
+		}                                                                                                      \
+		if ((list)->tail != UINT64_MAX) {                                                                      \
+			((type *)(pmemstream_offset_to_ptr(runtime, (list)->tail)))->field = offset;                   \
+		}                                                                                                      \
+		(list)->tail = (offset);                                                                               \
+	} while (0)
+
 #define SLIST_FOREACH(var, runtime, list, type, field)                                                                 \
 	for ((var) = (list)->head; (var) != UINT64_MAX;                                                                \
 	     (var) = ((type *)(pmemstream_offset_to_ptr(runtime, var)))->field)
+
+#define SLIST_REMOVE_HEAD(runtime, list, type, field)                                                                  \
+	do {                                                                                                           \
+		if ((list)->head == UINT64_MAX)                                                                        \
+			break;                                                                                         \
+		(list)->head = ((type *)(pmemstream_offset_to_ptr(runtime, (list)->head)))->field;                     \
+	} while (0)
 
 #ifdef __cplusplus
 
