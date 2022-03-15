@@ -103,6 +103,9 @@ add_test_generic(NAME reserve_and_publish TRACERS none memcheck pmemcheck drd he
 build_test(stream_from_map api_c/stream_from_map.c)
 add_test_generic(NAME stream_from_map TRACERS none memcheck pmemcheck drd helgrind)
 
+build_test_rc(NAME slist SRC_FILES unittest/slist.cpp)
+add_test_generic(NAME slist TRACERS none)
+
 if(TESTS_RAPIDCHECK)
 	build_test_rc(NAME append SRC_FILES unittest/append.cpp)
 	add_test_generic(NAME append TRACERS none memcheck pmemcheck)
