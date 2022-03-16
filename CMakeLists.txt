@@ -126,7 +126,8 @@ if(PKG_CONFIG_FOUND)
 else()
 	find_package(MINIASYNC REQUIRED ${MINIASYNC_REQUIRED_VERSION})
 endif()
-include_directories(${MINIASYNC_INCLUDE_DIRS})
+include_directories(${MINIASYNC_INCLUDE_DIRS}) # SYSTEM
+# target_include_directories(pmemstream PRIVATE ${MINIASYNC_INCLUDE_DIRS})
 link_directories(${MINIASYNC_LIBRARY_DIRS})
 
 list(APPEND PKG_CONFIG_REQUIRES "libminiasync >= ${MINIASYNC_REQUIRED_VERSION}")
@@ -150,7 +151,7 @@ if(COVERAGE)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -coverage")
 endif()
 
-add_common_flag(-Wall)
+add_common_flag(-fpermissive)
 add_common_flag(-Wmissing-variable-declarations)
 add_common_flag(-Wpointer-arith)
 add_common_flag(-Wsign-conversion)
@@ -199,7 +200,7 @@ if(DEVELOPER_MODE)
 	if(WIN32)
 		add_common_flag(-WX)
 	else()
-		add_common_flag(-Werror)
+		# add_common_flag(-Werror)
 
 		# check for required programs for whitespace and license checks and add dependencies to ALL
 		include(FindPerl)
