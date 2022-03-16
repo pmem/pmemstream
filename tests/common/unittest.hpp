@@ -128,8 +128,13 @@ struct return_check {
 template <typename Ctor, typename Dtor>
 auto make_instance_ctor(Ctor &&ctor, Dtor &&dtor)
 {
-	return [&] {
-		return std::unique_ptr<std::remove_reference_t<decltype(*ctor())>, decltype(&dtor)>(ctor(), &dtor);
+	return [&](auto &&... args) {
+		auto ptr = std::unique_ptr<std::remove_reference_t<decltype(*ctor(args...))>, decltype(&dtor)>(
+			ctor(args...), &dtor);
+		if (!ptr) {
+			throw std::runtime_error("Ctor failed!");
+		}
+		return ptr;
 	};
 }
 
