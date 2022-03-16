@@ -103,6 +103,9 @@ add_test_generic(NAME reserve_and_publish TRACERS none memcheck pmemcheck drd he
 build_test(stream_from_map api_c/stream_from_map.c)
 add_test_generic(NAME stream_from_map TRACERS none memcheck pmemcheck drd helgrind)
 
+build_test_rc(NAME slist SRC_FILES unittest/slist.cpp)
+add_test_generic(NAME slist TRACERS none)
+
 if(TESTS_RAPIDCHECK)
 	build_test_rc(NAME append SRC_FILES unittest/append.cpp)
 	add_test_generic(NAME append TRACERS none memcheck pmemcheck)
@@ -142,6 +145,9 @@ if(TESTS_RAPIDCHECK)
 
 	build_test_rc(NAME util_common SRC_FILES unittest/util_common.cpp)
 	add_test_generic(NAME util_common TRACERS none)
+
+	build_test_rc(NAME slist_insert_test SRC_FILES unittest/slist_insert_test.cpp)
+	add_test_generic(NAME slist_insert_test TRACERS none)
 
 	build_test_rc(NAME singly_linked_list SRC_FILES unittest/singly_linked_list.cpp)
 	add_test_generic(NAME singly_linked_list TRACERS none memcheck)
