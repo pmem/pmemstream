@@ -131,6 +131,9 @@ if(TESTS_RAPIDCHECK)
 	build_test_rc(NAME reserve_publish_integrity SRC_FILES integrity/reserve_publish.cpp)
 	add_test_generic(NAME reserve_publish_integrity TRACERS none pmemcheck)
 
+	build_test_rc(NAME singly_linked_list_ls SRC_FILES unittest/singly_linked_list_ls.cpp)
+	add_test_generic(NAME singly_linked_list_ls TRACERS none)
+
 	build_test_rc(NAME util_popcount SRC_FILES unittest/util_popcount.cpp)
 	add_test_generic(NAME util_popcount TRACERS none)
 
