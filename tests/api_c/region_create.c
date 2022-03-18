@@ -32,6 +32,29 @@ void valid_input_test(char *path)
 	pmemstream_test_teardown(env);
 }
 
+void null_stream_test(char *path)
+{
+	pmemstream_test_env env = pmemstream_test_make_default(path);
+
+	int ret;
+	struct pmemstream_region region;
+	ret = pmemstream_region_allocate(NULL, TEST_DEFAULT_REGION_SIZE, &region);
+	UT_ASSERTeq(ret, -1);
+
+	ret = pmemstream_region_allocate(env.stream, TEST_DEFAULT_REGION_SIZE, &region);
+	UT_ASSERTeq(ret, 0);
+
+	UT_ASSERTeq(pmemstream_region_size(NULL, region), 0);
+
+	struct pmemstream_region_runtime *rtm = NULL;
+	ret = pmemstream_region_runtime_initialize(NULL, region, &rtm);
+	UT_ASSERTeq(ret, -1);
+	UT_ASSERTeq(rtm, NULL);
+
+	pmemstream_region_free(env.stream, region);
+	pmemstream_test_teardown(env);
+}
+
 void zero_size_test(char *path)
 {
 	pmemstream_test_env env = pmemstream_test_make_default(path);
@@ -71,6 +94,7 @@ int main(int argc, char *argv[])
 	char *path = argv[1];
 
 	valid_input_test(path);
+	null_stream_test(path);
 	zero_size_test(path);
 	invalid_region_test(path);
 
