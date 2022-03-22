@@ -31,7 +31,7 @@ elseif(VALGRIND_FOUND)
 endif()
 
 find_libunwind()
-# find_pmreorder()
+find_pmreorder()
 find_gdb()
 
 if(TESTS_RAPIDCHECK)
@@ -156,10 +156,16 @@ if(TESTS_RAPIDCHECK)
 	add_test_generic(NAME iterate_validation TRACERS none memcheck pmemcheck)
 endif()
 
+if(TESTS_RAPIDCHECK AND TESTS_PMREORDER)
+	build_test_rc(NAME singly_linked_list_pmreorder SRC_FILES integrity/singly_linked_list_pmreorder.cpp)
+	add_test_generic(NAME singly_linked_list_pmreorder SCRIPT integrity/singly_linked_list_pmreorder.cmake TRACERS none)
+endif()
+
 if(GDB AND DEBUG_BUILD)
 	build_test(append_break integrity/append_break.cpp)
 	add_test_generic(NAME append_break SCRIPT integrity/append_break.cmake TRACERS none)
 endif()
+
 
 check_test_dependecies(NAME symbols_dependencies DEPENDENCIES bash awk grep objdump)
 if(symbols_dependencies_FOUND)
