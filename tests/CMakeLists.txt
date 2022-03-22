@@ -31,7 +31,7 @@ elseif(VALGRIND_FOUND)
 endif()
 
 find_libunwind()
-# find_pmreorder()
+find_pmreorder()
 find_gdb()
 
 if(TESTS_RAPIDCHECK)
@@ -154,6 +154,12 @@ if(TESTS_RAPIDCHECK)
 
 	build_test_rc(NAME iterate_validation SRC_FILES layout/iterate_validation.cpp ../src/span.c)
 	add_test_generic(NAME iterate_validation TRACERS none memcheck pmemcheck)
+endif()
+
+if(TESTS_PMREORDER)
+	build_test(singly_linked_list_pmreorder integrity/singly_linked_list_pmreorder.cpp)
+	add_test_generic(NAME singly_linked_list_pmreorder SCRIPT integrity/singly_linked_list_pmreorder.cmake TRACERS none)
+	add_test_generic(NAME singly_linked_list_pmreorder CASE negative SCRIPT integrity/singly_linked_list_pmreorder_negative.cmake TRACERS none)
 endif()
 
 if(GDB AND DEBUG_BUILD)
