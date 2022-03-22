@@ -152,7 +152,8 @@ err_fd:
 	return map;
 }
 
-static inline void map_delete(struct pmem2_map *map) {
+static inline void map_delete(struct pmem2_map *map)
+{
 	pmem2_map_delete(&map);
 }
 
