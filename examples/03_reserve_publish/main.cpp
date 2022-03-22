@@ -26,27 +26,31 @@ struct data_entry {
 	}
 };
 
+#define CHECK_ERROR(var)                                                                                               \
+	do {                                                                                                           \
+		int err = var;                                                                                         \
+		(void)err;                                                                                             \
+		assert(err == 0);                                                                                      \
+	} while (0)
+
 void initialize_stream(const char *path, struct pmem2_map **map, struct pmemstream **stream,
 		       struct pmemstream_region *region)
 {
 	*map = example_map_open(path, EXAMPLE_STREAM_SIZE);
 	assert(*map != NULL);
 
-	int ret = pmemstream_from_map(stream, 4096, *map);
-	assert(ret == 0);
-
-	ret = pmemstream_region_allocate(*stream, 10240, region);
-	assert(ret == 0);
+	CHECK_ERROR(pmemstream_from_map(stream, 4096, *map));
+	CHECK_ERROR(pmemstream_region_allocate(*stream, 10240, region));
 }
 
 int verify_stream(pmemstream *stream, pmemstream_region region, data_entry my_entry)
 {
 	struct pmemstream_entry entry;
 	struct pmemstream_entry_iterator *eiter;
-	int ret = pmemstream_entry_iterator_new(&eiter, stream, region);
-	assert(ret == 0);
-	ret = pmemstream_entry_iterator_next(eiter, NULL, &entry);
-	assert(ret == 0);
+
+	CHECK_ERROR(pmemstream_entry_iterator_new(&eiter, stream, region));
+	CHECK_ERROR(pmemstream_entry_iterator_next(eiter, NULL, &entry));
+
 	pmemstream_entry_iterator_delete(&eiter);
 
 	auto read_data = reinterpret_cast<const data_entry *>(pmemstream_entry_data(stream, entry));
