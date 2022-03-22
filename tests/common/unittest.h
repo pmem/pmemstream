@@ -152,6 +152,10 @@ err_fd:
 	return map;
 }
 
+static inline void map_delete(struct pmem2_map *map) {
+	pmem2_map_delete(&map);
+}
+
 static inline size_t log2_uint(size_t value)
 {
 	size_t pow = 0;
