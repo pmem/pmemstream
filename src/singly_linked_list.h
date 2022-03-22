@@ -66,6 +66,7 @@ struct singly_linked_list {
 			break;                                                                                         \
 		if ((list)->tail == (list)->head)                                                                      \
 			(list)->tail = SLIST_NEXT(type, runtime, (list)->head, field);                                 \
+		;                                                                                                      \
 		(list)->head = SLIST_NEXT(type, runtime, (list)->head, field);                                         \
 	} while (0)
 
@@ -75,11 +76,11 @@ struct singly_linked_list {
 			SLIST_REMOVE_HEAD(type, runtime, list, field);                                                 \
 		} else {                                                                                               \
 			uint64_t curelm = (list)->head;                                                                \
-			while (SLIST_NEXT(type, runtime, curelm, field) != (offset))                                   \
+			while (SLIST_NEXT(type, runtime, curelm, field) != offset)                                     \
 				curelm = SLIST_NEXT(type, runtime, curelm, field);                                     \
 			if ((SLIST_NEXT(type, runtime, curelm, field) = SLIST_NEXT(type, runtime, offset, field)) ==   \
 			    SLIST_INVALID_OFFSET)                                                                      \
-				(list)->tail = offset;                                                                 \
+				(list)->tail = curelm;                                                                 \
 		}                                                                                                      \
 	} while (0)
 
