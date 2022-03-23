@@ -7,6 +7,7 @@
 #define LIBPMEMSTREAM_SPAN_H
 
 #include "libpmemstream.h"
+#include "region_allocator/allocator_base.h"
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -35,7 +36,10 @@ struct span_base {
 
 struct span_region {
 	struct span_base span_base;
-	uint64_t padding[7]; /* XXX: CACHELINE_SIZE - sizeof(struct span_base) */
+	struct allocator_entry_metadata allocator_entry_metadata;
+
+	/* XXX: CACHELINE_SIZE */
+	uint64_t padding[(64 - sizeof(struct span_base) - sizeof(struct allocator_entry_metadata)) / 8];
 	uint64_t data[];
 };
 
