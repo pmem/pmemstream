@@ -63,8 +63,8 @@ int main(int argc, char *argv[])
 		singly_linked_list list;
 		SLIST_INIT(&list);
 
-		struct pmemstream_data_runtime runtime {
-			.spans = (uint64_t *)data.data(), .memcpy = &memcpy_mock, .memset = &memset_mock,
+		struct pmemstream_runtime runtime {
+			.base = (void *)data.data(), .memcpy = &memcpy_mock, .memset = &memset_mock,
 			.flush = &flush_mock, .drain = &drain_mock, .persist = &persist_mock
 		};
 
@@ -91,8 +91,8 @@ int main(int argc, char *argv[])
 
 		singly_linked_list list;
 		SLIST_INIT(&list);
-		struct pmemstream_data_runtime runtime {
-			.spans = (uint64_t *)data.data(), .memcpy = &memcpy_mock, .memset = &memset_mock,
+		struct pmemstream_runtime runtime {
+			.base = (void *)data.data(), .memcpy = &memcpy_mock, .memset = &memset_mock,
 			.flush = &flush_mock, .drain = &drain_mock, .persist = &persist_mock
 		};
 
@@ -119,8 +119,8 @@ int main(int argc, char *argv[])
 
 		singly_linked_list list;
 		SLIST_INIT(&list);
-		struct pmemstream_data_runtime runtime {
-			.spans = (uint64_t *)data.data(), .memcpy = &memcpy_mock, .memset = &memset_mock,
+		struct pmemstream_runtime runtime {
+			.base = (void *)data.data(), .memcpy = &memcpy_mock, .memset = &memset_mock,
 			.flush = &flush_mock, .drain = &drain_mock, .persist = &persist_mock
 		};
 
@@ -159,8 +159,8 @@ int main(int argc, char *argv[])
 
 		singly_linked_list list;
 		SLIST_INIT(&list);
-		struct pmemstream_data_runtime runtime {
-			.spans = (uint64_t *)data.data(), .memcpy = &memcpy_mock, .memset = &memset_mock,
+		struct pmemstream_runtime runtime {
+			.base = (void *)data.data(), .memcpy = &memcpy_mock, .memset = &memset_mock,
 			.flush = &flush_mock, .drain = &drain_mock, .persist = &persist_mock
 		};
 

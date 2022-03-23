@@ -10,7 +10,7 @@
 std::vector<span_runtime> span_runtimes_from_stream(const pmem::stream &stream, size_t offset, size_t end_offset)
 {
 	std::vector<span_runtime> spans;
-	auto span_bytes_ptr = reinterpret_cast<const char *>(stream.c_ptr()->data.spans);
+	auto span_bytes_ptr = reinterpret_cast<const char *>(stream.c_ptr()->data.base);
 	end_offset = std::min(end_offset, stream.c_ptr()->usable_size);
 
 	while (offset < end_offset) {
