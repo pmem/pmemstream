@@ -10,6 +10,7 @@
 
 #include "iterator.h"
 #include "libpmemstream.h"
+#include "pmemstream_runtime.h"
 #include "region.h"
 #include "span.h"
 
@@ -26,22 +27,12 @@ struct pmemstream_header {
 	uint64_t block_size;
 };
 
-struct pmemstream_data_runtime {
-	span_bytes *spans;
-
-	pmem2_memcpy_fn memcpy;
-	pmem2_memset_fn memset;
-	pmem2_flush_fn flush;
-	pmem2_drain_fn drain;
-	pmem2_persist_fn persist;
-};
-
 struct pmemstream {
 	/* Points to pmem-resided header. */
 	struct pmemstream_header *header;
 
 	/* Describes data location and memory operations. */
-	struct pmemstream_data_runtime data;
+	struct pmemstream_runtime data;
 
 	size_t stream_size;
 	size_t usable_size;
@@ -61,14 +52,8 @@ static inline int pmemstream_validate_stream_and_offset(struct pmemstream *strea
 	return 0;
 }
 
-static inline const uint8_t *pmemstream_offset_to_ptr(const struct pmemstream_data_runtime *data, uint64_t offset)
-{
-	return (const uint8_t *)data->spans + offset;
-}
-
 /* Convert offset to pointer to span. offset must be 8-bytes aligned. */
-static inline const struct span_base *span_offset_to_span_ptr(const struct pmemstream_data_runtime *data,
-							      uint64_t offset)
+static inline const struct span_base *span_offset_to_span_ptr(const struct pmemstream_runtime *data, uint64_t offset)
 {
 	assert(offset % sizeof(struct span_base) == 0);
 	return (const struct span_base *)pmemstream_offset_to_ptr(data, offset);
