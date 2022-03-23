@@ -14,6 +14,8 @@
 extern "C" {
 #endif
 
+#define PMEMSTREAM_INVALID_OFFSET UINT64_MAX
+
 struct pmemstream_runtime {
 	/* Points to beginning of the usable space in the mapped region. */
 	void *base;
