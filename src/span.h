@@ -7,6 +7,7 @@
 #define LIBPMEMSTREAM_SPAN_H
 
 #include "libpmemstream.h"
+#include "region_allocator/allocator_base.h"
 
 #include <assert.h>
 #include <stdalign.h>
@@ -39,6 +40,8 @@ struct span_base {
 
 struct span_region {
 	alignas(CACHELINE_SIZE) struct span_base span_base;
+	struct allocator_entry_metadata allocator_entry_metadata;
+
 	alignas(CACHELINE_SIZE) uint64_t data[];
 };
 
