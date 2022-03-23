@@ -41,7 +41,7 @@
 #include "assert.h"
 #include "stdint.h"
 
-#include "libpmemstream_internal.h"
+#include "pmemstream_runtime.h"
 
 #ifdef __cplusplus
 extern "C" {

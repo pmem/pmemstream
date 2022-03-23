@@ -12,6 +12,7 @@
 #include "libpmemstream.h"
 #include "pmemstream_runtime.h"
 #include "region.h"
+#include "region_allocator/allocator_base.h"
 #include "span.h"
 
 #ifdef __cplusplus
@@ -25,6 +26,7 @@ struct pmemstream_header {
 	char signature[PMEMSTREAM_SIGNATURE_SIZE];
 	uint64_t stream_size;
 	uint64_t block_size;
+	struct allocator_header region_allocator_header;
 };
 
 struct pmemstream {
