@@ -33,6 +33,8 @@ jobs:
                   "TYPE=debug OS=ubuntu OS_VER=20.04 CHECK_CPP_STYLE=1",
                   "TYPE=debug OS=ubuntu OS_VER=20.04 COVERAGE=1",
                   "TYPE=debug OS=fedora OS_VER=35",
+                  "TYPE=release OS=ubuntu OS_VER=20.04",
+                  "TYPE=release OS=fedora OS_VER=35",
                   "TYPE=debug OS=ubuntu OS_VER=20.04 TESTS_ASAN=1",
                   "TYPE=debug OS=ubuntu OS_VER=20.04 TESTS_UBSAN=1",
                   "TYPE=debug OS=fedora OS_VER=35 TESTS_ASAN=1",
