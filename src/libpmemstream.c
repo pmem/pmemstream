@@ -120,7 +120,7 @@ int pmemstream_from_map(struct pmemstream **stream, size_t block_size, struct pm
 	s->usable_size = pmemstream_usable_size(s->stream_size, block_size);
 	s->block_size = block_size;
 
-	s->data.spans = (span_bytes *)(((uint8_t *)pmem2_map_get_address(map)) + spans_offset);
+	s->data.base = ((uint8_t *)pmem2_map_get_address(map)) + spans_offset;
 	s->data.memcpy = pmem2_get_memcpy_fn(map);
 	s->data.memset = pmem2_get_memset_fn(map);
 	s->data.persist = pmem2_get_persist_fn(map);
