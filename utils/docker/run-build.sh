@@ -117,8 +117,6 @@ function build_gcc_debug_cpp17() {
 	make -j$(nproc)
 }
 
-
-
 ###############################################################################
 # BUILD tests_gcc_debug_cpp17_no_valgrind
 ###############################################################################
@@ -171,7 +169,7 @@ function build_gcc_release_cpp17() {
 }
 
 ###############################################################################
-# BUILD tests_gcc_debug_cpp17_no_valgrind
+# BUILD tests_gcc_release_cpp17_no_valgrind
 ###############################################################################
 function tests_gcc_release_cpp17_no_valgrind() {
 	printf "\n$(tput setaf 1)$(tput setab 7)BUILD ${FUNCNAME[0]} START$(tput sgr 0)\n"
