@@ -34,19 +34,21 @@ void initialize_stream(const char *path, struct pmem2_map **map, struct pmemstre
 
 	int ret = pmemstream_from_map(stream, 4096, *map);
 	assert(ret == 0);
-
 	ret = pmemstream_region_allocate(*stream, 10240, region);
 	assert(ret == 0);
+	(void)ret;
 }
 
 int verify_stream(pmemstream *stream, pmemstream_region region, data_entry my_entry)
 {
 	struct pmemstream_entry entry;
 	struct pmemstream_entry_iterator *eiter;
+
 	int ret = pmemstream_entry_iterator_new(&eiter, stream, region);
 	assert(ret == 0);
 	ret = pmemstream_entry_iterator_next(eiter, NULL, &entry);
 	assert(ret == 0);
+	(void)ret;
 	pmemstream_entry_iterator_delete(&eiter);
 
 	auto read_data = reinterpret_cast<const data_entry *>(pmemstream_entry_data(stream, entry));
@@ -62,7 +64,7 @@ int verify_stream(pmemstream *stream, pmemstream_region region, data_entry my_en
 }
 
 /**
- * This example shows hot to use pmemstream_reserve and pmemstream_publish (with custom write),
+ * This example shows how to use pmemstream_reserve and pmemstream_publish (with custom write),
  * instead of "the usual" pmemstream_append approach.
  *
  * It creates a file at given path, with size = EXAMPLE_STREAM_SIZE.
