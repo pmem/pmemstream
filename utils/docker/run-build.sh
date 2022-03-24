@@ -143,9 +143,9 @@ function tests_gcc_release_cpp17_no_valgrind() {
 }
 
 ###############################################################################
-# BUILD tests_clang_release_cpp17_no_valgrind llvm
+# BUILD tests_clang_release_cpp20_no_valgrind llvm
 ###############################################################################
-function tests_clang_release_cpp17_no_valgrind() {
+function tests_clang_release_cpp20_no_valgrind() {
 	printf "\n$(tput setaf 1)$(tput setab 7)BUILD ${FUNCNAME[0]} START$(tput sgr 0)\n"
 	mkdir build
 	cd build
@@ -158,7 +158,7 @@ function tests_clang_release_cpp17_no_valgrind() {
 		-DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} \
 		-DTRACE_TESTS=1 \
 		-DCOVERAGE=${COVERAGE} \
-		-DCXX_STANDARD=17 \
+		-DCXX_STANDARD=20 \
 		-DTESTS_USE_VALGRIND=0 \
 		-DTESTS_LONG=${TESTS_LONG} \
 		-DTEST_DIR=${TEST_DIR} \
@@ -169,7 +169,7 @@ function tests_clang_release_cpp17_no_valgrind() {
 	make -j$(nproc)
 	ctest --output-on-failure --timeout ${TEST_TIMEOUT}
 	if [ "${COVERAGE}" == "1" ]; then
-		upload_codecov tests_clang_release_cpp17
+		upload_codecov tests_clang_release_cpp20
 	fi
 
 	workspace_cleanup
