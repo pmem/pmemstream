@@ -66,7 +66,7 @@ err_critnib:
 	return NULL;
 }
 
-static int allocator_region_free_runtime_cb(uintptr_t key, void *value, void *privdata)
+static int free_region_runtime_cb(uintptr_t key, void *value, void *privdata)
 {
 	struct pmemstream_region_runtime *region_runtime = (struct pmemstream_region_runtime *)value;
 	assert(region_runtime);
@@ -80,7 +80,7 @@ static int allocator_region_free_runtime_cb(uintptr_t key, void *value, void *pr
 
 void region_runtimes_map_destroy(struct region_runtimes_map *map)
 {
-	critnib_iter(map->container, 0, UINT64_MAX, allocator_region_free_runtime_cb, NULL);
+	critnib_iter(map->container, 0, UINT64_MAX, free_region_runtime_cb, NULL);
 	critnib_delete(map->container);
 	free(map);
 }
