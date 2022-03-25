@@ -22,8 +22,9 @@ int pmemstream_region_iterator_new(struct pmemstream_region_iterator **iterator,
 	}
 
 	*(struct pmemstream **)&iter->stream = stream;
-	iter->region.offset = 0;
 
+	/* XXX: lock */
+	iter->region.offset = stream->header->region_allocator_header.allocated_list.head;
 	*iterator = iter;
 
 	return 0;
@@ -35,20 +36,17 @@ int pmemstream_region_iterator_next(struct pmemstream_region_iterator *it, struc
 		return -1;
 	}
 
-	while (it->region.offset < it->stream->usable_size) {
-		const struct span_base *span_base = span_offset_to_span_ptr(&it->stream->data, it->region.offset);
-
-		if (span_get_type(span_base) == SPAN_REGION) {
-			*region = it->region;
-			it->region.offset += span_get_total_size(span_base);
-			return 0;
-		}
-
-		/* if there are no more regions we should expect an empty span */
-		assert(span_get_type(span_base) == SPAN_EMPTY);
-		it->region.offset += span_get_total_size(span_base);
+	if (it->region.offset == SLIST_INVALID_OFFSET) {
+		return -1;
 	}
-	return -1;
+
+	*region = it->region;
+
+	/* XXX: hide this in allocator? */
+	/* XXX: lock */
+	it->region.offset = SLIST_NEXT(struct span_region, &it->stream->data, it->region.offset,
+				       allocator_entry_metadata.next_allocated);
+	return 0;
 }
 
 void pmemstream_region_iterator_delete(struct pmemstream_region_iterator **iterator)
