@@ -5,6 +5,7 @@
 
 #include "common/util.h"
 #include "libpmemstream_internal.h"
+#include "region_allocator/region_allocator.h"
 
 #include <assert.h>
 #include <errno.h>
@@ -32,13 +33,7 @@ static void pmemstream_init(struct pmemstream *stream)
 	stream->data.memset(stream->header->signature, 0, PMEMSTREAM_SIGNATURE_SIZE,
 			    PMEM2_F_MEM_NONTEMPORAL | PMEM2_F_MEM_NODRAIN);
 
-	size_t empty_size = stream->usable_size - sizeof(struct span_empty);
-	struct span_empty span_empty = {.span_base = span_base_create(empty_size, SPAN_EMPTY)};
-
-	uint8_t *destination = (uint8_t *)span_offset_to_span_ptr(&stream->data, 0);
-	stream->data.memcpy(destination, &span_empty, sizeof(span_empty), PMEM2_F_MEM_NODRAIN);
-	stream->data.memset(destination + sizeof(span_empty), 0, empty_size,
-			    PMEM2_F_MEM_NONTEMPORAL | PMEM2_F_MEM_NODRAIN);
+	allocator_initialize(&stream->data, &stream->header->region_allocator_header, stream->usable_size);
 
 	stream->header->stream_size = stream->stream_size;
 	stream->header->block_size = stream->block_size;
@@ -131,6 +126,8 @@ int pmemstream_from_map(struct pmemstream **stream, size_t block_size, struct pm
 		pmemstream_init(s);
 	}
 
+	allocator_runtime_initialize(&s->data, &s->header->region_allocator_header);
+
 	s->region_runtimes_map = region_runtimes_map_new();
 	if (!s->region_runtimes_map) {
 		goto err;
@@ -155,46 +152,44 @@ void pmemstream_delete(struct pmemstream **stream)
 	*stream = NULL;
 }
 
+static size_t pmemstream_region_total_size_aligned(struct pmemstream *stream, size_t size)
+{
+	struct span_region span_region = {.span_base = span_base_create(size, SPAN_REGION)};
+	return ALIGN_UP(span_get_total_size(&span_region.span_base), stream->block_size);
+}
+
 // stream owns the region object - the user gets a reference, but it's not
 // necessary to hold on to it and explicitly delete it.
 /* XXX: add test for multiple regions, when supported */
 int pmemstream_region_allocate(struct pmemstream *stream, size_t size, struct pmemstream_region *region)
 {
-	if (!stream) {
+	// XXX: lock
+
+	if (!stream || !size) {
 		return -1;
 	}
 
-	const uint64_t offset = 0;
-	assert(offset % stream->block_size == 0);
-	const struct span_base *span_base = span_offset_to_span_ptr(&stream->data, offset);
+	size_t total_size = pmemstream_region_total_size_aligned(stream, size);
+	size_t requested_size = total_size - sizeof(struct span_region);
 
-	if (span_get_type(span_base) != SPAN_EMPTY) {
+	const uint64_t offset =
+		allocator_region_allocate(&stream->data, &stream->header->region_allocator_header, requested_size);
+	if (offset == PMEMSTREAM_INVALID_OFFSET) {
 		return -1;
 	}
-
-	if (size == 0) {
-		return -1;
-	}
-
-	struct span_region span_region = {.span_base = span_base_create(size, SPAN_REGION)};
-
-	size_t total_size = ALIGN_UP(span_get_total_size(&span_region.span_base), stream->block_size);
-	if (total_size > span_get_total_size(span_base))
-		return -1;
-
-	/* Update region size to avoid wasting space. */
-	span_region.span_base = span_base_create(total_size - sizeof(struct span_region), SPAN_REGION);
-
-	stream->data.memcpy((void *)span_base, &span_region, sizeof(struct span_region), 0);
 
 	if (region) {
 		region->offset = offset;
 	}
 
 #ifndef NDEBUG
-	struct span_region *stored_span_region = (struct span_region *)span_base;
+	const struct span_base *span_base = span_offset_to_span_ptr(&stream->data, offset);
+	assert(offset % stream->block_size == 0);
+	assert(span_get_type(span_base) == SPAN_REGION);
+	assert(span_get_total_size(span_base) == total_size);
+	struct span_region *span_region = (struct span_region *)span_base;
 	/* XXX: use CACHELINE_SIZE instead of 64 */
-	assert(((uintptr_t)stored_span_region->data) % 64 == 0);
+	assert(((uintptr_t)span_region->data) % 64 == 0);
 #endif
 
 	return 0;
@@ -214,22 +209,14 @@ size_t pmemstream_region_size(struct pmemstream *stream, struct pmemstream_regio
 
 int pmemstream_region_free(struct pmemstream *stream, struct pmemstream_region region)
 {
+	// XXX: unlock
+
 	int ret = pmemstream_validate_stream_and_offset(stream, region.offset);
 	if (ret) {
 		return ret;
 	}
 
-	struct span_region *span_region = (struct span_region *)span_offset_to_span_ptr(&stream->data, region.offset);
-
-	if (span_get_type(&span_region->span_base) != SPAN_REGION)
-		return -1;
-
-	uint8_t *destination = (uint8_t *)span_region;
-	size_t empty_size = stream->usable_size - sizeof(struct span_empty);
-	struct span_empty span_empty = {.span_base = span_base_create(empty_size, SPAN_EMPTY)};
-	stream->data.memcpy(destination, &span_empty, sizeof(span_empty), PMEM2_F_MEM_NODRAIN);
-	stream->data.memset(destination + sizeof(span_empty), 0, empty_size, PMEM2_F_MEM_NONTEMPORAL);
-
+	allocator_region_free(&stream->data, &stream->header->region_allocator_header, region.offset);
 	region_runtimes_map_remove(stream->region_runtimes_map, region);
 
 	return 0;
