@@ -37,12 +37,13 @@ int main(int argc, char *argv[])
 		RC_PRE(data.size() > 0);
 
 		singly_linked_list list;
-		SLIST_INIT(&list);
 
 		struct pmemstream_runtime runtime {
 			.base = (void *)data.data(), .memcpy = &memcpy_mock, .memset = &memset_mock,
 			.flush = &flush_mock, .drain = &drain_mock, .persist = &persist_mock
 		};
+
+		SLIST_INIT(&runtime, &list);
 
 		/* Add elements at the front of list */
 		uint64_t offset = 0;
@@ -60,17 +61,20 @@ int main(int argc, char *argv[])
 			rit++;
 		}
 		RC_ASSERT(rit == data.rend());
+		RC_ASSERT(SLIST_INVARIANTS(struct node, &runtime, &list, next));
 	});
 
 	rc::check("Push back", [](const std::vector<struct node> &data) {
 		RC_PRE(data.size() > 0);
 
 		singly_linked_list list;
-		SLIST_INIT(&list);
+
 		struct pmemstream_runtime runtime {
 			.base = (void *)data.data(), .memcpy = &memcpy_mock, .memset = &memset_mock,
 			.flush = &flush_mock, .drain = &drain_mock, .persist = &persist_mock
 		};
+
+		SLIST_INIT(&runtime, &list);
 
 		/* Add elements to list */
 		uint64_t offset = 0;
@@ -88,17 +92,20 @@ int main(int argc, char *argv[])
 			v_it++;
 		}
 		RC_ASSERT(v_it == data.end());
+		RC_ASSERT(SLIST_INVARIANTS(struct node, &runtime, &list, next));
 	});
 
 	rc::check("Remove head", [](const std::vector<struct node> &data) {
 		RC_PRE(data.size() > 0);
 
 		singly_linked_list list;
-		SLIST_INIT(&list);
+
 		struct pmemstream_runtime runtime {
 			.base = (void *)data.data(), .memcpy = &memcpy_mock, .memset = &memset_mock,
 			.flush = &flush_mock, .drain = &drain_mock, .persist = &persist_mock
 		};
+
+		SLIST_INIT(&runtime, &list);
 
 		/* Add elements to list */
 		uint64_t offset = 0;
@@ -128,17 +135,20 @@ int main(int argc, char *argv[])
 			it++;
 		}
 		RC_ASSERT(it == mod_data.end());
+		RC_ASSERT(SLIST_INVARIANTS(struct node, &runtime, &list, next));
 	});
 
 	rc::check("Random remove", [](const std::vector<struct node> &data) {
 		RC_PRE(data.size() > 1);
 
 		singly_linked_list list;
-		SLIST_INIT(&list);
+
 		struct pmemstream_runtime runtime {
 			.base = (void *)data.data(), .memcpy = &memcpy_mock, .memset = &memset_mock,
 			.flush = &flush_mock, .drain = &drain_mock, .persist = &persist_mock
 		};
+
+		SLIST_INIT(&runtime, &list);
 
 		/* Add elements to list */
 		uint64_t offset = 0;
@@ -172,5 +182,6 @@ int main(int argc, char *argv[])
 		}
 		RC_ASSERT(v_it == mod_data.end());
 		RC_ASSERT(mod_data.size() == data.size() - 1);
+		RC_ASSERT(SLIST_INVARIANTS(struct node, &runtime, &list, next));
 	});
 }

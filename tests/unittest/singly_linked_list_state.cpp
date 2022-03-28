@@ -44,13 +44,13 @@ struct singly_linked_list_model {
 struct singly_linked_list_test {
 	singly_linked_list_test()
 	{
-		SLIST_INIT(&sut);
 		runtime = {.base = (void *)TEST_SLIST_DATA_BASE,
 			   .memcpy = &memcpy_mock,
 			   .memset = &memset_mock,
 			   .flush = &flush_mock,
 			   .drain = &drain_mock,
 			   .persist = &persist_mock};
+		SLIST_INIT(&runtime, &sut);
 	}
 
 	struct singly_linked_list sut;
