@@ -36,6 +36,33 @@ make_pmemstream(const std::string &file, size_t block_size, size_t size, bool tr
 	return std::unique_ptr<struct pmemstream, std::function<void(struct pmemstream *)>>(stream, stream_delete);
 }
 
+/* pmem functions' mocks */
+static inline void *memcpy_mock(void *dest, const void *src, size_t len, unsigned flags)
+{
+	return NULL;
+}
+
+static inline void *memset_mock(void *dest, int c, size_t len, unsigned flags)
+{
+	return NULL;
+}
+
+static inline void flush_mock(const void *ptr, size_t size)
+{
+	return;
+}
+
+static inline void persist_mock(const void *ptr, size_t size)
+{
+	return;
+}
+
+static inline void drain_mock(void)
+{
+	return;
+}
+/* pmem functions' mocks */
+
 namespace pmem
 {
 

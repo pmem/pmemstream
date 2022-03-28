@@ -2,6 +2,7 @@
 /* Copyright 2021-2022, Intel Corporation */
 
 #include "singly_linked_list.h"
+#include "stream_helpers.hpp"
 #include "unittest.hpp"
 
 #include <rapidcheck.h>
@@ -29,31 +30,6 @@ struct Arbitrary<node> {
 	}
 };
 } // namespace rc
-
-void *memcpy_mock(void *dest, const void *src, size_t len, unsigned flags)
-{
-	return NULL;
-}
-
-void *memset_mock(void *dest, int c, size_t len, unsigned flags)
-{
-	return NULL;
-}
-
-void flush_mock(const void *ptr, size_t size)
-{
-	return;
-}
-
-void persist_mock(const void *ptr, size_t size)
-{
-	return;
-}
-
-void drain_mock(void)
-{
-	return;
-}
 
 int main(int argc, char *argv[])
 {
