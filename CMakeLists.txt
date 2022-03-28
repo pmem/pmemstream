@@ -86,7 +86,7 @@ option(USE_LIBUNWIND "use libunwind for more reliable stack traces from tests (i
 option(USE_ASAN "enable AddressSanitizer checks" OFF)
 option(USE_UBSAN "enable UndefinedBehaviorSanitizer checks" OFF)
 
-option(TESTS_USE_FORCED_PMEM "run tests with PMEM_IS_PMEM_FORCE=1 - it speeds up tests execution on emulated pmem" OFF)
+option(TESTS_USE_FORCED_PMEM "run tests with PMEM2_FORCE_GRANULARITY=CACHE_LINE - it speeds up tests execution on emulated pmem" OFF)
 option(TESTS_USE_VALGRIND "enable tests with valgrind (fail build if Valgrind not found)" ON)
 option(TESTS_PMREORDER "enable tests with pmreorder (if pmreorder found; it requires PMDK ver. >= 1.9)" OFF)
 option(TESTS_LONG "enable long running tests" OFF)
