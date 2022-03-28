@@ -372,15 +372,9 @@ int pmemstream_append(struct pmemstream *stream, struct pmemstream_region region
 		return ret;
 	}
 
-	struct span_entry span_entry = {.span_base = span_base_create(size, SPAN_ENTRY),
-					.popcount = util_popcount_memory(data, size)};
+	stream->data.memcpy(reserved_dest, data, size, PMEM2_F_MEM_NOFLUSH);
 
-	uint8_t *destination = (uint8_t *)span_offset_to_span_ptr(&stream->data, reserved_entry.offset);
-	stream->data.memcpy(destination, &span_entry, sizeof(span_entry), PMEM2_F_MEM_NOFLUSH);
-	stream->data.memcpy(destination + sizeof(span_entry), data, size, PMEM2_F_MEM_NOFLUSH);
-	stream->data.persist(destination, pmemstream_entry_total_size_aligned(size));
-
-	region_runtime_increase_committed_offset(region_runtime, pmemstream_entry_total_size_aligned(size));
+	pmemstream_publish(stream, region, region_runtime, data, size, reserved_entry);
 
 	if (new_entry) {
 		new_entry->offset = reserved_entry.offset;
