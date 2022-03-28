@@ -105,10 +105,6 @@ function(execute_common expect_success output_file name)
 	endif()
 
 	if(${TRACER} STREQUAL pmemcheck)
-		if(TESTS_USE_FORCED_PMEM)
-			# pmemcheck runs really slow with pmem, disable it
-			unset(ENV{PMEM2_FORCE_GRANULARITY})
-		endif()
 		set(TRACE valgrind --error-exitcode=99 --tool=pmemcheck)
 	elseif(${TRACER} STREQUAL memcheck)
 		set(TRACE valgrind --error-exitcode=99 --tool=memcheck --leak-check=full --max-threads=3000
