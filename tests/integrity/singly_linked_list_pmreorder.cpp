@@ -144,14 +144,9 @@ void check_consistency(std::filesystem::path path, bool with_recovery = true)
 	}
 
 	uint64_t last_accessed = SLIST_INVALID_OFFSET;
-	size_t element_counter = 0;
-	foreach (&runtime, list, [&](uint64_t offset) {
-		last_accessed = offset;
-		element_counter++;
-	})
+	foreach (&runtime, list, [&](uint64_t offset) { last_accessed = offset; })
 		;
 
-	std::cout << " visited " << element_counter << " elements" << std::endl;
 	UT_ASSERTeq(last_accessed, list->tail);
 }
 
