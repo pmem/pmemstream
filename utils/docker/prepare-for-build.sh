@@ -81,7 +81,11 @@ function run_binary_standalone() {
 
 	pushd ${STANDALONE_BUILD_DIR}
 
-	PMEM_IS_PMEM_FORCE=${TESTS_USE_FORCED_PMEM} ./${binary_name} ${optional_args}
+	if [[ $TESTS_USE_FORCED_PMEM ]]; then
+		PMEM2_FORCE_GRANULARITY=CACHE_LINE ./${binary_name} ${optional_args}
+	else
+		./${binary_name} ${optional_args}
+	fi
 
 	# exit on error
 	if [[ $? != 0 ]]; then

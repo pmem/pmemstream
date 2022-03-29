@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: BSD-3-Clause
-# Copyright 2018-2021, Intel Corporation
+# Copyright 2018-2022, Intel Corporation
 
 #
 # exec_functions.cmake - helper variables and functions for
@@ -101,14 +101,10 @@ endfunction()
 #		perhaps it'd be enough to move GDB checks and setup into sep. function
 function(execute_common expect_success output_file name)
 	if(TESTS_USE_FORCED_PMEM)
-		set(ENV{PMEM_IS_PMEM_FORCE} 1)
+		set(ENV{PMEM2_FORCE_GRANULARITY} CACHE_LINE)
 	endif()
 
 	if(${TRACER} STREQUAL pmemcheck)
-		if(TESTS_USE_FORCED_PMEM)
-			# pmemcheck runs really slow with pmem, disable it
-			set(ENV{PMEM_IS_PMEM_FORCE} 0)
-		endif()
 		set(TRACE valgrind --error-exitcode=99 --tool=pmemcheck)
 	elseif(${TRACER} STREQUAL memcheck)
 		set(TRACE valgrind --error-exitcode=99 --tool=memcheck --leak-check=full --max-threads=3000
@@ -210,7 +206,7 @@ function(execute_common expect_success output_file name)
 	endif()
 
 	if(TESTS_USE_FORCED_PMEM)
-		unset(ENV{PMEM_IS_PMEM_FORCE})
+		unset(ENV{PMEM2_FORCE_GRANULARITY})
 	endif()
 endfunction()
 
