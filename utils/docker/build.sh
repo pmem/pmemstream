@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: BSD-3-Clause
-# Copyright 2017-2021, Intel Corporation
+# Copyright 2017-2022, Intel Corporation
 
 #
 # build.sh - runs a Docker container from a Docker image with environment
@@ -58,7 +58,7 @@ if [[ -z "${COMMAND}" ]]; then
 		;;
 	release)
 		builds=(tests_gcc_release_cpp17_no_valgrind
-				tests_clang_release_cpp17_no_valgrind)
+				tests_clang_release_cpp20_no_valgrind)
 		COMMAND="./run-build.sh ${builds[@]}";
 		;;
 	valgrind)

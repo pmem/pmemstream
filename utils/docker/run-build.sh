@@ -58,40 +58,6 @@ function tests_clang_debug_cpp17_no_valgrind() {
 }
 
 ###############################################################################
-# BUILD tests_clang_release_cpp17_no_valgrind llvm
-###############################################################################
-function tests_clang_release_cpp17_no_valgrind() {
-	printf "\n$(tput setaf 1)$(tput setab 7)BUILD ${FUNCNAME[0]} START$(tput sgr 0)\n"
-	mkdir build
-	cd build
-
-	PKG_CONFIG_PATH=${PKG_CONFIG_PATH}:/opt/pmdk/lib/pkgconfig/ \
-	CC=clang CXX=clang++ \
-	cmake .. -DDEVELOPER_MODE=1 \
-		-DCHECK_CPP_STYLE=${CHECK_CPP_STYLE} \
-		-DCMAKE_BUILD_TYPE=Release \
-		-DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} \
-		-DTRACE_TESTS=1 \
-		-DCOVERAGE=${COVERAGE} \
-		-DCXX_STANDARD=17 \
-		-DTESTS_USE_VALGRIND=0 \
-		-DTESTS_LONG=${TESTS_LONG} \
-		-DTEST_DIR=${TEST_DIR} \
-		-DTESTS_USE_FORCED_PMEM=${TESTS_USE_FORCED_PMEM} \
-		-DUSE_ASAN=${TESTS_ASAN} \
-		-DUSE_UBSAN=${TESTS_UBSAN}
-
-	make -j$(nproc)
-	ctest --output-on-failure --timeout ${TEST_TIMEOUT}
-	if [ "${COVERAGE}" == "1" ]; then
-		upload_codecov tests_clang_debug_cpp17
-	fi
-
-	workspace_cleanup
-	printf "$(tput setaf 1)$(tput setab 7)BUILD ${FUNCNAME[0]} END$(tput sgr 0)\n\n"
-}
-
-###############################################################################
 # BUILD build_gcc_debug_cpp17 (no tests)
 ###############################################################################
 function build_gcc_debug_cpp17() {
@@ -117,8 +83,6 @@ function build_gcc_debug_cpp17() {
 	make -j$(nproc)
 }
 
-
-
 ###############################################################################
 # BUILD tests_gcc_debug_cpp17_no_valgrind
 ###############################################################################
@@ -127,7 +91,7 @@ function tests_gcc_debug_cpp17_no_valgrind() {
 	build_gcc_debug_cpp17
 	ctest -E "_memcheck|_drd|_helgrind|_pmemcheck" --timeout ${TEST_TIMEOUT} --output-on-failure
 	if [ "${COVERAGE}" == "1" ]; then
-		upload_codecov tests_gcc_debug
+		upload_codecov tests_gcc_debug_cpp17
 	fi
 	workspace_cleanup
 	printf "$(tput setaf 1)$(tput setab 7)BUILD ${FUNCNAME[0]} END$(tput sgr 0)\n\n"
@@ -145,9 +109,10 @@ function tests_gcc_debug_cpp17_valgrind() {
 }
 
 ###############################################################################
-# BUILD build_gcc_release_cpp17 (no tests)
+# BUILD tests_gcc_release_cpp17_no_valgrind
 ###############################################################################
-function build_gcc_release_cpp17() {
+function tests_gcc_release_cpp17_no_valgrind() {
+	printf "\n$(tput setaf 1)$(tput setab 7)BUILD ${FUNCNAME[0]} START$(tput sgr 0)\n"
 	mkdir build
 	cd build
 
@@ -168,18 +133,45 @@ function build_gcc_release_cpp17() {
 		-DUSE_LIBUNWIND=1
 
 	make -j$(nproc)
+
+	ctest -E "_memcheck|_drd|_helgrind|_pmemcheck" --timeout ${TEST_TIMEOUT} --output-on-failure
+	if [ "${COVERAGE}" == "1" ]; then
+		upload_codecov tests_gcc_release_cpp17
+	fi
+	workspace_cleanup
+	printf "$(tput setaf 1)$(tput setab 7)BUILD ${FUNCNAME[0]} END$(tput sgr 0)\n\n"
 }
 
 ###############################################################################
-# BUILD tests_gcc_debug_cpp17_no_valgrind
+# BUILD tests_clang_release_cpp20_no_valgrind llvm
 ###############################################################################
-function tests_gcc_release_cpp17_no_valgrind() {
+function tests_clang_release_cpp20_no_valgrind() {
 	printf "\n$(tput setaf 1)$(tput setab 7)BUILD ${FUNCNAME[0]} START$(tput sgr 0)\n"
-	build_gcc_release_cpp17
-	ctest -E "_memcheck|_drd|_helgrind|_pmemcheck" --timeout ${TEST_TIMEOUT} --output-on-failure
+	mkdir build
+	cd build
+
+	PKG_CONFIG_PATH=${PKG_CONFIG_PATH}:/opt/pmdk/lib/pkgconfig/ \
+	CC=clang CXX=clang++ \
+	cmake .. -DDEVELOPER_MODE=1 \
+		-DCHECK_CPP_STYLE=${CHECK_CPP_STYLE} \
+		-DCMAKE_BUILD_TYPE=Release \
+		-DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} \
+		-DTRACE_TESTS=1 \
+		-DCOVERAGE=${COVERAGE} \
+		-DCXX_STANDARD=20 \
+		-DTESTS_USE_VALGRIND=0 \
+		-DTESTS_LONG=${TESTS_LONG} \
+		-DTEST_DIR=${TEST_DIR} \
+		-DTESTS_USE_FORCED_PMEM=${TESTS_USE_FORCED_PMEM} \
+		-DUSE_ASAN=${TESTS_ASAN} \
+		-DUSE_UBSAN=${TESTS_UBSAN}
+
+	make -j$(nproc)
+	ctest --output-on-failure --timeout ${TEST_TIMEOUT}
 	if [ "${COVERAGE}" == "1" ]; then
-		upload_codecov tests_gcc_debug
+		upload_codecov tests_clang_release_cpp20
 	fi
+
 	workspace_cleanup
 	printf "$(tput setaf 1)$(tput setab 7)BUILD ${FUNCNAME[0]} END$(tput sgr 0)\n\n"
 }
