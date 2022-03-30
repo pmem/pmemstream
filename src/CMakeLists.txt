@@ -3,15 +3,11 @@
 
 add_cppstyle(src
 	${CMAKE_CURRENT_SOURCE_DIR}/*.[chp]
-	${CMAKE_CURRENT_SOURCE_DIR}/include/*.h
-	${CMAKE_CURRENT_SOURCE_DIR}/common/*.[chp]
-	${CMAKE_CURRENT_SOURCE_DIR}/critnib/*.[chp])
+	${CMAKE_CURRENT_SOURCE_DIR}/*/*.[chp])
 
 add_check_whitespace(src
 	${CMAKE_CURRENT_SOURCE_DIR}/*.[chp]
-	${CMAKE_CURRENT_SOURCE_DIR}/include/*.h
-	${CMAKE_CURRENT_SOURCE_DIR}/common/*.[chp]
-	${CMAKE_CURRENT_SOURCE_DIR}/critnib/*.[chp])
+	${CMAKE_CURRENT_SOURCE_DIR}/*/*.[chp])
 
 set(SOURCES critnib/critnib.c
 			id_manager.c
