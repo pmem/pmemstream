@@ -8,8 +8,12 @@
 
 #include "libpmemstream.h"
 
+#include <assert.h>
+#include <stdalign.h>
 #include <stdint.h>
 #include <stdlib.h>
+
+#include "common/util.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -34,10 +38,12 @@ struct span_base {
 };
 
 struct span_region {
-	struct span_base span_base;
-	uint64_t padding[7]; /* XXX: CACHELINE_SIZE - sizeof(struct span_base) */
-	uint64_t data[];
+	alignas(CACHELINE_SIZE) struct span_base span_base;
+	alignas(CACHELINE_SIZE) uint64_t data[];
 };
+
+static_assert(sizeof(struct span_region) == CACHELINE_SIZE,
+	      "size of struct span_region must be equal to CACHELINE_SIZE");
 
 struct span_entry {
 	struct span_base span_base;
