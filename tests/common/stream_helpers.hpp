@@ -232,15 +232,25 @@ struct pmemstream_helpers_type {
 		}
 	}
 
-	struct pmemstream_region get_first_region()
+	/* Get n-th region in the steram (counts from 0);
+	 * It will fail assertion if n-th region is missing. */
+	struct pmemstream_region get_region(size_t n)
 	{
 		auto riter = stream.region_iterator();
+		size_t counter = 0;
 
 		struct pmemstream_region region;
-		auto ret = pmemstream_region_iterator_next(riter.get(), &region);
-		UT_ASSERTne(ret, -1);
+		do {
+			int ret = pmemstream_region_iterator_next(riter.get(), &region);
+			UT_ASSERTeq(ret, 0);
+		} while (counter++ < n);
 
 		return region;
+	}
+
+	struct pmemstream_region get_first_region()
+	{
+		return get_region(0);
 	}
 
 	struct pmemstream_entry get_last_entry(pmemstream_region region)
