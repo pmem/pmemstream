@@ -18,8 +18,7 @@ namespace
 {
 std::pair<size_t, size_t> generate_region_size_and_block_size(size_t stream_size)
 {
-	/* XXX: use CACHELINE_SIZE instead of 64 */
-	const auto minimum_block_size = 64;
+	const auto minimum_block_size = CACHELINE_SIZE;
 	const auto max_block_and_region_size = stream_size;
 
 	const auto block_size_pow =
@@ -142,8 +141,7 @@ int main(int argc, char *argv[])
 			[&]() {
 				auto block_size = *rc::gen::inRange<std::size_t>(
 					1ULL, get_test_config().stream_size / 2UL - STREAM_METADATA_SIZE);
-				/* XXX: use CACHELINE_SIZE instead of 64 */
-				RC_PRE(block_size % 64 != 0 || !IS_POW2(block_size));
+				RC_PRE(block_size % CACHELINE_SIZE != 0 || !IS_POW2(block_size));
 
 				try {
 					make_pmemstream(get_test_config().filename, block_size,

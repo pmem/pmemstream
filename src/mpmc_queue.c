@@ -4,30 +4,36 @@
 #include "mpmc_queue.h"
 
 #include <assert.h>
+#include <stdalign.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 
-struct mpmc_queue_producer {
-	uint64_t granted_offset;
+#include "common/util.h"
 
-	/* avoid false sharing by padding the variable */
-	// XXX: calculate 7 from CACHELINE_SIZE
-	uint64_t padding[7];
+struct mpmc_queue_producer {
+	/* avoid false sharing by aligning to cacheline */
+	alignas(CACHELINE_SIZE) uint64_t granted_offset;
 };
+
+static_assert(sizeof(struct mpmc_queue_producer) == CACHELINE_SIZE,
+	      "struct mpmc_queue_producer mut be cacheline aligned");
 
 struct mpmc_queue {
 	uint64_t num_producers;
 	size_t size;
-	uint64_t produce_offset;
-	uint64_t padding_produce_offset[5];
 
-	uint64_t consume_offset;
-	uint64_t padding_consume_offset[7];
+	alignas(CACHELINE_SIZE) uint64_t produce_offset;
+	alignas(CACHELINE_SIZE) uint64_t consume_offset;
 
 	struct mpmc_queue_producer producers[];
 };
+
+static_assert(sizeof(struct mpmc_queue) == 3 * CACHELINE_SIZE, "size of struct mpmc_queue should is wrong");
+static_assert(offsetof(struct mpmc_queue, consume_offset) - offsetof(struct mpmc_queue, produce_offset) >=
+		      CACHELINE_SIZE,
+	      "consume offset and produce offset should be in different cachelines");
 
 /* XXX: add support for dynamic producer registration? */
 struct mpmc_queue *mpmc_queue_new(size_t num_producers, size_t size)
