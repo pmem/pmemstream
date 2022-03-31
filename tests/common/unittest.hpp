@@ -66,6 +66,8 @@ struct test_config_type {
 	std::string filename = "";
 	size_t stream_size = TEST_DEFAULT_STREAM_SIZE;
 	size_t block_size = TEST_DEFAULT_BLOCK_SIZE;
+	/* all regions are required to have the same size */
+	size_t region_size = TEST_DEFAULT_REGION_MULTI_SIZE;
 };
 
 static const test_config_type &get_test_config()
