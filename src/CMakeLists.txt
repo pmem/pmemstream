@@ -16,7 +16,8 @@ set(SOURCES critnib/critnib.c
 			region.c
 			span.c
 			thread_id.c
-			libpmemstream.c)
+			libpmemstream.c
+			region_allocator/region_allocator.c)
 
 add_library(pmemstream SHARED ${SOURCES})
 
