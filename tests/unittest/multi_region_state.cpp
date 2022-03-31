@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /* Copyright 2022, Intel Corporation */
 
-/* multi_region_state.cpp -- RapidCheck stateful test randomly adding and removing regions
-	within a stream to check if region_allocator works properly. */
+/* multi_region_state.cpp -- check if region_allocator works properly. */
 
 #include <vector>
 
@@ -152,6 +151,8 @@ int main(int argc, char *argv[])
 
 	return run_test(test_config, [&] {
 		return_check ret;
+
+		/* it tests proper order of allocated/freed regions */
 		ret += rc::check(
 			"Adding and removing multiple regions should be iterable and accesible",
 			[](pmemstream_empty &&stream) {
@@ -162,6 +163,24 @@ int main(int argc, char *argv[])
 					rc::state::gen::execOneOfWithArgs<rc_add_region, rc_failed_add_region,
 									  rc_failed_remove_region, rc_remove_region,
 									  rc_iterate_regions>());
+			});
+
+		/* checks if appends on multiple regions work as expected */
+		ret += rc::check(
+			"verify if sequence of append and reopen commands leads to consitent state on multiple regions",
+			[](pmemstream_with_multi_empty_regions &&stream) {
+				pmemstream_model model;
+
+				size_t regions_count = stream.helpers.count_regions();
+				RC_ASSERT(regions_count > 0);
+
+				for (size_t i = 0; i < regions_count; i++) {
+					model.regions[stream.helpers.get_region(i).offset] = {};
+				}
+
+				rc::state::check(model, stream,
+						 rc::state::gen::execOneOfWithArgs<rc_append_command, rc_reopen_command,
+										   rc_verify_command>());
 			});
 	});
 }
