@@ -66,8 +66,7 @@ static int pmemstream_validate_sizes(size_t block_size, struct pmem2_map *map)
 		return -1;
 	}
 
-	/* XXX: change 64 to CACHELINE_SIZE */
-	if (block_size % 64 != 0) {
+	if (block_size % CACHELINE_SIZE != 0) {
 		return -1;
 	}
 
@@ -193,8 +192,7 @@ int pmemstream_region_allocate(struct pmemstream *stream, size_t size, struct pm
 
 #ifndef NDEBUG
 	struct span_region *stored_span_region = (struct span_region *)span_base;
-	/* XXX: use CACHELINE_SIZE instead of 64 */
-	assert(((uintptr_t)stored_span_region->data) % 64 == 0);
+	assert(((uintptr_t)stored_span_region->data) % CACHELINE_SIZE == 0);
 #endif
 
 	return 0;

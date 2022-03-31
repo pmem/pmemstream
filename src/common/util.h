@@ -15,6 +15,9 @@
 
 #define MEMBER_SIZE(type, member) sizeof(((struct type *)NULL)->member)
 
+/* XXX: add support for different architectures. */
+#define CACHELINE_SIZE (64ULL)
+
 static inline unsigned char util_popcount64(uint64_t value)
 {
 	return (unsigned char)__builtin_popcountll(value);
