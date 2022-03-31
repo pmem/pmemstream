@@ -173,7 +173,7 @@ struct stream {
 
  private:
 	std::unique_ptr<struct pmemstream, std::function<void(struct pmemstream *)>> c_stream;
-};
+}; /* struct stream */
 
 } // namespace pmem
 
@@ -212,6 +212,34 @@ struct pmemstream_helpers_type {
 		append(region, data);
 
 		return region;
+	}
+
+	/* allocate max number of regions (with the same size and the same initial data) */
+	auto initialize_multi_regions(size_t max_regions_count, size_t region_size,
+				      const std::vector<std::string> &data)
+	{
+		auto regions = std::vector<struct pmemstream_region>();
+
+		for (size_t i = 0; i < max_regions_count; ++i) {
+			auto [ret, region] = stream.region_allocate(region_size);
+			if (ret != 0) {
+				break;
+			}
+
+			/* region_size is aligned up to block_size, on allocation, so it may be bigger than expected */
+			UT_ASSERT(stream.region_size(region) >= region_size);
+
+			if (call_region_runtime_initialize) {
+				auto [ret, runtime] = stream.region_runtime_initialize(region);
+				region_runtime[region.offset] = runtime;
+			}
+
+			append(region, data);
+			regions.push_back(region);
+		}
+
+		UT_ASSERT(regions.size() > 0 && regions.size() <= max_regions_count);
+		return regions;
 	}
 
 	/* Reserve space, write data, and publish (persist) them, within the given region.
@@ -303,7 +331,7 @@ struct pmemstream_helpers_type {
 	pmem::stream &stream;
 	std::map<uint64_t, pmemstream_region_runtime *> region_runtime;
 	bool call_region_runtime_initialize = false;
-};
+}; /* struct pmemstream_helpers_type */
 
 struct pmemstream_test_base {
 	pmemstream_test_base(const std::string &file, size_t block_size, size_t size, bool truncate = true,
@@ -362,7 +390,7 @@ struct pmemstream_test_base {
 
 	bool call_initialize_region_runtime = false;
 	bool call_initialize_region_runtime_after_reopen = false;
-};
+}; /* struct pmemstream_test_base */
 
 static inline std::ostream &operator<<(std::ostream &os, const pmemstream_test_base &stream)
 {
@@ -394,6 +422,14 @@ struct pmemstream_with_single_empty_region : public pmemstream_test_base {
 	pmemstream_with_single_empty_region(pmemstream_test_base &&base) : pmemstream_test_base(std::move(base))
 	{
 		helpers.initialize_single_region(TEST_DEFAULT_REGION_SIZE, {});
+	}
+};
+
+struct pmemstream_with_multi_empty_regions : public pmemstream_test_base {
+	pmemstream_with_multi_empty_regions(pmemstream_test_base &&base, size_t max_regions_count)
+	    : pmemstream_test_base(std::move(base))
+	{
+		helpers.initialize_multi_regions(max_regions_count, get_test_config().region_size, {});
 	}
 };
 
