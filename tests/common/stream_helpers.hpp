@@ -277,6 +277,30 @@ struct pmemstream_helpers_type {
 		return result;
 	}
 
+	size_t count_regions()
+	{
+		auto riter = stream.region_iterator();
+
+		size_t region_counter = 0;
+		struct pmemstream_region region;
+		while (pmemstream_region_iterator_next(riter.get(), &region) != -1) {
+			UT_ASSERTne(region.offset, UINT64_MAX);
+			++region_counter;
+		}
+		return region_counter;
+	}
+
+	void remove_regions(size_t number)
+	{
+		try {
+			for (size_t i = 0; i < number; i++) {
+				UT_ASSERTeq(stream.region_free(get_first_region()), 0);
+			}
+		} catch (std::runtime_error &e) {
+			throw std::runtime_error("Exception when removing regions!");
+		}
+	}
+
 	/* XXX: extend to allow more than one extra_data vector */
 	void verify(pmemstream_region region, const std::vector<std::string> &data,
 		    const std::vector<std::string> &extra_data)
