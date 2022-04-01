@@ -14,6 +14,7 @@
 
 /* example file size = 10MiB */
 #define EXAMPLE_STREAM_SIZE (1024UL * 1024 * 10)
+#define EXAMPLE_REGION_SIZE (1024UL * 10)
 
 static inline struct pmem2_map *example_map_open(const char *file, const size_t size)
 {
