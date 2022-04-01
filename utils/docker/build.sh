@@ -128,6 +128,7 @@ docker run --privileged=true --name=${CONTAINER_NAME} -i \
 	--env TESTS_LONG=${TESTS_LONG:-OFF} \
 	--env TESTS_ASAN=${TESTS_ASAN:-OFF} \
 	--env TESTS_UBSAN=${TESTS_UBSAN:-OFF} \
+	--env TESTS_PMEORDER=${TESTS_PMREORDER:-ON} \
 	--env TEST_TIMEOUT=${TEST_TIMEOUT} \
 	--env TZ='Europe/Warsaw' \
 	--shm-size=4G \
