@@ -23,7 +23,6 @@ make_pmemstream(const std::string &file, size_t block_size, size_t size, bool tr
 		throw std::runtime_error(pmem2_errormsg());
 	}
 
-	auto map_delete = [](struct pmem2_map *map) { pmem2_map_delete(&map); };
 	auto map_sptr = std::shared_ptr<struct pmem2_map>(map, map_delete);
 
 	struct pmemstream *stream;
