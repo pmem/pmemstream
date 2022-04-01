@@ -9,6 +9,8 @@
 
 #include <cstring>
 
+#define TEST_SLIST_DATA_BASE (1024UL)
+
 struct node {
 	uint64_t data;
 	uint64_t next;
@@ -33,6 +35,21 @@ struct Arbitrary<node> {
 
 int main(int argc, char *argv[])
 {
+	/* Initiate list */
+	{
+		singly_linked_list list;
+
+		struct pmemstream_runtime runtime {
+			.base = (void *)TEST_SLIST_DATA_BASE, .memcpy = &memcpy_mock, .memset = &memset_mock,
+			.flush = &flush_mock, .drain = &drain_mock, .persist = &persist_mock
+		};
+
+		SLIST_INIT(&runtime, &list);
+
+		UT_ASSERTeq(list.head, SLIST_INVALID_OFFSET);
+		UT_ASSERTeq(list.tail, SLIST_INVALID_OFFSET);
+	}
+
 	rc::check("Insert head", [](const std::vector<struct node> &data) {
 		RC_PRE(data.size() > 0);
 
