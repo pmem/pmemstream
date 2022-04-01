@@ -17,7 +17,7 @@ struct data_entry {
 
 /**
  * Show example usage of sync and async appends.
- * XXX: update this example to use multiple regions (when it's available)
+ * Each async append is executed in a different region.
  */
 int main(int argc, char *argv[])
 {
@@ -40,42 +40,51 @@ int main(int argc, char *argv[])
 		return ret;
 	}
 
-	struct pmemstream_region region;
-	ret = pmemstream_region_allocate(stream, 4096, &region);
-	if (ret == -1) {
-		struct pmemstream_region_iterator *riter;
-		ret = pmemstream_region_iterator_new(&riter, stream);
-		if (ret == -1) {
-			fprintf(stderr, "pmemstream_region_iterator_new failed\n");
-			return ret;
-		}
-		/* if allocate failed, we try to open existing region */
-		ret = pmemstream_region_iterator_next(riter, &region);
-		pmemstream_region_iterator_delete(&riter);
+	/* get or allocate regions */
+	struct pmemstream_region regions[EXAMPLE_ASYNC_COUNT];
+	struct pmemstream_region_iterator *riter;
+	ret = pmemstream_region_iterator_new(&riter, stream);
+	assert(ret == 0);
+	bool try_get = true;
 
-		if (ret == -1) {
-			fprintf(stderr, "pmemstream_region_iterator_next found no regions\n");
-			return ret;
+	for (int i = 0; i < EXAMPLE_ASYNC_COUNT; ++i) {
+		if (try_get) {
+			ret = pmemstream_region_iterator_next(riter, &regions[i]);
+			if (ret != 0) {
+				try_get = false;
+			}
+		}
+		if (!try_get) {
+			ret = pmemstream_region_allocate(stream, EXAMPLE_REGION_SIZE, &regions[i]);
+			if (ret != 0) {
+				fprintf(stderr, "pmemstream_region_allocate failed\n");
+				return ret;
+			}
 		}
 	}
+	pmemstream_region_iterator_delete(&riter);
 
-	struct data_entry example_data;
-	example_data.data = 1024;
+	/* stream and regions are prepared, let's get to action */
+
+	struct data_entry example_data[3];
+	example_data[0].data = 1;
+	example_data[1].data = UINT64_MAX;
+	example_data[2].data = 8196;
 	struct pmemstream_entry entry;
 
 	/*
 	 * Example synchronous (regular) append
 	 */
-	ret = pmemstream_append(stream, region, NULL, &example_data, sizeof(example_data), &entry);
+	ret = pmemstream_append(stream, regions[0], NULL, &example_data[0], sizeof(example_data[0]), &entry);
 	if (ret) {
 		fprintf(stderr, "pmemstream_append failed\n");
 		return ret;
 	}
 	const struct data_entry *read_data = (const struct data_entry *)pmemstream_entry_data(stream, entry);
-	printf("regular append read data: %lu\n", read_data->data);
+	printf("regular, synchronous append read data: %lu\n", read_data->data);
 
 	/*
-	 * Example asynchronous append, executed in the libminiasync runtime
+	 * Example asynchronous append, executed with libminiasync functions
 	 */
 	/* Prepare environment and define async appends (as futures) */
 	struct data_mover_threads *dmt = data_mover_threads_default();
@@ -85,13 +94,10 @@ int main(int argc, char *argv[])
 	}
 	struct vdm *thread_mover = data_mover_threads_get_vdm(dmt);
 
-	struct pmemstream_async_append_fut *append_futures = (struct pmemstream_async_append_fut *)malloc(
-		EXAMPLE_ASYNC_COUNT * sizeof(struct pmemstream_async_append_fut));
-	assert(append_futures != NULL);
-
+	struct pmemstream_async_append_fut append_futures[EXAMPLE_ASYNC_COUNT];
 	for (int i = 0; i < EXAMPLE_ASYNC_COUNT; ++i) {
-		append_futures[i] = pmemstream_async_append(stream, thread_mover, region, NULL, &example_data,
-							    sizeof(example_data));
+		append_futures[i] = pmemstream_async_append(stream, thread_mover, regions[i], NULL, &example_data[i],
+							    sizeof(example_data[i]));
 	}
 
 	/* Now, execute these futures. */
@@ -109,25 +115,27 @@ int main(int argc, char *argv[])
 			    future_poll(FUTURE_AS_RUNNABLE(&append_futures[i]), NULL) == FUTURE_STATE_COMPLETE) {
 				completed_futures[i] = 1;
 				completed++;
+				printf("Future %d is complete!\n", i);
+
+				/* Since each append is done in an individual region, we may already, safely
+				 * read out and print appended value. */
+				struct pmemstream_async_append_output *out = FUTURE_OUTPUT(&append_futures[i]);
+				if (out->error_code != 0) {
+					fprintf(stderr, "pmemstream_append_async (no. %d) failed\n", i);
+					return out->error_code;
+				}
+				read_data = (const struct data_entry *)pmemstream_entry_data(stream, out->new_entry);
+				printf("async append (no. %d) read data: %lu\n", i, read_data->data);
 			}
 		}
 
 		/*
 		 * an additional user/application work could be done here
 		 */
+		printf("User work done here...\n");
 	} while (completed < EXAMPLE_ASYNC_COUNT);
 
-	/* Finally, read out the data of one of the async appends and print appended value */
-	struct pmemstream_async_append_output *out = FUTURE_OUTPUT(&append_futures[0]);
-	if (out->error_code != 0) {
-		fprintf(stderr, "pmemstream_append_async (no. 0) failed\n");
-		return out->error_code;
-	}
-	read_data = (const struct data_entry *)pmemstream_entry_data(stream, out->new_entry);
-	printf("async append (no. 0) read data: %lu\n", read_data->data);
-
 	/* cleanup */
-	free(append_futures);
 	data_mover_threads_delete(dmt);
 	pmemstream_delete(&stream);
 	pmem2_map_delete(&map);
