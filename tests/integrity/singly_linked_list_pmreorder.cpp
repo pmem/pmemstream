@@ -2,36 +2,20 @@
 /* Copyright 2022, Intel Corporation */
 
 #include "pmemstream_runtime.h"
+#include "random_helpers.hpp"
 #include "singly_linked_list.h"
 #include "unittest.hpp"
-#include <filesystem>
-#include <iostream>
 
 #include <algorithm>
 #include <cstdlib>
+#include <filesystem>
 #include <functional>
-#include <random>
+#include <iostream>
 #include <vector>
 
 static constexpr size_t number_of_commands = 100;
-static std::mt19937_64 rnd_generator;
 
 static auto make_pmem2_map = make_instance_ctor(map_open, map_delete);
-
-void init_random()
-{
-	uint64_t seed;
-	const char *seed_env = std::getenv("TEST_SEED");
-	if (seed_env == NULL) {
-		std::random_device rd;
-		seed = rd();
-		std::cout << "To reproduce set env variable TEST_SEED=" << seed << std::endl;
-	} else {
-		seed = std::stoull(seed_env);
-		std::cout << "Running with TEST_SEED=" << seed << std::endl;
-	}
-	rnd_generator = std::mt19937_64(seed);
-}
 
 struct node {
 	uint64_t next = 0xDEAD;
@@ -89,19 +73,6 @@ void slist_foreach(pmemstream_runtime *runtime, singly_linked_list *list, UnaryF
 
 using slist_macro_wrapper = std::function<void(pmemstream_runtime *, singly_linked_list *, uint64_t)>;
 
-std::vector<slist_macro_wrapper> generate_commands(size_t number_of_commands)
-{
-	/* XXX: Add testing of remove */
-	static std::vector<slist_macro_wrapper> possible_cmds{slist_insert_head, slist_insert_tail, slist_remove_head};
-	std::vector<slist_macro_wrapper> out;
-	for (size_t i = 0; i < number_of_commands; i++) {
-		const size_t samples_number = 1;
-		std::sample(possible_cmds.begin(), possible_cmds.end(), std::back_inserter(out), samples_number,
-			    rnd_generator);
-	}
-	return out;
-}
-
 template <typename Node>
 std::vector<size_t> generate_offsets(size_t number_of_values)
 {
@@ -137,7 +108,9 @@ void fill(test_config_type test_config)
 
 	slist_runtime_init(&runtime, list);
 
-	const auto commands = generate_commands(number_of_commands);
+	/* XXX: Add testing of remove */
+	const auto commands = generate_commands<slist_macro_wrapper>(
+		number_of_commands, {slist_insert_head, slist_insert_tail, slist_remove_head});
 	const auto offsets = generate_offsets<node>(number_of_commands);
 
 	for (size_t i = 0; i < number_of_commands; i++) {
