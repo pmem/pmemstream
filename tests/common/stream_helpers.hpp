@@ -326,23 +326,27 @@ struct pmemstream_helpers_type {
 		return region_counter;
 	}
 
-	void remove_regions(size_t number)
-	{
-		for (size_t i = 0; i < number; i++) {
-			UT_ASSERTeq(stream.region_free(get_first_region()), 0);
-		}
-	}
-
-	void remove_region_at(size_t pos)
+	/* Removes n-th region (counts from 0).
+	 * It will fail assertion if n-th region is missing. */
+	int remove_region(size_t n)
 	{
 		struct pmemstream_region region;
 		auto riter = stream.region_iterator();
 
-		for (size_t i = 0; i <= pos; i++) {
+		for (size_t i = 0; i <= n; i++) {
 			UT_ASSERTeq(pmemstream_region_iterator_next(riter.get(), &region), 0);
 		}
 
-		UT_ASSERTeq(stream.region_free(region), 0);
+		return stream.region_free(region);
+	}
+
+	/* Removes regions at positions defined in the vector.
+	 * Positions have to be unique. */
+	void remove_regions(std::vector<size_t> to_remove)
+	{
+		for (auto it = to_remove.rbegin(); it != to_remove.rend(); ++it) {
+			UT_ASSERTeq(remove_region(*it), 0);
+		}
 	}
 
 	/* XXX: extend to allow more than one extra_data vector */
