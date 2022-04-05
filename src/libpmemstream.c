@@ -367,3 +367,87 @@ int pmemstream_append(struct pmemstream *stream, struct pmemstream_region region
 
 	return 0;
 }
+
+static void publish_to_append_map(struct future_context *publish_ctx, struct future_context *append_ctx, void *arg)
+{
+	struct pmemstream_async_publish_output *publish_output = future_context_get_output(publish_ctx);
+	struct pmemstream_async_append_output *append_output = future_context_get_output(append_ctx);
+
+	append_output->error_code = publish_output->error_code;
+}
+
+static enum future_state pmemstream_async_publish_impl(struct future_context *ctx, struct future_notifier *notifier)
+{
+	/* XXX: properly use/fix notifier */
+	if (notifier != NULL) {
+		notifier->notifier_used = FUTURE_NOTIFIER_NONE;
+	}
+
+	struct pmemstream_async_publish_data *data = future_context_get_data(ctx);
+	struct pmemstream_async_publish_output *out = future_context_get_output(ctx);
+
+	int ret = pmemstream_publish(data->stream, data->region, data->region_runtime, data->data, data->size,
+				     data->reserved_entry);
+	out->error_code = ret;
+
+	return FUTURE_STATE_COMPLETE;
+}
+
+struct pmemstream_async_publish_fut pmemstream_async_publish(struct pmemstream *stream, struct pmemstream_region region,
+							     struct pmemstream_region_runtime *region_runtime,
+							     const void *data, size_t size,
+							     struct pmemstream_entry reserved_entry)
+{
+	struct pmemstream_async_publish_fut future = {0};
+	future.data.stream = stream;
+	future.data.region = region;
+	future.data.region_runtime = region_runtime;
+	future.data.data = data;
+	future.data.size = size;
+	future.data.reserved_entry = reserved_entry;
+
+	FUTURE_INIT(&future, pmemstream_async_publish_impl);
+
+	return future;
+}
+
+// asynchronously appends data buffer to the end of the region
+struct pmemstream_async_append_fut pmemstream_async_append(struct pmemstream *stream, struct vdm *vdm,
+							   struct pmemstream_region region,
+							   struct pmemstream_region_runtime *region_runtime,
+							   const void *data, size_t size)
+{
+	struct pmemstream_async_append_fut future = {0};
+
+	if (!region_runtime) {
+		int ret = pmemstream_region_runtime_initialize(stream, region, &region_runtime);
+		if (ret) {
+			/* return future already completed, with the error code set */
+			future.output.error_code = ret;
+			FUTURE_INIT_COMPLETE(&future);
+			return future;
+		}
+	}
+
+	struct pmemstream_entry reserved_entry;
+	void *reserved_dest;
+	int ret = pmemstream_reserve(stream, region, region_runtime, size, &reserved_entry, &reserved_dest);
+	if (ret) {
+		/* return future already completed, with the error code set */
+		future.output.error_code = ret;
+		FUTURE_INIT_COMPLETE(&future);
+		return future;
+	}
+	future.output.new_entry = reserved_entry;
+
+	/* at this point, we have to chain tasks needed to complete an append and initialize the future */
+	FUTURE_CHAIN_ENTRY_INIT(&future.data.memcpy,
+				vdm_memcpy(vdm, reserved_dest, (void *)data, size, PMEM2_F_MEM_NOFLUSH), NULL, NULL);
+	FUTURE_CHAIN_ENTRY_INIT(&future.data.publish,
+				pmemstream_async_publish(stream, region, region_runtime, data, size, reserved_entry),
+				publish_to_append_map, NULL);
+
+	FUTURE_CHAIN_INIT(&future);
+
+	return future;
+}

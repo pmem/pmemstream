@@ -6,6 +6,11 @@
 #ifndef LIBPMEMSTREAM_H
 #define LIBPMEMSTREAM_H
 
+/*
+ * XXX: put async functions into separate file...?
+ * We wouldn't require then, miniasync installation everytime.
+ */
+#include <libminiasync.h>
 #include <libpmem2.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -27,6 +32,37 @@ struct pmemstream_region {
 struct pmemstream_entry {
 	uint64_t offset;
 };
+
+/* async publish data, filled with data from user and from pmemstream_reserve */
+struct pmemstream_async_publish_data {
+	struct pmemstream *stream;
+	struct pmemstream_region region;
+	struct pmemstream_region_runtime *region_runtime;
+	const void *data;
+	size_t size;
+	struct pmemstream_entry reserved_entry;
+};
+
+/* async publish output */
+struct pmemstream_async_publish_output {
+	int error_code;
+};
+
+FUTURE(pmemstream_async_publish_fut, struct pmemstream_async_publish_data, struct pmemstream_async_publish_output);
+
+/* async append data - two chained futures needed to complete append */
+struct pmemstream_async_append_data {
+	FUTURE_CHAIN_ENTRY(struct vdm_operation_future, memcpy);
+	FUTURE_CHAIN_ENTRY(struct pmemstream_async_publish_fut, publish);
+};
+
+/* async append returns new entry's offset on success (error_code == 0) */
+struct pmemstream_async_append_output {
+	int error_code;
+	struct pmemstream_entry new_entry;
+};
+
+FUTURE(pmemstream_async_append_fut, struct pmemstream_async_append_data, struct pmemstream_async_append_output);
 
 // manages lifecycle of the stream. Can be based on top of a raw pmem2_map
 // or a pmemset (TBD).
@@ -90,6 +126,18 @@ int pmemstream_publish(struct pmemstream *stream, struct pmemstream_region regio
 int pmemstream_append(struct pmemstream *stream, struct pmemstream_region region,
 		      struct pmemstream_region_runtime *region_runtime, const void *data, size_t size,
 		      struct pmemstream_entry *new_entry);
+
+/* asynchronous publish, using libminiasync */
+struct pmemstream_async_publish_fut pmemstream_async_publish(struct pmemstream *stream, struct pmemstream_region region,
+							     struct pmemstream_region_runtime *region_runtime,
+							     const void *data, size_t size,
+							     struct pmemstream_entry reserved_entry);
+
+/* asynchronous append, using libminiasync */
+struct pmemstream_async_append_fut pmemstream_async_append(struct pmemstream *stream, struct vdm *vdm,
+							   struct pmemstream_region region,
+							   struct pmemstream_region_runtime *region_runtime,
+							   const void *data, size_t size);
 
 // returns pointer to the data of the entry
 const void *pmemstream_entry_data(struct pmemstream *stream, struct pmemstream_entry entry);

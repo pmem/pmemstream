@@ -18,6 +18,12 @@ extraction:
       - cd pmdk
       - make install -j$(nproc) prefix=$LGTM_WORKSPACE/installed/
       - export PKG_CONFIG_PATH=$LGTM_WORKSPACE/installed/lib/pkgconfig:$PKG_CONFIG_PATH
+      - cd ..
+      - git clone https://github.com/pmem/miniasync
+      - cd miniasync && mkdir build && cd build
+      - git checkout 6c21f8a6ab634d3860886c6b041107631db6e69e
+      - cmake .. -DCMAKE_INSTALL_PREFIX=$LGTM_WORKSPACE/installed/
+      - make -j$(nproc) install
     index:
       build_command:
         - mkdir build

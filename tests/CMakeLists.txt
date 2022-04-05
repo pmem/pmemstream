@@ -131,6 +131,9 @@ if(TESTS_RAPIDCHECK)
 	build_test_rc(NAME multi_region SRC_FILES unittest/multi_region.cpp)
 	add_test_generic(NAME multi_region TRACERS none)
 
+	build_test_rc(NAME publish_append_async SRC_FILES unittest/publish_append_async.cpp LIBS miniasync)
+	add_test_generic(NAME publish_append_async TRACERS none)
+
 	build_test_rc(NAME region_runtime_initialize SRC_FILES unittest/region_runtime_initialize.cpp)
 	add_test_generic(NAME region_runtime_initialize TRACERS none memcheck)
 
@@ -186,10 +189,12 @@ if(BUILD_EXAMPLES)
 	add_dependencies(tests
 				example-01_basic_iterate
 				example-02_visual_iterator
-				example-03_reserve_publish)
+				example-03_reserve_publish
+				example-04_basic_async)
 	add_test_generic(NAME example-01_basic_iterate TRACERS none)
 	add_test_generic(NAME example-02_visual_iterator TRACERS none)
 	add_test_generic(NAME example-03_reserve_publish TRACERS none)
+	add_test_generic(NAME example-04_basic_async TRACERS none)
 endif()
 
 # ----------------------------------------------------------------- #
