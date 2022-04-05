@@ -15,6 +15,11 @@
 #include "stream_span_helpers.hpp"
 #include "unittest.hpp"
 
+static inline bool operator==(const struct pmemstream_region lhs, const struct pmemstream_region rhs)
+{
+	return lhs.offset == rhs.offset;
+}
+
 static inline std::unique_ptr<struct pmemstream, std::function<void(struct pmemstream *)>>
 make_pmemstream(const std::string &file, size_t block_size, size_t size, bool truncate = true)
 {
@@ -304,6 +309,23 @@ struct pmemstream_helpers_type {
 		}
 	}
 
+	std::vector<struct pmemstream_region> allocate_regions(size_t n, size_t region_size)
+	{
+		std::vector<struct pmemstream_region> regions;
+
+		for (size_t i = 0; i < n; i++) {
+			auto [ret, region] = stream.region_allocate(region_size);
+			UT_ASSERTeq(ret, 0);
+
+			/* region_size is aligned up to block_size, on allocation, so it may be bigger than expected */
+			UT_ASSERT(stream.region_size(region) >= region_size);
+
+			regions.push_back(region);
+		}
+
+		return regions;
+	}
+
 	/* Get n-th region in the steram (counts from 0);
 	 * It will fail assertion if n-th region is missing. */
 	struct pmemstream_region get_region(size_t n)
@@ -323,6 +345,24 @@ struct pmemstream_helpers_type {
 	struct pmemstream_region get_first_region()
 	{
 		return get_region(0);
+	}
+
+	/* Get all regions in the stream */
+	std::vector<struct pmemstream_region> get_regions()
+	{
+		auto riter = stream.region_iterator();
+
+		std::vector<struct pmemstream_region> regions;
+		while (true) {
+			struct pmemstream_region region;
+			int ret = pmemstream_region_iterator_next(riter.get(), &region);
+			if (ret != 0)
+				break;
+
+			regions.push_back(region);
+		}
+
+		return regions;
 	}
 
 	struct pmemstream_entry get_last_entry(pmemstream_region region)
@@ -370,23 +410,26 @@ struct pmemstream_helpers_type {
 		return region_counter;
 	}
 
-	void remove_regions(size_t number)
+	/* Removes region with given offset.
+	 * It will fail assertion if such region is missing. */
+	int remove_region(size_t offset)
 	{
-		for (size_t i = 0; i < number; i++) {
-			UT_ASSERTeq(stream.region_free(get_first_region()), 0);
-		}
-	}
-
-	void remove_region_at(size_t pos)
-	{
-		struct pmemstream_region region;
 		auto riter = stream.region_iterator();
 
-		for (size_t i = 0; i <= pos; i++) {
+		struct pmemstream_region region;
+		do {
 			UT_ASSERTeq(pmemstream_region_iterator_next(riter.get(), &region), 0);
-		}
+		} while (region.offset != offset);
 
-		UT_ASSERTeq(stream.region_free(region), 0);
+		return stream.region_free(region);
+	}
+
+	/* Removes given regions. */
+	void remove_regions(std::vector<struct pmemstream_region> regions)
+	{
+		for (auto r : regions) {
+			UT_ASSERTeq(remove_region(r.offset), 0);
+		}
 	}
 
 	/* XXX: extend to allow more than one extra_data vector */
