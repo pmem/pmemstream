@@ -11,9 +11,9 @@ size_t count_max_regions(test_config_type &test_config)
 {
 	pmemstream_test_base stream(test_config.filename, test_config.block_size, test_config.stream_size);
 	size_t max_allocations = 0;
-	auto [ret, region] = stream.helpers.stream.region_allocate(TEST_DEFAULT_REGION_SIZE);
+	auto [ret, region] = stream.helpers.stream.region_allocate(test_config.region_size);
 	while (ret != -1) {
-		std::tie(ret, region) = stream.helpers.stream.region_allocate(TEST_DEFAULT_REGION_SIZE);
+		std::tie(ret, region) = stream.helpers.stream.region_allocate(test_config.region_size);
 		++max_allocations;
 	};
 	return max_allocations;
@@ -33,76 +33,85 @@ int main(int argc, char *argv[])
 	return run_test(test_config, [&] {
 		return_check ret;
 		size_t max_allocations = count_max_regions(test_config);
-		RC_ASSERT(max_allocations != 0);
+		UT_ASSERTne(max_allocations, 0);
 
-		ret += rc::check("Each allocated region may be freed", [&](pmemstream_empty &&stream) {
-			size_t no_regions = *rc::gen::inRange<std::size_t>(1, max_allocations);
+		ret += rc::check("Each of allocated regions can be iterated and freed", [&](pmemstream_empty &&stream) {
+			/* rc::gen::inRange works in <min, max) range */
+			size_t no_regions = *rc::gen::inRange<std::size_t>(1, max_allocations + 1);
 
-			for (size_t i = 0; i < no_regions; i++) {
-				auto [ret, region] = stream.helpers.stream.region_allocate(TEST_DEFAULT_REGION_SIZE);
-				RC_ASSERT(ret == 0);
-			}
-
+			auto regions = stream.helpers.allocate_regions(no_regions, test_config.region_size);
 			RC_ASSERT(no_regions == stream.helpers.count_regions());
 
-			stream.helpers.remove_regions(no_regions);
+			auto iterated = stream.helpers.get_regions();
+			RC_ASSERT(regions.size() == iterated.size());
+			// RC_ASSERT(std::equal(regions.begin(), regions.end(), iterated.begin()));
+
+			stream.helpers.remove_regions(regions);
+
 			RC_ASSERT(0 == stream.helpers.count_regions());
 		});
 
-		ret += rc::check("Some of allocated regions can be freed", [&](pmemstream_empty &&stream) {
-			size_t no_regions = *rc::gen::inRange<std::size_t>(1, max_allocations);
-			size_t to_delete = *rc::gen::inRange<std::size_t>(1, no_regions);
+		ret += rc::check(
+			"Some of first/last allocated regions can be freed",
+			[&](pmemstream_empty &&stream, bool free_heads) {
+				size_t no_regions = *rc::gen::inRange<std::size_t>(1, max_allocations + 1);
+				size_t to_delete = *rc::gen::inRange<std::size_t>(1, no_regions);
 
-			for (size_t i = 0; i < no_regions; i++) {
-				auto [ret, region] = stream.helpers.stream.region_allocate(TEST_DEFAULT_REGION_SIZE);
-				RC_ASSERT(ret == 0);
-			}
+				auto regions = stream.helpers.allocate_regions(no_regions, test_config.region_size);
+				RC_ASSERT(no_regions == stream.helpers.count_regions());
 
-			RC_ASSERT(no_regions == stream.helpers.count_regions());
+				std::vector<struct pmemstream_region> to_remove;
+				if (free_heads) {
+					to_remove = std::vector<struct pmemstream_region>(
+						regions.begin(), regions.begin() + static_cast<long>(to_delete));
+				} else {
+					to_remove = std::vector<struct pmemstream_region>(
+						regions.rbegin(), regions.rbegin() + static_cast<long>(to_delete));
+				}
+				stream.helpers.remove_regions(to_remove);
 
-			stream.helpers.remove_regions(to_delete);
-			RC_ASSERT(no_regions - to_delete == stream.helpers.count_regions());
-		});
+				RC_ASSERT(no_regions - to_delete == stream.helpers.count_regions());
+			});
 
 		ret += rc::check("Random region can be freed", [&](pmemstream_empty &&stream) {
-			size_t no_regions = *rc::gen::inRange<std::size_t>(1, max_allocations);
-			size_t to_delete = *rc::gen::inRange<std::size_t>(0, no_regions);
+			size_t no_regions = *rc::gen::inRange<std::size_t>(1, max_allocations + 1);
+			size_t to_delete_pos = *rc::gen::inRange<std::size_t>(0, no_regions);
 
-			for (size_t i = 0; i < no_regions; i++) {
-				auto [ret, region] = stream.helpers.stream.region_allocate(TEST_DEFAULT_REGION_SIZE);
-				RC_ASSERT(ret == 0);
-			}
-
+			auto regions = stream.helpers.allocate_regions(no_regions, test_config.region_size);
 			RC_ASSERT(no_regions == stream.helpers.count_regions());
 
-			stream.helpers.remove_region_at(to_delete);
-			RC_ASSERT(no_regions - 1 == stream.helpers.count_regions());
+			stream.helpers.remove_region(stream.helpers.get_region(to_delete_pos).offset);
+			RC_ASSERT(no_regions - 1 == regions.size() - 1);
 		});
 
-		ret += rc::check("Allocate regions after free", [&](pmemstream_empty &&stream) {
-			size_t no_regions = *rc::gen::inRange<std::size_t>(1, max_allocations);
-			size_t to_delete = *rc::gen::inRange<std::size_t>(1, no_regions);
+		ret += rc::check("Regions can be allocated after some was freed", [&](pmemstream_empty &&stream) {
+			size_t no_regions = *rc::gen::inRange<std::size_t>(1, max_allocations + 1);
 
-			for (size_t i = 0; i < no_regions; i++) {
-				auto [ret, region] = stream.helpers.stream.region_allocate(TEST_DEFAULT_REGION_SIZE);
-				RC_ASSERT(ret == 0);
-			}
-
+			auto regions = stream.helpers.allocate_regions(no_regions, test_config.region_size);
 			RC_ASSERT(no_regions == stream.helpers.count_regions());
 
-			size_t tbd = to_delete;
-			size_t pos = no_regions;
-			while (tbd-- != 0) {
-				stream.helpers.remove_region_at(--pos);
+			/* remove random (unique) regions */
+			auto to_delete_poss =
+				*rc::gen::unique<std::vector<size_t>>(rc::gen::inRange<size_t>(0, no_regions));
+			RC_PRE(to_delete_poss.size() > 0);
+
+			std::vector<struct pmemstream_region> to_delete_regs;
+			for (auto i : to_delete_poss) {
+				to_delete_regs.push_back(stream.helpers.get_region(i));
 			}
 
-			RC_ASSERT(no_regions - to_delete == stream.helpers.count_regions());
+			stream.helpers.remove_regions(to_delete_regs);
+			RC_ASSERT(no_regions - to_delete_regs.size() == stream.helpers.count_regions());
 
-			for (size_t i = 0; i < to_delete; i++) {
-				auto [ret, region] = stream.helpers.stream.region_allocate(TEST_DEFAULT_REGION_SIZE);
+			/* allocate again, some extra number of regions */
+			size_t no_realloc_regions = *rc::gen::inRange<std::size_t>(0, to_delete_regs.size());
+
+			for (size_t i = 0; i < no_realloc_regions; i++) {
+				auto [ret, region] = stream.helpers.stream.region_allocate(test_config.region_size);
 				RC_ASSERT(ret == 0);
 			}
-			RC_ASSERT(no_regions == stream.helpers.count_regions());
+			RC_ASSERT(no_regions - to_delete_regs.size() + no_realloc_regions ==
+				  stream.helpers.count_regions());
 		});
 	});
 }

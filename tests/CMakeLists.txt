@@ -129,7 +129,7 @@ if(TESTS_RAPIDCHECK)
 	add_test_generic(NAME mpmc_queue_multithreaded TRACERS none)
 
 	build_test_rc(NAME multi_region SRC_FILES unittest/multi_region.cpp)
-	add_test_generic(NAME multi_region TRACERS none)
+	add_test_generic(NAME multi_region TRACERS none memcheck pmemcheck)
 
 	build_test_rc(NAME multi_region_state SRC_FILES unittest/multi_region_state.cpp)
 	add_test_generic(NAME multi_region_state TRACERS none)
