@@ -178,12 +178,11 @@ static inline void store_with_flush(const struct pmemstream_runtime *runtime, ui
 		} else {                                                                                               \
 			uint64_t curelm = (list)->head;                                                                \
 			uint64_t next;                                                                                 \
-			while ((next = SLIST_NEXT(type, runtime, curelm, field)) != offset) {                          \
+			while ((next = SLIST_NEXT(type, runtime, curelm, field)) != offset &&                          \
+			       next != SLIST_INVALID_OFFSET) {                                                         \
 				curelm = next;                                                                         \
-				if (curelm == SLIST_INVALID_OFFSET)                                                    \
-					break;                                                                         \
 			}                                                                                              \
-			if (curelm == SLIST_INVALID_OFFSET)                                                            \
+			if (next == SLIST_INVALID_OFFSET)                                                              \
 				break;                                                                                 \
 			if (SLIST_NEXT(type, runtime, offset, field) == SLIST_INVALID_OFFSET) {                        \
 				store_with_flush(runtime, &(list)->tail, curelm);                                      \
