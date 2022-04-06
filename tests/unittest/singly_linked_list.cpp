@@ -144,29 +144,34 @@ int main(int argc, char *argv[])
 				offset += sizeof(struct node);
 			}
 
-			/* Remove head */
+			/* Number of elements to remove */
+			auto num_of_rmv = *rc::gen::inRange<size_t>(1, data.size());
 			auto mod_data = data;
-			auto it = mod_data.begin();
-			if (it != mod_data.end())
-				it = mod_data.erase(it);
-			if (list.head != SLIST_INVALID_OFFSET) {
-				SLIST_REMOVE_HEAD(struct node, &runtime, &list, next);
-			}
 
-			uint64_t l_it = list.head;
-			if (l_it == SLIST_INVALID_OFFSET)
-				return;
+			for (size_t i = 0; i < num_of_rmv; ++i) {
+				/* Remove head */
+				auto it = mod_data.begin();
+				if (it != mod_data.end())
+					it = mod_data.erase(it);
+				if (list.head != SLIST_INVALID_OFFSET) {
+					SLIST_REMOVE_HEAD(struct node, &runtime, &list, next);
+				}
 
-			/* Check correctness */
-			it = mod_data.begin();
-			while (it != mod_data.end()) {
-				RC_ASSERT((SLIST_GET_PTR(node, &runtime, l_it))->data == it->data);
-				l_it = SLIST_NEXT(struct node, &runtime, l_it, next);
-				it++;
+				uint64_t l_it = list.head;
+				if (l_it == SLIST_INVALID_OFFSET)
+					return;
+
+				/* Check correctness */
+				it = mod_data.begin();
+				while (it != mod_data.end()) {
+					RC_ASSERT((SLIST_GET_PTR(node, &runtime, l_it))->data == it->data);
+					l_it = SLIST_NEXT(struct node, &runtime, l_it, next);
+					it++;
+				}
+				RC_ASSERT(it == mod_data.end());
+				RC_ASSERT(l_it == SLIST_INVALID_OFFSET);
+				RC_ASSERT(SLIST_INVARIANTS(struct node, &runtime, &list, next));
 			}
-			RC_ASSERT(it == mod_data.end());
-			RC_ASSERT(l_it == SLIST_INVALID_OFFSET);
-			RC_ASSERT(SLIST_INVARIANTS(struct node, &runtime, &list, next));
 		});
 
 		ret += rc::check("Random remove", [](const std::vector<struct node> &data) {
@@ -187,34 +192,40 @@ int main(int argc, char *argv[])
 				SLIST_INSERT_TAIL(struct node, &runtime, &list, offset, next);
 				offset += sizeof(struct node);
 			}
-
-			/* Remove random element from the list */
-			auto random_item_pos = *rc::gen::inRange<size_t>(0, data.size());
+			
+			/* Number of elements to remove */
+			auto num_of_rmv = *rc::gen::inRange<size_t>(1, data.size());
 			auto mod_data(data);
-			auto r_it = mod_data.begin();
-			auto l_it = list.head;
 
-			for (size_t i = 0; i < random_item_pos; ++i) {
-				r_it++;
-				l_it = SLIST_NEXT(struct node, &runtime, l_it, next);
-				RC_ASSERT((SLIST_GET_PTR(node, &runtime, l_it))->data == r_it->data);
+			for (size_t i = 1; i < num_of_rmv; ++i) {
+				/* Remove random element from the list */
+				auto random_item_pos = *rc::gen::inRange<size_t>(0, data.size());
+
+				auto r_it = mod_data.begin();
+				auto l_it = list.head;
+
+				for (size_t i = 0; i <= random_item_pos; ++i) {
+					r_it++;
+					l_it = SLIST_NEXT(struct node, &runtime, l_it, next);
+					RC_ASSERT((SLIST_GET_PTR(node, &runtime, l_it))->data == r_it->data);
+				}
+
+				mod_data.erase(r_it);
+				SLIST_REMOVE(struct node, &runtime, &list, l_it, next);
+
+				/* Check correctness */
+				l_it = list.head;
+				r_it = mod_data.begin();
+				SLIST_FOREACH(struct node, &runtime, &list, l_it, next)
+				{
+					RC_ASSERT((SLIST_GET_PTR(struct node, &runtime, l_it))->data == r_it->data);
+					r_it++;
+				}
+				RC_ASSERT(r_it == mod_data.end());
+				RC_ASSERT(l_it == SLIST_INVALID_OFFSET);
+				RC_ASSERT(mod_data.size() == data.size() - i);
+				RC_ASSERT(SLIST_INVARIANTS(struct node, &runtime, &list, next));
 			}
-
-			mod_data.erase(r_it);
-			SLIST_REMOVE(struct node, &runtime, &list, l_it, next);
-
-			/* Check correctness */
-			l_it = list.head;
-			r_it = mod_data.begin();
-			SLIST_FOREACH(struct node, &runtime, &list, l_it, next)
-			{
-				RC_ASSERT((SLIST_GET_PTR(struct node, &runtime, l_it))->data == r_it->data);
-				r_it++;
-			}
-			RC_ASSERT(r_it == mod_data.end());
-			RC_ASSERT(l_it == SLIST_INVALID_OFFSET);
-			RC_ASSERT(mod_data.size() == data.size() - 1);
-			RC_ASSERT(SLIST_INVARIANTS(struct node, &runtime, &list, next));
 		});
 
 		ret += rc::check("Insert removed element (prefilled list)", [](const std::vector<struct node> &data) {
