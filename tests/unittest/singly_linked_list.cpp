@@ -33,6 +33,20 @@ struct Arbitrary<node> {
 };
 } // namespace rc
 
+template <typename T, class TIterator>
+void check_list(pmemstream_runtime &runtime, singly_linked_list &list, TIterator begin, TIterator end)
+{
+	uint64_t it = 0;
+	auto rit = begin;
+	SLIST_FOREACH(T, &runtime, &list, it, next)
+	{
+		RC_ASSERT((SLIST_GET_PTR(T, &runtime, it))->data == rit->data);
+		rit++;
+	}
+	RC_ASSERT(rit == end);
+	RC_ASSERT(SLIST_INVARIANTS(T, &runtime, &list, next));
+}
+
 int main(int argc, char *argv[])
 {
 	/* Initiate list */
@@ -70,15 +84,7 @@ int main(int argc, char *argv[])
 		}
 
 		/* Check correctness */
-		uint64_t it = 0;
-		auto rit = data.rbegin();
-		SLIST_FOREACH(struct node, &runtime, &list, it, next)
-		{
-			RC_ASSERT((SLIST_GET_PTR(node, &runtime, it))->data == rit->data);
-			rit++;
-		}
-		RC_ASSERT(rit == data.rend());
-		RC_ASSERT(SLIST_INVARIANTS(struct node, &runtime, &list, next));
+		check_list<node>(runtime, list, data.rbegin(), data.rend());
 	});
 
 	rc::check("Push back", [](const std::vector<struct node> &data) {
@@ -101,15 +107,7 @@ int main(int argc, char *argv[])
 		}
 
 		/* Check correctness */
-		uint64_t it = 0;
-		auto v_it = data.begin();
-		SLIST_FOREACH(struct node, &runtime, &list, it, next)
-		{
-			RC_ASSERT((SLIST_GET_PTR(node, &runtime, it))->data == v_it->data);
-			v_it++;
-		}
-		RC_ASSERT(v_it == data.end());
-		RC_ASSERT(SLIST_INVARIANTS(struct node, &runtime, &list, next));
+		check_list<node>(runtime, list, data.begin(), data.end());
 	});
 
 	rc::check("Remove head", [](const std::vector<struct node> &data) {
@@ -145,14 +143,7 @@ int main(int argc, char *argv[])
 			return;
 
 		/* Check correctness */
-		it = mod_data.begin();
-		while (it != mod_data.end()) {
-			RC_ASSERT((SLIST_GET_PTR(node, &runtime, l_it))->data == it->data);
-			l_it = SLIST_NEXT(struct node, &runtime, l_it, next);
-			it++;
-		}
-		RC_ASSERT(it == mod_data.end());
-		RC_ASSERT(SLIST_INVARIANTS(struct node, &runtime, &list, next));
+		check_list<node>(runtime, list, mod_data.begin(), mod_data.end());
 	});
 
 	rc::check("Random remove", [](const std::vector<struct node> &data) {
@@ -190,15 +181,33 @@ int main(int argc, char *argv[])
 		SLIST_REMOVE(struct node, &runtime, &list, l_it, next);
 
 		/* Check correctness */
-		l_it = list.head;
-		auto v_it = mod_data.begin();
-		SLIST_FOREACH(struct node, &runtime, &list, l_it, next)
-		{
-			RC_ASSERT((SLIST_GET_PTR(struct node, &runtime, l_it))->data == v_it->data);
-			v_it++;
-		}
-		RC_ASSERT(v_it == mod_data.end());
+		check_list<node>(runtime, list, mod_data.begin(), mod_data.end());
 		RC_ASSERT(mod_data.size() == data.size() - 1);
-		RC_ASSERT(SLIST_INVARIANTS(struct node, &runtime, &list, next));
+	});
+
+	rc::check("Removing nonexistent element doesn't change the list", [](const std::vector<struct node> &data) {
+		RC_PRE(data.size() > 0);
+
+		singly_linked_list list;
+
+		struct pmemstream_runtime runtime {
+			.base = (void *)data.data(), .memcpy = &memcpy_mock, .memset = &memset_mock,
+			.flush = &flush_mock, .drain = &drain_mock, .persist = &persist_mock
+		};
+
+		SLIST_INIT(&runtime, &list);
+
+		/* Add elements at the front of list */
+		uint64_t offset = 0;
+		for (size_t i = 0; i < data.size(); ++i) {
+			SLIST_INSERT_HEAD(struct node, &runtime, &list, offset, next);
+			offset += sizeof(struct node);
+		}
+
+		auto invalid_offset = *rc::gen::inRange<uint64_t>(offset + 1, UINT64_MAX);
+		SLIST_REMOVE(struct node, &runtime, &list, invalid_offset, next);
+
+		/* Check correctness */
+		check_list<node>(runtime, list, data.rbegin(), data.rend());
 	});
 }
