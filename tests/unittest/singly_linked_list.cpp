@@ -201,4 +201,38 @@ int main(int argc, char *argv[])
 		RC_ASSERT(mod_data.size() == data.size() - 1);
 		RC_ASSERT(SLIST_INVARIANTS(struct node, &runtime, &list, next));
 	});
+
+	rc::check("Remove nonexisting element don't change list", [](const std::vector<struct node> &data) {
+		RC_PRE(data.size() > 0);
+
+		singly_linked_list list;
+
+		struct pmemstream_runtime runtime {
+			.base = (void *)data.data(), .memcpy = &memcpy_mock, .memset = &memset_mock,
+			.flush = &flush_mock, .drain = &drain_mock, .persist = &persist_mock
+		};
+
+		SLIST_INIT(&runtime, &list);
+
+		/* Add elements at the front of list */
+		uint64_t offset = 0;
+		for (size_t i = 0; i < data.size(); ++i) {
+			SLIST_INSERT_HEAD(struct node, &runtime, &list, offset, next);
+			offset += sizeof(struct node);
+		}
+
+		uint64_t out_of_bound_offset = offset + sizeof(struct node);
+		SLIST_REMOVE(struct node, &runtime, &list, out_of_bound_offset, next);
+
+		/* Check correctness */
+		uint64_t it = 0;
+		auto rit = data.rbegin();
+		SLIST_FOREACH(struct node, &runtime, &list, it, next)
+		{
+			RC_ASSERT((SLIST_GET_PTR(node, &runtime, it))->data == rit->data);
+			rit++;
+		}
+		RC_ASSERT(rit == data.rend());
+		RC_ASSERT(SLIST_INVARIANTS(struct node, &runtime, &list, next));
+	});
 }
