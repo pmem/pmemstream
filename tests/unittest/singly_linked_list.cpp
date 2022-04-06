@@ -35,7 +35,6 @@ struct Arbitrary<node> {
 
 int main(int argc, char *argv[])
 {
-
 	return run_test([] {
 		return_check ret;
 
@@ -68,9 +67,14 @@ int main(int argc, char *argv[])
 
 			/* Add elements at the front of list */
 			uint64_t offset = 0;
+			auto v_it = data.begin();
 			for (size_t i = 0; i < data.size(); ++i) {
 				SLIST_INSERT_HEAD(struct node, &runtime, &list, offset, next);
+
+				/* Check if head points to last inserted element by SLIST_INSERT_HEAD) */
+				RC_ASSERT((SLIST_GET_PTR(node, &runtime, list.head))->data == v_it->data);
 				offset += sizeof(struct node);
+				v_it++;
 			}
 
 			/* Check correctness */
@@ -99,14 +103,19 @@ int main(int argc, char *argv[])
 
 			/* Add elements to list */
 			uint64_t offset = 0;
+			auto v_it = data.begin();
 			for (size_t i = 0; i < data.size(); ++i) {
 				SLIST_INSERT_TAIL(struct node, &runtime, &list, offset, next);
+
+				/* Check if tail points to last inserted element by SLIST_INSERT_TAIL */
+				RC_ASSERT((SLIST_GET_PTR(node, &runtime, list.tail))->data == v_it->data);
 				offset += sizeof(struct node);
+				v_it++;
 			}
 
 			/* Check correctness */
 			uint64_t it = 0;
-			auto v_it = data.begin();
+			v_it = data.begin();
 			SLIST_FOREACH(struct node, &runtime, &list, it, next)
 			{
 				RC_ASSERT((SLIST_GET_PTR(node, &runtime, it))->data == v_it->data);
