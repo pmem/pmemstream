@@ -177,8 +177,13 @@ static inline void store_with_flush(const struct pmemstream_runtime *runtime, ui
 			SLIST_REMOVE_HEAD(type, runtime, list, field);                                                 \
 		} else {                                                                                               \
 			uint64_t curelm = (list)->head;                                                                \
-			while (SLIST_NEXT(type, runtime, curelm, field) != offset)                                     \
-				curelm = SLIST_NEXT(type, runtime, curelm, field);                                     \
+			uint64_t next;                                                                                 \
+			while ((next = SLIST_NEXT(type, runtime, curelm, field)) != offset &&                          \
+			       next != SLIST_INVALID_OFFSET) {                                                         \
+				curelm = next;                                                                         \
+			}                                                                                              \
+			if (next == SLIST_INVALID_OFFSET)                                                              \
+				break;                                                                                 \
 			if (SLIST_NEXT(type, runtime, offset, field) == SLIST_INVALID_OFFSET) {                        \
 				store_with_flush(runtime, &(list)->tail, curelm);                                      \
 				(runtime)->drain();                                                                    \
