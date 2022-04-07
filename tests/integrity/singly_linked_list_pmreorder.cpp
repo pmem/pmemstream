@@ -147,7 +147,7 @@ void check_consistency(test_config_type test_config, bool with_recovery = true)
 int main(int argc, char *argv[])
 {
 	if (argc != 3)
-		UT_FATAL("usage: %s <create|fill|check|check_without_recovery> file-name", argv[0]);
+		UT_FATAL("usage: %s <create|fill|check|check_no_recovery> file-path", argv[0]);
 
 	struct test_config_type test_config;
 	std::string mode = argv[1];
@@ -161,9 +161,12 @@ int main(int argc, char *argv[])
 			fill(test_config);
 		} else if (mode == "check") {
 			check_consistency(test_config);
-		} else if (mode == "check_without_recovery") {
+		} else if (mode == "check_no_recovery") {
 			constexpr bool with_recovery = false;
 			check_consistency(test_config, with_recovery);
+		} else {
+			UT_FATAL("Wrong mode given!\nUsage: %s <create|fill|check|check_no_recovery> file-path",
+				 argv[0]);
 		}
 	});
 }
