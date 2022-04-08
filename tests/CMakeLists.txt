@@ -167,8 +167,11 @@ endif()
 
 if(TESTS_PMREORDER)
 	build_test(singly_linked_list_pmreorder integrity/singly_linked_list_pmreorder.cpp)
-	add_test_generic(NAME singly_linked_list_pmreorder SCRIPT integrity/singly_linked_list_pmreorder.cmake TRACERS none)
-	add_test_generic(NAME singly_linked_list_pmreorder CASE negative SCRIPT integrity/singly_linked_list_pmreorder_negative.cmake TRACERS none)
+	add_test_generic(NAME singly_linked_list_pmreorder SCRIPT integrity/default_create_fill_check.cmake TRACERS none)
+	add_test_generic(NAME singly_linked_list_pmreorder CASE negative SCRIPT integrity/default_create_fill_check_negative.cmake TRACERS none)
+
+	build_test(multi_region_pmreorder integrity/multi_region_pmreorder.cpp)
+	add_test_generic(NAME multi_region_pmreorder SCRIPT integrity/default_create_fill_check.cmake TRACERS none)
 endif()
 
 if(GDB AND DEBUG_BUILD)

@@ -2,36 +2,19 @@
 /* Copyright 2022, Intel Corporation */
 
 #include "pmemstream_runtime.h"
+#include "random_helpers.hpp"
 #include "singly_linked_list.h"
 #include "unittest.hpp"
-#include <filesystem>
-#include <iostream>
 
 #include <algorithm>
 #include <cstdlib>
 #include <functional>
-#include <random>
+#include <iostream>
 #include <vector>
 
 static constexpr size_t number_of_commands = 100;
-static std::mt19937_64 rnd_generator;
 
 static auto make_pmem2_map = make_instance_ctor(map_open, map_delete);
-
-void init_random()
-{
-	uint64_t seed;
-	const char *seed_env = std::getenv("TEST_SEED");
-	if (seed_env == NULL) {
-		std::random_device rd;
-		seed = rd();
-		std::cout << "To reproduce set env variable TEST_SEED=" << seed << std::endl;
-	} else {
-		seed = std::stoull(seed_env);
-		std::cout << "Running with TEST_SEED=" << seed << std::endl;
-	}
-	rnd_generator = std::mt19937_64(seed);
-}
 
 struct node {
 	uint64_t next = 0xDEAD;
@@ -89,19 +72,6 @@ void slist_foreach(pmemstream_runtime *runtime, singly_linked_list *list, UnaryF
 
 using slist_macro_wrapper = std::function<void(pmemstream_runtime *, singly_linked_list *, uint64_t)>;
 
-std::vector<slist_macro_wrapper> generate_commands(size_t number_of_commands)
-{
-	/* XXX: Add testing of remove */
-	static std::vector<slist_macro_wrapper> possible_cmds{slist_insert_head, slist_insert_tail, slist_remove_head};
-	std::vector<slist_macro_wrapper> out;
-	for (size_t i = 0; i < number_of_commands; i++) {
-		const size_t samples_number = 1;
-		std::sample(possible_cmds.begin(), possible_cmds.end(), std::back_inserter(out), samples_number,
-			    rnd_generator);
-	}
-	return out;
-}
-
 template <typename Node>
 std::vector<size_t> generate_offsets(size_t number_of_values)
 {
@@ -137,7 +107,9 @@ void fill(test_config_type test_config)
 
 	slist_runtime_init(&runtime, list);
 
-	const auto commands = generate_commands(number_of_commands);
+	/* XXX: Add testing of remove */
+	const auto commands = generate_commands<slist_macro_wrapper>(
+		number_of_commands, {slist_insert_head, slist_insert_tail, slist_remove_head});
 	const auto offsets = generate_offsets<node>(number_of_commands);
 
 	for (size_t i = 0; i < number_of_commands; i++) {
@@ -145,17 +117,9 @@ void fill(test_config_type test_config)
 	}
 }
 
-std::filesystem::path make_working_copy(std::filesystem::path path)
-{
-	auto copy_path = path;
-	copy_path += ".cpy";
-	std::filesystem::copy_file(path, copy_path, std::filesystem::copy_options::overwrite_existing);
-	return copy_path;
-}
-
 void check_consistency(test_config_type test_config, bool with_recovery = true)
 {
-	auto copy_path = make_working_copy(test_config.filename);
+	auto copy_path = copy_file(test_config.filename);
 	constexpr bool truncate = false;
 	auto map = make_pmem2_map(copy_path.c_str(), test_config.stream_size, truncate);
 	auto runtime = get_runtime(map.get());
@@ -174,7 +138,7 @@ void check_consistency(test_config_type test_config, bool with_recovery = true)
 int main(int argc, char *argv[])
 {
 	if (argc != 3)
-		UT_FATAL("usage: %s <create|fill|check|check_without_recovery> file-name", argv[0]);
+		UT_FATAL("usage: %s <create|fill|check|check_no_recovery> file-path", argv[0]);
 
 	struct test_config_type test_config;
 	std::string mode = argv[1];
@@ -188,9 +152,12 @@ int main(int argc, char *argv[])
 			fill(test_config);
 		} else if (mode == "check") {
 			check_consistency(test_config);
-		} else if (mode == "check_without_recovery") {
+		} else if (mode == "check_no_recovery") {
 			constexpr bool with_recovery = false;
 			check_consistency(test_config, with_recovery);
+		} else {
+			UT_FATAL("Wrong mode given!\nUsage: %s <create|fill|check|check_no_recovery> file-path",
+				 argv[0]);
 		}
 	});
 }

@@ -12,6 +12,6 @@ execute(${EXECUTABLE} check ${DIR}/pretest_testfile)
 
 execute(${EXECUTABLE} create ${DIR}/testfile)
 pmreorder_create_store_log(${DIR}/testfile ${EXECUTABLE} fill ${DIR}/testfile)
-pmreorder_execute(${EXPECT_SUCCESS} ReorderAccumulative ${SRC_DIR}/pmreorder.conf ${EXECUTABLE} check)
+pmreorder_execute(${EXPECT_SUCCESS} ReorderAccumulative ${SRC_DIR}/integrity/pmreorder.conf ${EXECUTABLE} check)
 
 finish()
