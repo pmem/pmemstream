@@ -10,6 +10,7 @@
 #include <cstdarg>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
 #include <functional>
 #include <iostream>
 #include <memory>
@@ -136,6 +137,14 @@ auto make_instance_ctor(Ctor &&ctor, Dtor &&dtor)
 		}
 		return ptr;
 	};
+}
+
+static inline std::filesystem::path copy_file(std::string path)
+{
+	std::filesystem::path copy_path = path;
+	copy_path += ".cpy";
+	std::filesystem::copy_file(path, copy_path, std::filesystem::copy_options::overwrite_existing);
+	return copy_path;
 }
 
 #endif /* LIBPMEMSTREAM_UNITTEST_HPP */
