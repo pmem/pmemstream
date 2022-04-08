@@ -51,7 +51,7 @@ static std::ostream &show_spans(std::ostream &os, const std::vector<span_runtime
 				const std::string &prefix = "")
 {
 	for (auto &s : spans) {
-		os << prefix << "├── offset: " << s.offset << " ," << span_to_str(s.ptr) << std::endl;
+		os << prefix << "├── offset: " << s.offset << ", " << span_to_str(s.ptr) << std::endl;
 		show_spans(os, s.sub_spans, prefix + "|   ");
 	}
 	return os;
