@@ -20,7 +20,8 @@
 int main(int argc, char *argv[])
 {
 	if (argc != 2) {
-		UT_FATAL("usage: %s file-path", argv[0]);
+		std::cout << "Usage: " << argv[0] << " file-path" << std::endl;
+		return -1;
 	}
 
 	struct test_config_type test_config;
