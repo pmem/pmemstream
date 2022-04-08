@@ -8,7 +8,6 @@
 
 #include <algorithm>
 #include <cstdlib>
-#include <filesystem>
 #include <functional>
 #include <iostream>
 #include <vector>
@@ -118,17 +117,9 @@ void fill(test_config_type test_config)
 	}
 }
 
-std::filesystem::path make_working_copy(std::filesystem::path path)
-{
-	auto copy_path = path;
-	copy_path += ".cpy";
-	std::filesystem::copy_file(path, copy_path, std::filesystem::copy_options::overwrite_existing);
-	return copy_path;
-}
-
 void check_consistency(test_config_type test_config, bool with_recovery = true)
 {
-	auto copy_path = make_working_copy(test_config.filename);
+	auto copy_path = copy_file(test_config.filename);
 	constexpr bool truncate = false;
 	auto map = make_pmem2_map(copy_path.c_str(), test_config.stream_size, truncate);
 	auto runtime = get_runtime(map.get());
