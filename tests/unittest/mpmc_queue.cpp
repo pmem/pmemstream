@@ -8,7 +8,6 @@
 #include <rapidcheck.h>
 #include <rapidcheck/state.h>
 
-#include "env_setter.hpp"
 #include "mpmc_queue.h"
 #include "thread_helpers.hpp"
 #include "unittest.hpp"
