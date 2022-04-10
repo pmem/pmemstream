@@ -138,32 +138,30 @@ int main(int argc, char *argv[])
 
 			SLIST_INIT(&runtime, &list);
 
-			/* Add elements to the list */
+			/* Add elements to list */
 			uint64_t offset = 0;
 			for (size_t i = 0; i < data.size(); ++i) {
 				SLIST_INSERT_TAIL(struct node, &runtime, &list, offset, next);
 				offset += sizeof(struct node);
 			}
 
-			/* Remove head */
+			/* Number of elements to remove */
+			auto num_to_rmv = *rc::gen::inRange<size_t>(1, data.size() + 1);
 			auto mod_data = data;
-			auto it = mod_data.begin();
-			if (it != mod_data.end())
-				it = mod_data.erase(it);
-			if (list.head != SLIST_INVALID_OFFSET) {
+
+			for (size_t i = 1; i <= num_to_rmv; ++i) {
+				/* Remove head */
+				mod_data.erase(mod_data.begin());
 				SLIST_REMOVE_HEAD(struct node, &runtime, &list, next);
+
+				/* Check correctness */
+				check_list<node>(runtime, list, mod_data.begin(), mod_data.end());
+				RC_ASSERT(mod_data.size() == data.size() - i);
 			}
-
-			uint64_t l_it = list.head;
-			if (l_it == SLIST_INVALID_OFFSET)
-				return;
-
-			/* Check correctness */
-			check_list<node>(runtime, list, mod_data.begin(), mod_data.end());
 		});
 
 		ret += rc::check("Random remove", [](const std::vector<struct node> &data) {
-			RC_PRE(data.size() > 1);
+			RC_PRE(data.size() > 0);
 
 			singly_linked_list list;
 
@@ -174,31 +172,37 @@ int main(int argc, char *argv[])
 
 			SLIST_INIT(&runtime, &list);
 
-			/* Add elements to the list */
+			/* Add elements to list */
 			uint64_t offset = 0;
 			for (size_t i = 0; i < data.size(); ++i) {
 				SLIST_INSERT_TAIL(struct node, &runtime, &list, offset, next);
 				offset += sizeof(struct node);
 			}
 
-			/* Remove random element from the list */
-			auto random_item_pos = *rc::gen::inRange<size_t>(0, data.size());
+			/* Number of elements to remove */
+			auto num_to_rmv = *rc::gen::inRange<size_t>(1, data.size() + 1);
 			auto mod_data(data);
-			auto r_it = mod_data.begin();
-			auto l_it = list.head;
 
-			for (size_t i = 0; i < random_item_pos; ++i) {
-				r_it++;
-				l_it = SLIST_NEXT(struct node, &runtime, l_it, next);
+			for (size_t i = 1; i <= num_to_rmv; ++i) {
+				/* Remove random element from the list */
+				auto random_item_pos = *rc::gen::inRange<size_t>(0, mod_data.size());
+
+				auto r_it = mod_data.begin();
+				std::advance(r_it, random_item_pos);
+				auto l_it = list.head;
+
+				for (size_t i = 0; i < random_item_pos; ++i) {
+					l_it = SLIST_NEXT(struct node, &runtime, l_it, next);
+				}
+
 				RC_ASSERT((SLIST_GET_PTR(node, &runtime, l_it))->data == r_it->data);
+				mod_data.erase(r_it);
+				SLIST_REMOVE(struct node, &runtime, &list, l_it, next);
+
+				/* Check correctness */
+				check_list<node>(runtime, list, mod_data.begin(), mod_data.end());
+				RC_ASSERT(mod_data.size() == data.size() - i);
 			}
-
-			mod_data.erase(r_it);
-			SLIST_REMOVE(struct node, &runtime, &list, l_it, next);
-
-			/* Check correctness */
-			check_list<node>(runtime, list, mod_data.begin(), mod_data.end());
-			RC_ASSERT(mod_data.size() == data.size() - 1);
 		});
 
 		rc::check("Removing nonexistent element doesn't change the list",
@@ -227,5 +231,51 @@ int main(int argc, char *argv[])
 				  /* Check correctness */
 				  check_list<node>(runtime, list, data.rbegin(), data.rend());
 			  });
+
+		ret += rc::check("Insert removed element",
+				 [](const std::vector<struct node> &data, const std::vector<struct node> &extra_data,
+				    bool is_empty) {
+					 RC_PRE(data.size() > 0);
+					 RC_PRE(extra_data.size() > 0);
+
+					 singly_linked_list list;
+
+					 auto data_rnt(data);
+
+					 /* Add extra data */
+					 if (!is_empty) {
+						 data_rnt.insert(data_rnt.end(), extra_data.begin(), extra_data.end());
+					 }
+
+					 struct pmemstream_runtime runtime {
+						 .base = (void *)data_rnt.data(), .memcpy = &memcpy_mock,
+						 .memset = &memset_mock, .flush = &flush_mock, .drain = &drain_mock,
+						 .persist = &persist_mock
+					 };
+
+					 SLIST_INIT(&runtime, &list);
+
+					 /* Add elements to the list */
+					 uint64_t offset = 0;
+					 for (size_t i = 0; i < data_rnt.size(); ++i) {
+						 SLIST_INSERT_TAIL(struct node, &runtime, &list, offset, next);
+						 offset += sizeof(struct node);
+					 }
+
+					 /* Remove data from the list */
+					 for (size_t i = 0; i < data.size(); ++i) {
+						 SLIST_REMOVE_HEAD(struct node, &runtime, &list, next);
+					 }
+
+					 /* Insert removed data */
+					 offset = sizeof(struct node) * (data.size() - 1);
+					 for (size_t i = 0; i < data.size(); ++i) {
+						 SLIST_INSERT_HEAD(struct node, &runtime, &list, offset, next);
+						 offset -= sizeof(struct node);
+					 }
+
+					 /* Check correctness */
+					 check_list<node>(runtime, list, data_rnt.begin(), data_rnt.end());
+				 });
 	});
 }
