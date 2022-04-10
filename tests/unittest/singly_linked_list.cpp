@@ -54,67 +54,79 @@ int main(int argc, char *argv[])
 			UT_ASSERTeq(list.tail, SLIST_INVALID_OFFSET);
 		}
 
-		ret += rc::check("Insert head", [](const std::vector<struct node> &data) {
-			RC_PRE(data.size() > 0);
+		ret += rc::check(
+			"Push front and check if head points to the last inserted element",
+			[](const std::vector<struct node> &data) {
+				RC_PRE(data.size() > 0);
 
-			singly_linked_list list;
+				singly_linked_list list;
 
-			struct pmemstream_runtime runtime {
-				.base = (void *)data.data(), .memcpy = &memcpy_mock, .memset = &memset_mock,
-				.flush = &flush_mock, .drain = &drain_mock, .persist = &persist_mock
-			};
+				struct pmemstream_runtime runtime {
+					.base = (void *)data.data(), .memcpy = &memcpy_mock, .memset = &memset_mock,
+					.flush = &flush_mock, .drain = &drain_mock, .persist = &persist_mock
+				};
 
-			SLIST_INIT(&runtime, &list);
+				SLIST_INIT(&runtime, &list);
 
-			/* Add elements at the front of list */
-			uint64_t offset = 0;
-			for (size_t i = 0; i < data.size(); ++i) {
-				SLIST_INSERT_HEAD(struct node, &runtime, &list, offset, next);
-				offset += sizeof(struct node);
-			}
+				/* Add elements at the front of list */
+				uint64_t offset = 0;
+				auto v_it = data.begin();
+				for (size_t i = 0; i < data.size(); ++i) {
+					SLIST_INSERT_HEAD(struct node, &runtime, &list, offset, next);
 
-			/* Check correctness */
-			uint64_t it = 0;
-			auto rit = data.rbegin();
-			SLIST_FOREACH(struct node, &runtime, &list, it, next)
-			{
-				RC_ASSERT((SLIST_GET_PTR(node, &runtime, it))->data == rit->data);
-				rit++;
-			}
-			RC_ASSERT(rit == data.rend());
-			RC_ASSERT(SLIST_INVARIANTS(struct node, &runtime, &list, next));
-		});
+					RC_ASSERT((SLIST_GET_PTR(node, &runtime, list.head))->data == v_it->data);
+					offset += sizeof(struct node);
+					v_it++;
+				}
 
-		ret += rc::check("Push back", [](const std::vector<struct node> &data) {
-			RC_PRE(data.size() > 0);
+				/* Check correctness */
+				uint64_t it = 0;
+				auto rit = data.rbegin();
+				SLIST_FOREACH(struct node, &runtime, &list, it, next)
+				{
+					RC_ASSERT((SLIST_GET_PTR(node, &runtime, it))->data == rit->data);
+					rit++;
+				}
+				RC_ASSERT(rit == data.rend());
+				RC_ASSERT(SLIST_INVARIANTS(struct node, &runtime, &list, next));
+			});
 
-			singly_linked_list list;
+		ret += rc::check(
+			"Push back and check if tail points to the last inserted",
+			[](const std::vector<struct node> &data) {
+				RC_PRE(data.size() > 0);
 
-			struct pmemstream_runtime runtime {
-				.base = (void *)data.data(), .memcpy = &memcpy_mock, .memset = &memset_mock,
-				.flush = &flush_mock, .drain = &drain_mock, .persist = &persist_mock
-			};
+				singly_linked_list list;
 
-			SLIST_INIT(&runtime, &list);
+				struct pmemstream_runtime runtime {
+					.base = (void *)data.data(), .memcpy = &memcpy_mock, .memset = &memset_mock,
+					.flush = &flush_mock, .drain = &drain_mock, .persist = &persist_mock
+				};
 
-			/* Add elements to the list */
-			uint64_t offset = 0;
-			for (size_t i = 0; i < data.size(); ++i) {
-				SLIST_INSERT_TAIL(struct node, &runtime, &list, offset, next);
-				offset += sizeof(struct node);
-			}
+				SLIST_INIT(&runtime, &list);
 
-			/* Check correctness */
-			uint64_t it = 0;
-			auto v_it = data.begin();
-			SLIST_FOREACH(struct node, &runtime, &list, it, next)
-			{
-				RC_ASSERT((SLIST_GET_PTR(node, &runtime, it))->data == v_it->data);
-				v_it++;
-			}
-			RC_ASSERT(v_it == data.end());
-			RC_ASSERT(SLIST_INVARIANTS(struct node, &runtime, &list, next));
-		});
+				/* Add elements to list */
+				uint64_t offset = 0;
+				auto v_it = data.begin();
+				for (size_t i = 0; i < data.size(); ++i) {
+					SLIST_INSERT_TAIL(struct node, &runtime, &list, offset, next);
+
+					RC_ASSERT((SLIST_GET_PTR(node, &runtime, list.tail))->data == v_it->data);
+					offset += sizeof(struct node);
+					v_it++;
+				}
+
+				/* Check correctness */
+				uint64_t it = 0;
+				v_it = data.begin();
+				SLIST_FOREACH(struct node, &runtime, &list, it, next)
+				{
+					RC_ASSERT((SLIST_GET_PTR(node, &runtime, it))->data == v_it->data);
+					v_it++;
+				}
+				RC_ASSERT(v_it == data.end());
+				RC_ASSERT(SLIST_INVARIANTS(struct node, &runtime, &list, next));
+			});
 
 		ret += rc::check("Remove head", [](const std::vector<struct node> &data) {
 			RC_PRE(data.size() > 0);
