@@ -228,5 +228,62 @@ int main(int argc, char *argv[])
 				RC_ASSERT(SLIST_INVARIANTS(struct node, &runtime, &list, next));
 			}
 		});
+
+		ret += rc::check(
+			"Insert removed element",
+			[](const std::vector<struct node> &data, const std::vector<struct node> &extra_data,
+			   bool is_empty) {
+				RC_PRE(data.size() > 0);
+				RC_PRE(extra_data.size() > 0);
+
+				singly_linked_list list;
+
+				auto data_rnt(data);
+
+				/* Add extra data */
+				if (!is_empty) {
+					data_rnt.insert(data_rnt.end(), extra_data.begin(), extra_data.end());
+				}
+
+				struct pmemstream_runtime runtime {
+					.base = (void *)data_rnt.data(), .memcpy = &memcpy_mock, .memset = &memset_mock,
+					.flush = &flush_mock, .drain = &drain_mock, .persist = &persist_mock
+				};
+
+				SLIST_INIT(&runtime, &list);
+
+				/* Add elements to the list */
+				uint64_t offset = 0;
+				for (size_t i = 0; i < data_rnt.size(); ++i) {
+					SLIST_INSERT_TAIL(struct node, &runtime, &list, offset, next);
+					offset += sizeof(struct node);
+				}
+
+				/* Remove data from the list */
+				for (size_t i = 0; i < data.size(); ++i) {
+					SLIST_REMOVE_HEAD(struct node, &runtime, &list, next);
+				}
+
+				/* Insert removed data */
+				offset = sizeof(struct node) * (data.size() - 1);
+				for (size_t i = 0; i < data.size(); ++i) {
+					SLIST_INSERT_HEAD(struct node, &runtime, &list, offset, next);
+					offset -= sizeof(struct node);
+				}
+
+				/* Check correctness */
+				uint64_t l_it = list.head;
+				auto mod_data(data_rnt);
+				auto r_it = mod_data.begin();
+				SLIST_FOREACH(struct node, &runtime, &list, l_it, next)
+				{
+					RC_ASSERT((SLIST_GET_PTR(struct node, &runtime, l_it))->data == r_it->data);
+					r_it++;
+				}
+				RC_ASSERT(r_it == mod_data.end());
+				RC_ASSERT(l_it == SLIST_INVALID_OFFSET);
+				RC_ASSERT(mod_data.size() == data_rnt.size());
+				RC_ASSERT(SLIST_INVARIANTS(struct node, &runtime, &list, next));
+			});
 	});
 }
