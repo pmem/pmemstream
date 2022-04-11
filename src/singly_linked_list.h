@@ -173,12 +173,19 @@ static inline void store_with_flush(const struct pmemstream_runtime *runtime, ui
 #define SLIST_REMOVE(type, runtime, list, offset, field)                                                               \
 	do {                                                                                                           \
 		assert(SLIST_INVARIANTS(type, runtime, list, field));                                                  \
+		if ((list)->head == SLIST_INVALID_OFFSET)                                                              \
+			break;                                                                                         \
 		if ((list)->head == offset) {                                                                          \
 			SLIST_REMOVE_HEAD(type, runtime, list, field);                                                 \
 		} else {                                                                                               \
 			uint64_t curelm = (list)->head;                                                                \
-			while (SLIST_NEXT(type, runtime, curelm, field) != offset)                                     \
-				curelm = SLIST_NEXT(type, runtime, curelm, field);                                     \
+			uint64_t next;                                                                                 \
+			while ((next = SLIST_NEXT(type, runtime, curelm, field)) != offset &&                          \
+			       next != SLIST_INVALID_OFFSET) {                                                         \
+				curelm = next;                                                                         \
+			}                                                                                              \
+			if (next == SLIST_INVALID_OFFSET)                                                              \
+				break;                                                                                 \
 			if (SLIST_NEXT(type, runtime, offset, field) == SLIST_INVALID_OFFSET) {                        \
 				store_with_flush(runtime, &(list)->tail, curelm);                                      \
 				(runtime)->drain();                                                                    \
