@@ -44,10 +44,13 @@ int main(int argc, char *argv[])
 		return ret;
 	}
 
-	struct pmemstream_region region;
-
 	/* Iterate over all regions. */
-	while (pmemstream_region_iterator_next(riter, &region) == 0) {
+	do {
+		struct pmemstream_region region;
+		if (pmemstream_region_iterator_get(riter, &region) != 0) {
+			break;
+		}
+
 		struct pmemstream_entry entry;
 		struct pmemstream_entry_iterator *eiter;
 		ret = pmemstream_entry_iterator_new(&eiter, stream, region);
@@ -73,7 +76,7 @@ int main(int argc, char *argv[])
 			fprintf(stderr, "pmemstream_append failed\n");
 			return ret;
 		}
-	}
+	} while (pmemstream_region_iterator_next(riter) == 0);
 
 	pmemstream_region_iterator_delete(&riter);
 
