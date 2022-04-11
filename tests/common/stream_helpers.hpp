@@ -331,13 +331,15 @@ struct pmemstream_helpers_type {
 	struct pmemstream_region get_region(size_t n)
 	{
 		auto riter = stream.region_iterator();
-		size_t counter = 0;
 
 		struct pmemstream_region region;
-		do {
-			int ret = pmemstream_region_iterator_next(riter.get(), &region);
+		for (size_t i = 0; i < n; i++) {
+			int ret = pmemstream_region_iterator_next(riter.get());
 			UT_ASSERTeq(ret, 0);
-		} while (counter++ < n);
+		}
+
+		int ret = pmemstream_region_iterator_get(riter.get(), &region);
+		UT_ASSERTeq(ret, 0);
 
 		return region;
 	}
@@ -355,10 +357,11 @@ struct pmemstream_helpers_type {
 		std::vector<struct pmemstream_region> regions;
 		while (true) {
 			struct pmemstream_region region;
-			int ret = pmemstream_region_iterator_next(riter.get(), &region);
+			int ret = pmemstream_region_iterator_next(riter.get());
 			if (ret != 0)
 				break;
-
+			ret = pmemstream_region_iterator_get(riter.get(), &region);
+			UT_ASSERTeq(ret, 0);
 			regions.push_back(region);
 		}
 
@@ -401,10 +404,12 @@ struct pmemstream_helpers_type {
 	size_t count_regions()
 	{
 		auto riter = stream.region_iterator();
-
-		size_t region_counter = 0;
 		struct pmemstream_region region;
-		while (pmemstream_region_iterator_next(riter.get(), &region) != -1) {
+		if (pmemstream_region_iterator_get(riter.get(), &region) != 0) {
+			return 0;
+		}
+		size_t region_counter = 1;
+		while (pmemstream_region_iterator_next(riter.get()) != -1) {
 			++region_counter;
 		}
 		return region_counter;
@@ -418,7 +423,8 @@ struct pmemstream_helpers_type {
 
 		struct pmemstream_region region;
 		do {
-			UT_ASSERTeq(pmemstream_region_iterator_next(riter.get(), &region), 0);
+			UT_ASSERTeq(pmemstream_region_iterator_next(riter.get()), 0);
+			UT_ASSERTeq(pmemstream_region_iterator_get(riter.get(), &region), 0);
 		} while (region.offset != offset);
 
 		return stream.region_free(region);

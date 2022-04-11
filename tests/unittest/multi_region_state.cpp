@@ -124,7 +124,8 @@ struct rc_iterate_regions : regions_command {
 		auto it = s.sut.region_iterator();
 		size_t regions_count = 0;
 		struct pmemstream_region region;
-		while (pmemstream_region_iterator_next(it.get(), &region) != -1) {
+		do {
+			pmemstream_region_iterator_get(it.get(), &region);
 			/* in each region we expect only 1 entry (storing the unique id) */
 			auto entries = s.helpers.get_elements_in_region(region);
 			RC_ASSERT(entries.size() == 1);
@@ -133,7 +134,7 @@ struct rc_iterate_regions : regions_command {
 
 			RC_ASSERT(m.allocated_regions[regions_count] == data->data);
 			regions_count++;
-		}
+		} while (pmemstream_region_iterator_next(it.get()) != -1);
 		RC_ASSERT(regions_count == m.allocated_regions.size());
 	}
 };
