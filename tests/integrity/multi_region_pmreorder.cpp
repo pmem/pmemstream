@@ -54,12 +54,12 @@ void check_consistency(test_config_type test_config)
 
 	auto riter = s.sut.region_iterator();
 	int region_counter = -1;
-	int ret = 0;
 	do {
-		++region_counter;
 		struct pmemstream_region region;
-		ret = pmemstream_region_iterator_next(riter.get(), &region);
-	} while (ret == 0);
+		if (pmemstream_region_iterator_get(riter.get(), &region) == 0) {
+			++region_counter;
+		}
+	} while (pmemstream_region_iterator_next(riter.get()) == 0);
 
 	// XXX: investigate consistency assurance
 	// struct pmemstream_region region;
