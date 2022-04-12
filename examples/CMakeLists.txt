@@ -16,6 +16,8 @@ include_directories(.)
 # ----------------------------------------------------------------- #
 add_dependencies(examples pmemstream)
 
+include(FindThreads)
+
 function(add_example name)
 	set(srcs ${ARGN})
 	prepend(srcs ${CMAKE_CURRENT_SOURCE_DIR} ${srcs})
@@ -29,6 +31,7 @@ endfunction()
 ## Add developer checks
 # ----------------------------------------------------------------- #
 add_cppstyle(examples ${CMAKE_CURRENT_SOURCE_DIR}/*.[ch]
+					${CMAKE_CURRENT_SOURCE_DIR}/*.[ch]pp
 					${CMAKE_CURRENT_SOURCE_DIR}/*/*.[ch]
 					${CMAKE_CURRENT_SOURCE_DIR}/*/*.[ch]pp)
 
@@ -49,3 +52,6 @@ target_link_libraries(example-03_reserve_publish ${LIBPMEM2_LIBRARIES})
 
 add_example(04_basic_async 04_basic_async/main.cpp)
 target_link_libraries(example-04_basic_async ${LIBPMEM2_LIBRARIES} ${MINIASYNC_LIBRARIES})
+
+add_example(05_timestamp_based_order 05_timestamp_based_order/main.cpp)
+target_link_libraries(example-05_timestamp_based_order ${LIBPMEM2_LIBRARIES} ${MINIASYNC_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})

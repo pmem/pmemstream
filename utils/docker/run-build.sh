@@ -246,6 +246,10 @@ function tests_package() {
 	compile_example_standalone 04_basic_async
 	run_binary_standalone 04_basic_async ${WORKDIR}/build/testfile
 
+	echo "C++ example for timestamp based sorting:"
+	compile_example_standalone 05_timestamp_based_order
+	run_binary_standalone 05_timestamp_based_order ${WORKDIR}/build/testfile
+
 	echo "Basic append benchmark"
 	compile_benchmark_standalone append
 	run_binary_standalone benchmark-append --path ${WORKDIR}/build/testfile
