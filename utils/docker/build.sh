@@ -84,7 +84,7 @@ fi
 echo "COMMAND to execute within Docker container: ${COMMAND}"
 
 if [ "${COVERAGE}" == "1" ]; then
-	DOCKER_OPTS="${DOCKER_OPTS} $(bash <(curl -s https://codecov.io/env))";
+	DOCKER_OPTS="${DOCKER_OPTS} $(bash <(curl -s https://uploader.codecov.io/latest/linux/codecov))";
 fi
 
 if [ -n "${DNS_SERVER}" ]; then DOCKER_OPTS="${DOCKER_OPTS} --dns=${DNS_SERVER}"; fi
