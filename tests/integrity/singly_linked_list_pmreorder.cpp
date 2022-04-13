@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <functional>
+#include <list>
 #include <iostream>
 #include <vector>
 
@@ -45,21 +46,6 @@ void slist_runtime_init(pmemstream_runtime *runtime, singly_linked_list *list)
 	SLIST_RUNTIME_INIT(struct node, runtime, list, next);
 }
 
-void slist_insert_head(pmemstream_runtime *runtime, singly_linked_list *list, uint64_t offset)
-{
-	SLIST_INSERT_HEAD(struct node, runtime, list, offset, next);
-}
-
-void slist_insert_tail(pmemstream_runtime *runtime, singly_linked_list *list, uint64_t offset)
-{
-	SLIST_INSERT_TAIL(struct node, runtime, list, offset, next);
-}
-
-void slist_remove_head(pmemstream_runtime *runtime, singly_linked_list *list, uint64_t)
-{
-	SLIST_REMOVE_HEAD(struct node, runtime, list, next);
-}
-
 template <typename UnaryFunction>
 void slist_foreach(pmemstream_runtime *runtime, singly_linked_list *list, UnaryFunction f)
 {
@@ -69,8 +55,6 @@ void slist_foreach(pmemstream_runtime *runtime, singly_linked_list *list, UnaryF
 		f(it);
 	}
 }
-
-using slist_macro_wrapper = std::function<void(pmemstream_runtime *, singly_linked_list *, uint64_t)>;
 
 template <typename Node>
 std::vector<size_t> generate_offsets(size_t number_of_values)
@@ -98,6 +82,85 @@ void create(test_config_type test_config)
 	slist_init(&runtime, list);
 }
 
+template <typename T>
+T get_one_of(std::list<T> elements) {
+	auto it = elements.begin();
+	size_t max_elem = rnd_generator() % elements.size();
+	for (size_t i = 0; i < max_elem; i++) {
+		it++;
+	}
+	return *it;
+}
+
+class commands_generator {
+public:
+	
+	commands_generator(size_t number_of_commands, pmemstream_runtime *rt, singly_linked_list *list) : number_of_commands(number_of_commands), _rt(rt), _list(list)
+	{
+		offsets = generate_offsets<node>(number_of_commands);
+	}
+
+	std::vector<std::function<void()>> generate() {
+		std::vector<std::function<void()>> fun;
+		
+		for (size_t i = 0; i < number_of_commands; i++) {
+			switch (rnd_generator() % 4) {
+				case 0:
+					fun.push_back(slist_insert_head(_rt, _list, i));
+					break;
+				case 1:
+					fun.push_back(slist_insert_tail(_rt, _list, i));
+					break;
+				case 2: 
+					fun.push_back(slist_remove_head(_rt, _list));
+					break;
+				case 3:
+					fun.push_back(slist_remove(_rt, _list, i));
+					break;
+			}
+		}
+		return fun;
+	}
+
+ private:
+	size_t number_of_commands;
+	pmemstream_runtime *_rt;
+	singly_linked_list *_list;
+	std::vector<size_t> offsets;
+	std::list<size_t> used_offsets;
+
+	std::function<void()> slist_insert_head(pmemstream_runtime *runtime, singly_linked_list *list, uint64_t index)
+	{
+		used_offsets.push_front(offsets[index]); 
+		return [=]() { SLIST_INSERT_HEAD(struct node, runtime, list, offsets[index], next); };
+	}
+
+	std::function<void()> slist_insert_tail(pmemstream_runtime *runtime, singly_linked_list *list, uint64_t index)
+	{
+		used_offsets.push_back(offsets[index]); 
+		return [=]() { SLIST_INSERT_TAIL(struct node, runtime, list, offsets[index], next); };
+	}
+
+	std::function<void()> slist_remove_head(pmemstream_runtime *runtime, singly_linked_list *list)
+	{
+		if (!used_offsets.empty()) {
+			used_offsets.pop_front();
+		}
+		return [=]() { SLIST_REMOVE_HEAD(struct node, runtime, list, next); };
+	}
+
+	std::function<void()> slist_remove(pmemstream_runtime *runtime, singly_linked_list *list, uint64_t index)
+	{
+		size_t offset_to_del;
+		if (!used_offsets.empty()) {
+			offset_to_del = get_one_of(used_offsets);
+		} else {
+			offset_to_del = offsets[index];
+		}
+		return [=]() { SLIST_REMOVE(struct node, runtime, list, offset_to_del, next); };
+	}
+};
+
 void fill(test_config_type test_config)
 {
 	constexpr bool truncate = false;
@@ -107,13 +170,10 @@ void fill(test_config_type test_config)
 
 	slist_runtime_init(&runtime, list);
 
-	/* XXX: Add testing of remove */
-	const auto commands = generate_commands<slist_macro_wrapper>(
-		number_of_commands, {slist_insert_head, slist_insert_tail, slist_remove_head});
-	const auto offsets = generate_offsets<node>(number_of_commands);
-
-	for (size_t i = 0; i < number_of_commands; i++) {
-		commands[i](&runtime, list, offsets[i]);
+	commands_generator cg(number_of_commands, &runtime, list);
+	auto commands = cg.generate();
+	for (auto &command : commands) {
+		command();
 	}
 }
 
