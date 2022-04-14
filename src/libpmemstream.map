@@ -10,6 +10,7 @@ LIBPMEMSTREAM_1.0 {
 		pmemstream_entry_iterator_delete;
 		pmemstream_entry_iterator_new;
 		pmemstream_entry_iterator_next;
+		pmemstream_entry_iterator_get;
 		pmemstream_entry_length;
 		pmemstream_from_map;
 		pmemstream_region_runtime_initialize;

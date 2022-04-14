@@ -226,7 +226,7 @@ static int region_iterate_and_initialize_for_read(struct pmemstream *stream, str
 	}
 
 	/* Loop over all entries - initialization will happen when we encounter the last one. */
-	while (pmemstream_entry_iterator_next(&iterator, NULL, NULL) == 0) {
+	while (pmemstream_entry_iterator_next(&iterator) == 0) {
 	}
 
 	return 0;

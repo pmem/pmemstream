@@ -113,8 +113,8 @@ if(TESTS_RAPIDCHECK)
 	build_test_rc(NAME concurrent_iterate SRC_FILES unittest/concurrent_iterate.cpp)
 	add_test_generic(NAME concurrent_iterate TRACERS none)
 
-	build_test_rc(NAME concurrent_iterate_with_append SRC_FILES unittest/concurrent_iterate_with_append.cpp)
-	add_test_generic(NAME concurrent_iterate_with_append TRACERS none)
+	#	build_test_rc(NAME concurrent_iterate_with_append SRC_FILES unittest/concurrent_iterate_with_append.cpp)
+	#	add_test_generic(NAME concurrent_iterate_with_append TRACERS none)
 
 	build_test_rc(NAME create SRC_FILES unittest/create.cpp)
 	add_test_generic(NAME create TRACERS none)

@@ -171,39 +171,54 @@ static bool pmemstream_entry_iterator_offset_at_valid_entry(struct pmemstream_en
 	return iterator->offset < region_end_offset && validate_entry(iterator->stream, entry) == 0;
 }
 
-static void pmemstream_entry_iterator_advance(struct pmemstream_entry_iterator *iterator)
+static int get_next_entry_offset(struct pmemstream_entry_iterator *iterator, uint64_t *offset)
+{
+	const struct span_base *entry_span = span_offset_to_span_ptr(&iterator->stream->data, iterator->offset);
+
+	struct pmemstream_entry_iterator next = *iterator;
+	next.offset += span_get_total_size(entry_span);
+
+	if (!pmemstream_entry_iterator_offset_is_inside_region(&next)) {
+		return -1;
+	}
+
+	const struct span_base *next_entry_span = span_offset_to_span_ptr(&iterator->stream->data, next.offset);
+	if (span_get_type(next_entry_span) != SPAN_ENTRY) {
+		return -1;
+	}
+
+	*offset = next.offset;
+	return 0;
+}
+
+static int pmemstream_entry_iterator_advance(struct pmemstream_entry_iterator *iterator)
 {
 	/* Verify that all metadata and data fits inside the region before and after iterator
 	 * increment - those checks should not fail unless stream was corrupted. */
 	assert(pmemstream_entry_iterator_offset_is_inside_region(iterator));
 
-	const struct span_base *span_base = span_offset_to_span_ptr(&iterator->stream->data, iterator->offset);
-	iterator->offset += span_get_total_size(span_base);
+	uint64_t next_entry_offset = PMEMSTREAM_INVALID_OFFSET;
+	if (get_next_entry_offset(iterator, &next_entry_offset) != 0) {
+		return -1;
+	}
 
+	iterator->offset = next_entry_offset;
 	assert(pmemstream_entry_iterator_offset_is_inside_region(iterator));
+	return 0;
 }
 
-static int pmemstream_entry_iterator_next_when_region_initialized(struct pmemstream_entry_iterator *iterator,
-								  struct pmemstream_entry *user_entry)
+static int pmemstream_entry_iterator_next_when_region_initialized(struct pmemstream_entry_iterator *iterator)
 {
 	if (pmemstream_entry_iterator_offset_is_below_committed(iterator)) {
-		if (user_entry) {
-			user_entry->offset = iterator->offset;
-		}
-		pmemstream_entry_iterator_advance(iterator);
-		return 0;
+		return pmemstream_entry_iterator_advance(iterator);
 	}
 
 	return -1;
 }
 
-static int pmemstream_entry_iterator_next_when_region_not_initialized(struct pmemstream_entry_iterator *iterator,
-								      struct pmemstream_entry *user_entry)
+static int pmemstream_entry_iterator_next_when_region_not_initialized(struct pmemstream_entry_iterator *iterator)
 {
 	if (pmemstream_entry_iterator_offset_at_valid_entry(iterator)) {
-		if (user_entry) {
-			user_entry->offset = iterator->offset;
-		}
 		pmemstream_entry_iterator_advance(iterator);
 		return 0;
 	}
@@ -215,22 +230,36 @@ static int pmemstream_entry_iterator_next_when_region_not_initialized(struct pme
 }
 
 /* Advances entry iterator by one. Verifies entry integrity and initializes region runtime if end of data is found. */
-int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iterator, struct pmemstream_region *region,
-				   struct pmemstream_entry *user_entry)
+int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iterator)
 {
 	if (!iterator) {
 		return -1;
 	}
 
-	if (region) {
-		*region = iterator->region;
-	}
-
 	if (region_runtime_get_state_acquire(iterator->region_runtime) != REGION_RUNTIME_STATE_UNINITIALIZED) {
-		return pmemstream_entry_iterator_next_when_region_initialized(iterator, user_entry);
+		return pmemstream_entry_iterator_next_when_region_initialized(iterator);
 	}
 
-	return pmemstream_entry_iterator_next_when_region_not_initialized(iterator, user_entry);
+	return pmemstream_entry_iterator_next_when_region_not_initialized(iterator);
+}
+
+int pmemstream_entry_iterator_get(struct pmemstream_entry_iterator *iterator, struct pmemstream_entry *user_entry)
+{
+	if (!iterator) {
+		return -1;
+	}
+
+	if (iterator->region.offset == SLIST_INVALID_OFFSET) {
+		return -1;
+	}
+
+	if (!user_entry) {
+		return -1;
+	}
+
+	user_entry->offset = iterator->offset;
+
+	return 0;
 }
 
 void pmemstream_entry_iterator_delete(struct pmemstream_entry_iterator **iterator)
