@@ -44,8 +44,12 @@ int pmemstream_region_iterator_next(struct pmemstream_region_iterator *it, struc
 
 	/* XXX: hide this in allocator? */
 	/* XXX: lock */
-	it->region.offset = SLIST_NEXT(struct span_region, &it->stream->data, it->region.offset,
-				       allocator_entry_metadata.next_allocated);
+	uint64_t next_offset = SLIST_NEXT(struct span_region, &it->stream->data, it->region.offset,
+					  allocator_entry_metadata.next_allocated);
+	if (next_offset == SLIST_INVALID_OFFSET) {
+		return -1;
+	}
+	it->region.offset = next_offset;
 	return 0;
 }
 
