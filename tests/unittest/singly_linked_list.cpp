@@ -232,7 +232,7 @@ int main(int argc, char *argv[])
 				  check_list<node>(runtime, list, data.rbegin(), data.rend());
 			  });
 
-		ret += rc::check("Insert removed element",
+		ret += rc::check("Insertion of removed elements",
 				 [](const std::vector<struct node> &data, const std::vector<struct node> &extra_data,
 				    bool is_empty) {
 					 RC_PRE(data.size() > 0);
