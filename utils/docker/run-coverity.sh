@@ -67,5 +67,4 @@ echo "Run the Coverity scan"
 # curl -s https://scan.coverity.com/scripts/travisci_build_coverity_scan.sh | bash
 
 wget https://scan.coverity.com/scripts/travisci_build_coverity_scan.sh
-patch < ../utils/docker/0001-travis-fix-travisci_build_coverity_scan.sh.patch
 bash ./travisci_build_coverity_scan.sh

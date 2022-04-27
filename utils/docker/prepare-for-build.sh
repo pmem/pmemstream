@@ -41,7 +41,20 @@ function upload_codecov() {
 
 	# run gcov exe, using their bash (remove parsed coverage files, set flag and exit 1 if not successful)
 	# we rely on parsed report on codecov.io
-	/opt/scripts/codecov -c -F ${1} -Z -x "${gcovexe}" "gcovout"
+	if ! [ -x "$(command -v curl)" ]; then
+		echo "Error: curl is not installed."
+		return 1
+	fi
+
+	curl https://keybase.io/codecovsecurity/pgp_keys.asc | gpg --no-default-keyring --keyring trustedkeys.gpg --import
+	curl -Os https://uploader.codecov.io/latest/linux/codecov
+	curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
+	curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM.sig
+	gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
+	shasum -a 256 -c codecov.SHA256SUM
+	chmod +x codecov
+
+	./codecov -F ${1} -Z --gcov --gcovArgs "${gcovexe}" "gcovout"
 
 	echo "Check for any leftover gcov files"
 	leftover_files=$(find . -name "*.gcov")
