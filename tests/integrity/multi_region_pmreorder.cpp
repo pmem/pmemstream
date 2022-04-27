@@ -27,16 +27,17 @@ void fill(test_config_type test_config, size_t cmd_count = TEST_COMMANDS_COUNT)
 			struct pmemstream_region region;
 			int ret = pmemstream_region_allocate(stream.get(), region_size, &region);
 			UT_ASSERTeq(ret, 0);
+
 			regions.push_back(region);
 		} else if (command == 1) {
 			/* free (only if preceeded by any, non-freed allocation) */
-			// XXX: get rid of the "true" statement; _free is not working properly
-			if (true || regions.size() == 0) {
+			if (regions.size() == 0) {
 				continue;
 			}
 
 			size_t region_pos = rnd_generator() % regions.size();
 			auto region = regions[region_pos];
+
 			int ret = pmemstream_region_free(stream.get(), region);
 			UT_ASSERTeq(ret, 0);
 			regions.erase(regions.begin() + static_cast<long>(region_pos));
@@ -61,16 +62,14 @@ void check_consistency(test_config_type test_config)
 		ret = pmemstream_region_iterator_next(riter.get(), &region);
 	} while (ret == 0);
 
-	// XXX: investigate consistency assurance
-	// struct pmemstream_region region;
-	// ret = pmemstream_region_allocate(s.sut.c_ptr(), TEST_DEFAULT_BLOCK_SIZE, &region);
-	// UT_ASSERTeq(ret, 0);
-	// UT_ASSERTeq(static_cast<size_t>(region_counter + 1), s.helpers.count_regions());
+	struct pmemstream_region region;
+	ret = pmemstream_region_allocate(s.sut.c_ptr(), TEST_DEFAULT_BLOCK_SIZE, &region);
+	UT_ASSERTeq(ret, 0);
+	UT_ASSERTeq(static_cast<size_t>(region_counter + 1), s.helpers.count_regions());
 
-	// XXX: uncomment when region_free will work properly
-	// ret = pmemstream_region_free(s.sut.c_ptr(), region);
-	// UT_ASSERTeq(ret, 0);
-	// UT_ASSERTeq(static_cast<size_t>(region_counter), s.helpers.count_regions());
+	ret = pmemstream_region_free(s.sut.c_ptr(), region);
+	UT_ASSERTeq(ret, 0);
+	UT_ASSERTeq(static_cast<size_t>(region_counter), s.helpers.count_regions());
 }
 
 int main(int argc, char *argv[])
@@ -84,7 +83,7 @@ int main(int argc, char *argv[])
 	std::string mode = argv[1];
 	test_config.filename = argv[2];
 	/* requested region_size in this test is of "block_size", but it's actually double that, because of aligning */
-	test_config.stream_size = STREAM_METADATA_SIZE + 2 * TEST_DEFAULT_BLOCK_SIZE * (TEST_COMMANDS_COUNT + 1);
+	test_config.stream_size = STREAM_METADATA_SIZE + 2 * TEST_DEFAULT_BLOCK_SIZE * TEST_COMMANDS_COUNT;
 
 	return run_test(test_config, [&] {
 		if (mode == "create") {

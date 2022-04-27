@@ -78,7 +78,6 @@ static void recover_allocated_list_to_free_list_move(const struct pmemstream_run
 	} else {
 		/* Crash after or before SLIST_REMOVE */
 
-		// XXX: check if list contains the element, and only then call remove (or extend SLIST_REMOVE)
 		SLIST_REMOVE(struct span_region, runtime, &header->allocated_list, header->recovery_free_offset,
 			     allocator_entry_metadata.next_allocated);
 
