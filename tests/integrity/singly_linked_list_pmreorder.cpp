@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <functional>
 #include <iostream>
+#include <list>
 #include <vector>
 
 static constexpr size_t number_of_commands = 100;
@@ -45,21 +46,6 @@ void slist_runtime_init(pmemstream_runtime *runtime, singly_linked_list *list)
 	SLIST_RUNTIME_INIT(struct node, runtime, list, next);
 }
 
-void slist_insert_head(pmemstream_runtime *runtime, singly_linked_list *list, uint64_t offset)
-{
-	SLIST_INSERT_HEAD(struct node, runtime, list, offset, next);
-}
-
-void slist_insert_tail(pmemstream_runtime *runtime, singly_linked_list *list, uint64_t offset)
-{
-	SLIST_INSERT_TAIL(struct node, runtime, list, offset, next);
-}
-
-void slist_remove_head(pmemstream_runtime *runtime, singly_linked_list *list, uint64_t)
-{
-	SLIST_REMOVE_HEAD(struct node, runtime, list, next);
-}
-
 template <typename UnaryFunction>
 void slist_foreach(pmemstream_runtime *runtime, singly_linked_list *list, UnaryFunction f)
 {
@@ -68,23 +54,6 @@ void slist_foreach(pmemstream_runtime *runtime, singly_linked_list *list, UnaryF
 	{
 		f(it);
 	}
-}
-
-using slist_macro_wrapper = std::function<void(pmemstream_runtime *, singly_linked_list *, uint64_t)>;
-
-template <typename Node>
-std::vector<size_t> generate_offsets(size_t number_of_values)
-{
-	std::vector<size_t> offsets;
-
-	size_t offset = 0;
-	for (size_t i = 0; i < number_of_values; i++) {
-		offsets.push_back(offset);
-		offset += sizeof(Node);
-	}
-
-	std::shuffle(offsets.begin(), offsets.end(), rnd_generator);
-	return offsets;
 }
 
 void create(test_config_type test_config)
@@ -98,6 +67,101 @@ void create(test_config_type test_config)
 	slist_init(&runtime, list);
 }
 
+template <typename T>
+T get_one_of(const std::list<T> &elements)
+{
+	auto it = elements.begin();
+	std::advance(it, rnd_generator() % elements.size());
+	return *it;
+}
+
+class commands_generator {
+ public:
+	static std::vector<std::function<void()>> generate(size_t number_of_commands, pmemstream_runtime *rt,
+							   singly_linked_list *list)
+	{
+		std::shared_ptr<state> st = std::make_shared<state>(number_of_commands);
+		std::vector<std::function<void()>> commands;
+		std::vector<std::function<void()>> funcs = {
+			slist_insert_head(rt, list, st), slist_insert_tail(rt, list, st),
+			slist_remove_head(rt, list, st), slist_remove(rt, list, st)};
+
+		commands = generate_commands(number_of_commands, funcs);
+		return commands;
+	}
+
+ private:
+	class state {
+	 public:
+		state(size_t size) : possible_offsets(size), generated(0)
+		{
+			std::iota(possible_offsets.begin(), possible_offsets.end(), 0);
+			for (auto &val : possible_offsets) {
+				val = val * sizeof(node);
+			}
+			std::shuffle(possible_offsets.begin(), possible_offsets.end(), rnd_generator);
+		}
+
+		size_t generate_offset()
+		{
+			return possible_offsets[generated++];
+		}
+
+		std::list<size_t> used_offsets;
+
+	 private:
+		std::vector<size_t> possible_offsets;
+		size_t generated;
+	};
+
+	static std::function<void()> slist_insert_head(pmemstream_runtime *runtime, singly_linked_list *list,
+						       std::shared_ptr<state> st)
+	{
+		return [=]() {
+			size_t offset = st->generate_offset();
+			st->used_offsets.push_front(offset);
+			SLIST_INSERT_HEAD(struct node, runtime, list, offset, next);
+		};
+	}
+
+	static std::function<void()> slist_insert_tail(pmemstream_runtime *runtime, singly_linked_list *list,
+						       std::shared_ptr<state> st)
+	{
+		return [=]() {
+			size_t offset = st->generate_offset();
+			st->used_offsets.push_back(offset);
+			SLIST_INSERT_TAIL(struct node, runtime, list, offset, next);
+		};
+	}
+
+	static std::function<void()> slist_remove_head(pmemstream_runtime *runtime, singly_linked_list *list,
+						       std::shared_ptr<state> st)
+	{
+		return [=]() {
+			if (!st->used_offsets.empty()) {
+				st->used_offsets.pop_front();
+			}
+			SLIST_REMOVE_HEAD(struct node, runtime, list, next);
+		};
+	}
+
+	static std::function<void()> slist_remove(pmemstream_runtime *runtime, singly_linked_list *list,
+						  std::shared_ptr<state> st)
+	{
+		return [=]() {
+			size_t offset_to_del;
+			if (!st->used_offsets.empty()) {
+				offset_to_del = get_one_of(st->used_offsets);
+				st->used_offsets.erase(std::find(std::begin(st->used_offsets),
+								 std::end(st->used_offsets), offset_to_del));
+			} else {
+				offset_to_del = st->generate_offset();
+			}
+			SLIST_REMOVE(struct node, runtime, list, offset_to_del, next);
+		};
+	}
+};
+
 void fill(test_config_type test_config)
 {
 	constexpr bool truncate = false;
@@ -107,13 +171,9 @@ void fill(test_config_type test_config)
 
 	slist_runtime_init(&runtime, list);
 
-	/* XXX: Add testing of remove */
-	const auto commands = generate_commands<slist_macro_wrapper>(
-		number_of_commands, {slist_insert_head, slist_insert_tail, slist_remove_head});
-	const auto offsets = generate_offsets<node>(number_of_commands);
-
-	for (size_t i = 0; i < number_of_commands; i++) {
-		commands[i](&runtime, list, offsets[i]);
+	auto commands = commands_generator::generate(number_of_commands, &runtime, list);
+	for (auto &command : commands) {
+		command();
 	}
 }
 
