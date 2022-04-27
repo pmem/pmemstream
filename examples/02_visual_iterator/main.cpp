@@ -49,7 +49,7 @@ int main(int argc, char *argv[])
 	}
 
 	/* helper function to open a file if exists, or create it with given size otherwise */
-	struct pmem2_map *map = example_map_open(argv[1], EXAMPLE_STREAM_SIZE);
+	struct pmem2_map *map = example_map_open(argv[1], 0);
 	if (map == NULL) {
 		pmem2_perror("pmem2_map");
 		return -1;
