@@ -49,165 +49,233 @@ void check_list(pmemstream_runtime &runtime, singly_linked_list &list, TIterator
 
 int main(int argc, char *argv[])
 {
-	/* Initiate list */
-	{
-		singly_linked_list list;
 
-		struct pmemstream_runtime runtime {
-			.base = (void *)TEST_SLIST_DATA_BASE, .memcpy = &memcpy_mock, .memset = &memset_mock,
-			.flush = &flush_mock, .drain = &drain_mock, .persist = &persist_mock
-		};
+	return run_test([] {
+		return_check ret;
 
-		SLIST_INIT(&runtime, &list);
+		/* Initiate list */
+		{
+			singly_linked_list list;
 
-		UT_ASSERTeq(list.head, SLIST_INVALID_OFFSET);
-		UT_ASSERTeq(list.tail, SLIST_INVALID_OFFSET);
-	}
+			struct pmemstream_runtime runtime {
+				.base = (void *)TEST_SLIST_DATA_BASE, .memcpy = &memcpy_mock, .memset = &memset_mock,
+				.flush = &flush_mock, .drain = &drain_mock, .persist = &persist_mock
+			};
 
-	rc::check("Insert head", [](const std::vector<struct node> &data) {
-		RC_PRE(data.size() > 0);
+			SLIST_INIT(&runtime, &list);
 
-		singly_linked_list list;
-
-		struct pmemstream_runtime runtime {
-			.base = (void *)data.data(), .memcpy = &memcpy_mock, .memset = &memset_mock,
-			.flush = &flush_mock, .drain = &drain_mock, .persist = &persist_mock
-		};
-
-		SLIST_INIT(&runtime, &list);
-
-		/* Add elements at the front of list */
-		uint64_t offset = 0;
-		for (size_t i = 0; i < data.size(); ++i) {
-			SLIST_INSERT_HEAD(struct node, &runtime, &list, offset, next);
-			offset += sizeof(struct node);
+			UT_ASSERTeq(list.head, SLIST_INVALID_OFFSET);
+			UT_ASSERTeq(list.tail, SLIST_INVALID_OFFSET);
 		}
 
-		/* Check correctness */
-		check_list<node>(runtime, list, data.rbegin(), data.rend());
-	});
+		ret += rc::check(
+			"Push front and check if head points to the last inserted element",
+			[](const std::vector<struct node> &data) {
+				RC_PRE(data.size() > 0);
 
-	rc::check("Push back", [](const std::vector<struct node> &data) {
-		RC_PRE(data.size() > 0);
+				singly_linked_list list;
 
-		singly_linked_list list;
+				struct pmemstream_runtime runtime {
+					.base = (void *)data.data(), .memcpy = &memcpy_mock, .memset = &memset_mock,
+					.flush = &flush_mock, .drain = &drain_mock, .persist = &persist_mock
+				};
 
-		struct pmemstream_runtime runtime {
-			.base = (void *)data.data(), .memcpy = &memcpy_mock, .memset = &memset_mock,
-			.flush = &flush_mock, .drain = &drain_mock, .persist = &persist_mock
-		};
+				SLIST_INIT(&runtime, &list);
 
-		SLIST_INIT(&runtime, &list);
+				/* Add elements at the front of list */
+				uint64_t offset = 0;
+				auto v_it = data.begin();
+				for (size_t i = 0; i < data.size(); ++i) {
+					SLIST_INSERT_HEAD(struct node, &runtime, &list, offset, next);
 
-		/* Add elements to list */
-		uint64_t offset = 0;
-		for (size_t i = 0; i < data.size(); ++i) {
-			SLIST_INSERT_TAIL(struct node, &runtime, &list, offset, next);
-			offset += sizeof(struct node);
-		}
+					RC_ASSERT((SLIST_GET_PTR(node, &runtime, list.head))->data == v_it->data);
+					offset += sizeof(struct node);
+					v_it++;
+				}
 
-		/* Check correctness */
-		check_list<node>(runtime, list, data.begin(), data.end());
-	});
+				/* Check correctness */
+				check_list<node>(runtime, list, data.rbegin(), data.rend());
+			});
 
-	rc::check("Remove head", [](const std::vector<struct node> &data) {
-		RC_PRE(data.size() > 0);
+		ret += rc::check(
+			"Push back and check if tail points to the last inserted",
+			[](const std::vector<struct node> &data) {
+				RC_PRE(data.size() > 0);
 
-		singly_linked_list list;
+				singly_linked_list list;
 
-		struct pmemstream_runtime runtime {
-			.base = (void *)data.data(), .memcpy = &memcpy_mock, .memset = &memset_mock,
-			.flush = &flush_mock, .drain = &drain_mock, .persist = &persist_mock
-		};
+				struct pmemstream_runtime runtime {
+					.base = (void *)data.data(), .memcpy = &memcpy_mock, .memset = &memset_mock,
+					.flush = &flush_mock, .drain = &drain_mock, .persist = &persist_mock
+				};
 
-		SLIST_INIT(&runtime, &list);
+				SLIST_INIT(&runtime, &list);
 
-		/* Add elements to list */
-		uint64_t offset = 0;
-		for (size_t i = 0; i < data.size(); ++i) {
-			SLIST_INSERT_TAIL(struct node, &runtime, &list, offset, next);
-			offset += sizeof(struct node);
-		}
+				/* Add elements to list */
+				uint64_t offset = 0;
+				auto v_it = data.begin();
+				for (size_t i = 0; i < data.size(); ++i) {
+					SLIST_INSERT_TAIL(struct node, &runtime, &list, offset, next);
 
-		/* Remove head */
-		auto mod_data = data;
-		auto it = mod_data.begin();
-		if (it != mod_data.end())
-			it = mod_data.erase(it);
-		if (list.head != SLIST_INVALID_OFFSET) {
-			SLIST_REMOVE_HEAD(struct node, &runtime, &list, next);
-		}
+					RC_ASSERT((SLIST_GET_PTR(node, &runtime, list.tail))->data == v_it->data);
+					offset += sizeof(struct node);
+					v_it++;
+				}
 
-		uint64_t l_it = list.head;
-		if (l_it == SLIST_INVALID_OFFSET)
-			return;
+				/* Check correctness */
+				check_list<node>(runtime, list, data.begin(), data.end());
+			});
 
-		/* Check correctness */
-		check_list<node>(runtime, list, mod_data.begin(), mod_data.end());
-	});
+		ret += rc::check("Remove head", [](const std::vector<struct node> &data) {
+			RC_PRE(data.size() > 0);
 
-	rc::check("Random remove", [](const std::vector<struct node> &data) {
-		RC_PRE(data.size() > 1);
+			singly_linked_list list;
 
-		singly_linked_list list;
+			struct pmemstream_runtime runtime {
+				.base = (void *)data.data(), .memcpy = &memcpy_mock, .memset = &memset_mock,
+				.flush = &flush_mock, .drain = &drain_mock, .persist = &persist_mock
+			};
 
-		struct pmemstream_runtime runtime {
-			.base = (void *)data.data(), .memcpy = &memcpy_mock, .memset = &memset_mock,
-			.flush = &flush_mock, .drain = &drain_mock, .persist = &persist_mock
-		};
+			SLIST_INIT(&runtime, &list);
 
-		SLIST_INIT(&runtime, &list);
+			/* Add elements to list */
+			uint64_t offset = 0;
+			for (size_t i = 0; i < data.size(); ++i) {
+				SLIST_INSERT_TAIL(struct node, &runtime, &list, offset, next);
+				offset += sizeof(struct node);
+			}
 
-		/* Add elements to list */
-		uint64_t offset = 0;
-		for (size_t i = 0; i < data.size(); ++i) {
-			SLIST_INSERT_TAIL(struct node, &runtime, &list, offset, next);
-			offset += sizeof(struct node);
-		}
+			/* Number of elements to remove */
+			auto num_to_rmv = *rc::gen::inRange<size_t>(1, data.size() + 1);
+			auto mod_data = data;
 
-		/* Remove random element from both lists */
-		auto random_item_pos = *rc::gen::inRange<size_t>(1, data.size());
-		auto mod_data(data);
-		auto r_it = mod_data.begin();
-		auto l_it = list.head;
+			for (size_t i = 1; i <= num_to_rmv; ++i) {
+				/* Remove head */
+				mod_data.erase(mod_data.begin());
+				SLIST_REMOVE_HEAD(struct node, &runtime, &list, next);
 
-		for (size_t i = 0; i < random_item_pos; ++i) {
-			r_it++;
-			l_it = SLIST_NEXT(struct node, &runtime, l_it, next);
-			RC_ASSERT((SLIST_GET_PTR(node, &runtime, l_it))->data == r_it->data);
-		}
+				/* Check correctness */
+				check_list<node>(runtime, list, mod_data.begin(), mod_data.end());
+				RC_ASSERT(mod_data.size() == data.size() - i);
+			}
+		});
 
-		mod_data.erase(r_it);
-		SLIST_REMOVE(struct node, &runtime, &list, l_it, next);
+		ret += rc::check("Random remove", [](const std::vector<struct node> &data) {
+			RC_PRE(data.size() > 0);
 
-		/* Check correctness */
-		check_list<node>(runtime, list, mod_data.begin(), mod_data.end());
-		RC_ASSERT(mod_data.size() == data.size() - 1);
-	});
+			singly_linked_list list;
 
-	rc::check("Removing nonexistent element doesn't change the list", [](const std::vector<struct node> &data) {
-		RC_PRE(data.size() > 0);
+			struct pmemstream_runtime runtime {
+				.base = (void *)data.data(), .memcpy = &memcpy_mock, .memset = &memset_mock,
+				.flush = &flush_mock, .drain = &drain_mock, .persist = &persist_mock
+			};
 
-		singly_linked_list list;
+			SLIST_INIT(&runtime, &list);
 
-		struct pmemstream_runtime runtime {
-			.base = (void *)data.data(), .memcpy = &memcpy_mock, .memset = &memset_mock,
-			.flush = &flush_mock, .drain = &drain_mock, .persist = &persist_mock
-		};
+			/* Add elements to list */
+			uint64_t offset = 0;
+			for (size_t i = 0; i < data.size(); ++i) {
+				SLIST_INSERT_TAIL(struct node, &runtime, &list, offset, next);
+				offset += sizeof(struct node);
+			}
 
-		SLIST_INIT(&runtime, &list);
+			/* Number of elements to remove */
+			auto num_to_rmv = *rc::gen::inRange<size_t>(1, data.size() + 1);
+			auto mod_data(data);
 
-		/* Add elements at the front of list */
-		uint64_t offset = 0;
-		for (size_t i = 0; i < data.size(); ++i) {
-			SLIST_INSERT_HEAD(struct node, &runtime, &list, offset, next);
-			offset += sizeof(struct node);
-		}
+			for (size_t i = 1; i <= num_to_rmv; ++i) {
+				/* Remove random element from the list */
+				auto random_item_pos = *rc::gen::inRange<size_t>(0, mod_data.size());
 
-		auto invalid_offset = *rc::gen::inRange<uint64_t>(offset + 1, UINT64_MAX);
-		SLIST_REMOVE(struct node, &runtime, &list, invalid_offset, next);
+				auto r_it = mod_data.begin();
+				std::advance(r_it, random_item_pos);
+				auto l_it = list.head;
 
-		/* Check correctness */
-		check_list<node>(runtime, list, data.rbegin(), data.rend());
+				for (size_t i = 0; i < random_item_pos; ++i) {
+					l_it = SLIST_NEXT(struct node, &runtime, l_it, next);
+				}
+
+				RC_ASSERT((SLIST_GET_PTR(node, &runtime, l_it))->data == r_it->data);
+				mod_data.erase(r_it);
+				SLIST_REMOVE(struct node, &runtime, &list, l_it, next);
+
+				/* Check correctness */
+				check_list<node>(runtime, list, mod_data.begin(), mod_data.end());
+				RC_ASSERT(mod_data.size() == data.size() - i);
+			}
+		});
+
+		rc::check("Removing nonexistent element doesn't change the list",
+			  [](const std::vector<struct node> &data) {
+				  RC_PRE(data.size() > 0);
+
+				  singly_linked_list list;
+
+				  struct pmemstream_runtime runtime {
+					  .base = (void *)data.data(), .memcpy = &memcpy_mock, .memset = &memset_mock,
+					  .flush = &flush_mock, .drain = &drain_mock, .persist = &persist_mock
+				  };
+
+				  SLIST_INIT(&runtime, &list);
+
+				  /* Add elements at the front of list */
+				  uint64_t offset = 0;
+				  for (size_t i = 0; i < data.size(); ++i) {
+					  SLIST_INSERT_HEAD(struct node, &runtime, &list, offset, next);
+					  offset += sizeof(struct node);
+				  }
+
+				  auto invalid_offset = *rc::gen::inRange<uint64_t>(offset + 1, UINT64_MAX);
+				  SLIST_REMOVE(struct node, &runtime, &list, invalid_offset, next);
+
+				  /* Check correctness */
+				  check_list<node>(runtime, list, data.rbegin(), data.rend());
+			  });
+
+		ret += rc::check("Re-insert elements to the list after they were removed",
+				 [](const std::vector<struct node> &data, const std::vector<struct node> &extra_data,
+				    bool is_empty) {
+					 RC_PRE(data.size() > 0);
+					 RC_PRE(extra_data.size() > 0);
+
+					 singly_linked_list list;
+
+					 auto data_rnt(data);
+
+					 /* Add extra data */
+					 if (!is_empty) {
+						 data_rnt.insert(data_rnt.end(), extra_data.begin(), extra_data.end());
+					 }
+
+					 struct pmemstream_runtime runtime {
+						 .base = (void *)data_rnt.data(), .memcpy = &memcpy_mock,
+						 .memset = &memset_mock, .flush = &flush_mock, .drain = &drain_mock,
+						 .persist = &persist_mock
+					 };
+
+					 SLIST_INIT(&runtime, &list);
+
+					 /* Add elements to the list */
+					 uint64_t offset = 0;
+					 for (size_t i = 0; i < data_rnt.size(); ++i) {
+						 SLIST_INSERT_TAIL(struct node, &runtime, &list, offset, next);
+						 offset += sizeof(struct node);
+					 }
+
+					 /* Remove data from the list */
+					 for (size_t i = 0; i < data.size(); ++i) {
+						 SLIST_REMOVE_HEAD(struct node, &runtime, &list, next);
+					 }
+
+					 /* Insert removed data */
+					 offset = sizeof(struct node) * (data.size() - 1);
+					 for (size_t i = 0; i < data.size(); ++i) {
+						 SLIST_INSERT_HEAD(struct node, &runtime, &list, offset, next);
+						 offset -= sizeof(struct node);
+					 }
+
+					 /* Check correctness */
+					 check_list<node>(runtime, list, data_rnt.begin(), data_rnt.end());
+				 });
 	});
 }
