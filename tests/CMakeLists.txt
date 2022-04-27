@@ -199,7 +199,8 @@ if(BUILD_EXAMPLES)
 				example-04_basic_async
 				example-05_timestamp_based_order)
 	add_test_generic(NAME example-01_basic_iterate TRACERS none)
-	add_test_generic(NAME example-02_visual_iterator TRACERS none)
+	add_test_generic(NAME example-02_visual_iterator TRACERS none SCRIPT examples/visual_iterator.cmake
+				-DPREPARE_EXECUTABLE=$<TARGET_FILE:example-01_basic_iterate>)
 	add_test_generic(NAME example-03_reserve_publish TRACERS none)
 	add_test_generic(NAME example-04_basic_async TRACERS none)
 	add_test_generic(NAME example-05_timestamp_based_order TRACERS none)
