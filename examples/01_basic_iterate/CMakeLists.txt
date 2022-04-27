@@ -1,8 +1,10 @@
 # SPDX-License-Identifier: BSD-3-Clause
-# Copyright 2021, Intel Corporation
+# Copyright 2021-2022, Intel Corporation
 
 cmake_minimum_required(VERSION 3.3)
-project(01_basic_iterate C)
+get_filename_component(PROJECT_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)
+
+project(${PROJECT_NAME} C)
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBPMEMSTREAM REQUIRED libpmemstream)
@@ -10,5 +12,5 @@ pkg_check_modules(LIBPMEMSTREAM REQUIRED libpmemstream)
 include_directories(${LIBPMEMSTREAM_INCLUDE_DIRS} . ..)
 link_directories(${LIBPMEMSTREAM_LIBRARY_DIRS})
 
-add_executable(01_basic_iterate main.c)
-target_link_libraries(01_basic_iterate ${LIBPMEMSTREAM_LIBRARIES})
+add_executable(${CMAKE_PROJECT_NAME} main.c)
+target_link_libraries(${CMAKE_PROJECT_NAME} ${LIBPMEMSTREAM_LIBRARIES})

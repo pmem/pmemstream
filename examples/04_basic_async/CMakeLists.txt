@@ -2,7 +2,9 @@
 # Copyright 2022, Intel Corporation
 
 cmake_minimum_required(VERSION 3.3)
-project(04_basic_async CXX)
+get_filename_component(PROJECT_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)
+
+project(${PROJECT_NAME} CXX)
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBPMEMSTREAM REQUIRED libpmemstream)
@@ -11,5 +13,5 @@ pkg_check_modules(LIBMINIASYNC REQUIRED libminiasync)
 include_directories(${LIBPMEMSTREAM_INCLUDE_DIRS} . ..)
 link_directories(${LIBPMEMSTREAM_LIBRARY_DIRS})
 
-add_executable(04_basic_async main.cpp)
-target_link_libraries(04_basic_async ${LIBPMEMSTREAM_LIBRARIES} ${LIBMINIASYNC_LIBRARIES})
+add_executable(${CMAKE_PROJECT_NAME} main.cpp)
+target_link_libraries(${CMAKE_PROJECT_NAME} ${LIBPMEMSTREAM_LIBRARIES} ${LIBMINIASYNC_LIBRARIES})
