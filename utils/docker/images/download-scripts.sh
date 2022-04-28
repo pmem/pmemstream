@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: BSD-3-Clause
-# Copyright 2020-2021, Intel Corporation
+# Copyright 2021-2022, Intel Corporation
 
 #
 # download-scripts.sh - downloads specific version of
@@ -20,12 +20,20 @@ fi
 
 mkdir -p /opt/scripts
 
-# Download codecov's bash script
-git clone https://github.com/codecov/codecov-bash
-cd codecov-bash
-git checkout ${CODECOV_VERSION}
+if ! [ -x "$(command -v curl)" ]; then
+	echo "Error: curl is not installed."
+	return 1
+fi
 
-git apply ../0001-fix-generating-gcov-files-and-turn-off-verbose-log.patch
+# Download codecov and check integrity
+curl https://keybase.io/codecovsecurity/pgp_keys.asc | gpg --no-default-keyring --keyring trustedkeys.gpg --import
+curl -Os https://uploader.codecov.io/latest/linux/codecov
+curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
+curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM.sig
+gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
+sha256sum -c codecov.SHA256SUM
+chmod +x codecov
+
 mv -v codecov /opt/scripts/codecov
 
 cd ..
