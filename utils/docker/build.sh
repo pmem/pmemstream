@@ -83,10 +83,6 @@ if [[ -z "${COMMAND}" ]]; then
 fi
 echo "COMMAND to execute within Docker container: ${COMMAND}"
 
-if [ "${COVERAGE}" == "1" ]; then
-	DOCKER_OPTS="${DOCKER_OPTS} $(bash <(curl -s https://codecov.io/env))";
-fi
-
 if [ -n "${DNS_SERVER}" ]; then DOCKER_OPTS="${DOCKER_OPTS} --dns=${DNS_SERVER}"; fi
 
 # Check if we are running on a CI (Travis or GitHub Actions)
