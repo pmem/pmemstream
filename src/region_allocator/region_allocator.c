@@ -75,7 +75,7 @@ static void recover_allocated_list_to_free_list_move(const struct pmemstream_run
 
 	if (header->free_list.head != header->recovery_free_offset) {
 		/* Crash just after setting header->recovery_free_offset */
-		perform_allocated_list_to_free_list_move(runtime, header, header->free_list.head);
+		perform_allocated_list_to_free_list_move(runtime, header, header->recovery_free_offset);
 	} else {
 		/* Crash after or before SLIST_REMOVE */
 
