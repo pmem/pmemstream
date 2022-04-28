@@ -147,7 +147,13 @@ size_t pmemstream_entry_length(struct pmemstream *stream, struct pmemstream_entr
 
 int pmemstream_region_iterator_new(struct pmemstream_region_iterator **iterator, struct pmemstream *stream);
 
-int pmemstream_region_iterator_next(struct pmemstream_region_iterator *iterator, struct pmemstream_region *region);
+int pmemstream_region_iterator_is_valid(struct pmemstream_region_iterator *iterator);
+
+void pmemstream_region_iterator_seek_first(struct pmemstream_region_iterator *iterator);
+
+void pmemstream_region_iterator_next(struct pmemstream_region_iterator *iterator);
+
+int pmemstream_region_iterator_get(struct pmemstream_region_iterator *iterator, struct pmemstream_region *region);
 
 void pmemstream_region_iterator_delete(struct pmemstream_region_iterator **iterator);
 
