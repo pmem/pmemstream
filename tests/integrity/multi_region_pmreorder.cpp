@@ -30,8 +30,7 @@ void fill(test_config_type test_config, size_t cmd_count = TEST_COMMANDS_COUNT)
 			regions.push_back(region);
 		} else if (command == 1) {
 			/* free (only if preceeded by any, non-freed allocation) */
-			// XXX: get rid of the "true" statement; _free is not working properly
-			if (true || regions.size() == 0) {
+			if (regions.size() == 0) {
 				continue;
 			}
 
