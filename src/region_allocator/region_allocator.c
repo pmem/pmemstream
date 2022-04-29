@@ -45,9 +45,8 @@ static void perform_free_list_head_to_allocated_list_tail_move(const struct pmem
 static void recover_free_list_head_to_allocated_list_tail_move(const struct pmemstream_runtime *runtime,
 							       struct allocator_header *header)
 {
-	if (header->allocated_list.head != SLIST_INVALID_OFFSET &&
-	    header->allocated_list.head == header->allocated_list.tail) {
-		/* Continue allocation. */
+	if (header->free_list.head != SLIST_INVALID_OFFSET && header->free_list.head == header->allocated_list.tail) {
+		/* Crash after insert - continue with removal */
 		SLIST_REMOVE_HEAD(struct span_region, runtime, &header->free_list, allocator_entry_metadata.next_free);
 	}
 }
