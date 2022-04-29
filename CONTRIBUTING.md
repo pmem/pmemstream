@@ -33,7 +33,7 @@ If you just want to format your code you can make adequate target:
 make cppformat
 ```
 
-**NOTE**: We're using specific clang-format - version exactly **9.0** is required.
+**NOTE**: We're using specific clang-format - version exactly **11.1** is required.
 
 
 # Submitting Pull Requests

@@ -20,7 +20,7 @@ ARG CODECOV_DEPS="\
 
 # Misc for our builds/CI (optional)
 ARG MISC_DEPS="\
-	clang-format-9"
+	clang-format-11"
 
 # Install all required packages
 RUN apt-get update \
