@@ -13,14 +13,9 @@ MAINTAINER igor.chorazewicz@intel.com
 # use 'root' while building the image
 USER root
 
-# Misc for our builds/CI (optional)
-ARG MISC_DEPS="\
-	clang-format-9"
-
 # Install all required packages
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
-	${MISC_DEPS} \
 && rm -rf /var/lib/apt/lists/*
 
 # Install all PMDK packages

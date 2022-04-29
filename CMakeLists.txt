@@ -176,14 +176,13 @@ add_custom_target(copyright-format
 			${PMEMSTREAM_ROOT_DIR}
 			BSD-3-Clause -d)
 
+# XXX: consider checking code formatting only for patches (not to re-format the whole repository)
 if(CHECK_CPP_STYLE)
-	# XXX: update this, when clang format version is picked, and probably check min. version only
-	find_program(CLANG_FORMAT NAMES clang-format-9 clang-format-9.0 clang-format)
-	set(CLANG_FORMAT_REQUIRED "9.0")
+	find_program(CLANG_FORMAT NAMES clang-format-11 clang-format-11.0 clang-format)
+	set(CLANG_FORMAT_REQUIRED "11.1")
 	if(CLANG_FORMAT)
 		get_program_version_major_minor(${CLANG_FORMAT} CLANG_FORMAT_VERSION)
 		message(STATUS "Found clang-format: ${CLANG_FORMAT} (version: ${CLANG_FORMAT_VERSION})")
-		# XXX: check for VERSION_LESS only
 		if(NOT (CLANG_FORMAT_VERSION VERSION_EQUAL CLANG_FORMAT_REQUIRED))
 			message(FATAL_ERROR "required clang-format version is ${CLANG_FORMAT_REQUIRED}")
 		endif()
