@@ -30,6 +30,7 @@ jobs:
       matrix:
         CONFIG: [
                   "OS=fedora OS_VER=34",
+                  "OS=ubuntu OS_VER=20.04",
                   "OS=ubuntu OS_VER=21.04",
                   "OS=ubuntu OS_VER=21.10",
                 ]
