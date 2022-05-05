@@ -45,9 +45,8 @@ static void perform_free_list_head_to_allocated_list_tail_move(const struct pmem
 static void recover_free_list_head_to_allocated_list_tail_move(const struct pmemstream_runtime *runtime,
 							       struct allocator_header *header)
 {
-	if (header->allocated_list.head != SLIST_INVALID_OFFSET &&
-	    header->allocated_list.head == header->allocated_list.tail) {
-		/* Continue allocation. */
+	if (header->free_list.head != SLIST_INVALID_OFFSET && header->free_list.head == header->allocated_list.tail) {
+		/* Crash after insert - continue with removal */
 		SLIST_REMOVE_HEAD(struct span_region, runtime, &header->free_list, allocator_entry_metadata.next_free);
 	}
 }
@@ -75,11 +74,10 @@ static void recover_allocated_list_to_free_list_move(const struct pmemstream_run
 
 	if (header->free_list.head != header->recovery_free_offset) {
 		/* Crash just after setting header->recovery_free_offset */
-		perform_allocated_list_to_free_list_move(runtime, header, header->free_list.head);
+		perform_allocated_list_to_free_list_move(runtime, header, header->recovery_free_offset);
 	} else {
 		/* Crash after or before SLIST_REMOVE */
 
-		// XXX: check if list contains the element, and only then call remove (or extend SLIST_REMOVE)
 		SLIST_REMOVE(struct span_region, runtime, &header->allocated_list, header->recovery_free_offset,
 			     allocator_entry_metadata.next_allocated);
 
