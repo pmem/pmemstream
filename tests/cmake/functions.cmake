@@ -315,6 +315,6 @@ function(add_test_generic)
 	endif()
 
 	foreach(tracer ${TEST_TRACERS})
-		add_test_common(${TEST_NAME} ${tracer} ${TEST_CASE} ${cmake_script})
+		add_test_common(${TEST_NAME} ${tracer} ${TEST_CASE} ${cmake_script} ${ARGN})
 	endforeach()
 endfunction()
