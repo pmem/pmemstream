@@ -52,6 +52,42 @@ int main(int argc, char *argv[])
 		});
 
 		ret += rc::check(
+			"Re-allocated regions can be iterated in expected order", [&](pmemstream_empty &&stream) {
+				size_t no_regions = *rc::gen::inRange<std::size_t>(1, max_allocations + 1);
+
+				/* allocate 'no_regions' and remove them */
+				auto regions_0 = stream.helpers.allocate_regions(no_regions, test_config.region_size);
+				RC_ASSERT(no_regions == stream.helpers.count_regions());
+
+				stream.helpers.remove_regions(regions_0);
+				RC_ASSERT(0 == stream.helpers.count_regions());
+
+				/* re-allocate regions removed from first to last - they will be reused in reversed
+				 * order */
+				auto regions_1 = stream.helpers.allocate_regions(no_regions, test_config.region_size);
+				RC_ASSERT(no_regions == stream.helpers.count_regions());
+
+				auto iterated_1 = stream.helpers.get_regions();
+				RC_ASSERT(regions_1.size() == iterated_1.size());
+				/* use here rbegin & rend for region_0 */
+				RC_ASSERT(std::equal(regions_0.rbegin(), regions_0.rend(), regions_1.begin()));
+				RC_ASSERT(std::equal(regions_0.rbegin(), regions_0.rend(), iterated_1.begin()));
+
+				/* remove regions in now (already) reversed order */
+				stream.helpers.remove_regions(iterated_1);
+				RC_ASSERT(0 == stream.helpers.count_regions());
+
+				/* re-allocate regions again, expecting them in "original" order */
+				auto regions_2 = stream.helpers.allocate_regions(no_regions, test_config.region_size);
+				RC_ASSERT(no_regions == stream.helpers.count_regions());
+
+				auto iterated_2 = stream.helpers.get_regions();
+				RC_ASSERT(regions_2.size() == iterated_2.size());
+				RC_ASSERT(std::equal(regions_0.begin(), regions_0.end(), regions_2.begin()));
+				RC_ASSERT(std::equal(regions_0.begin(), regions_0.end(), iterated_2.begin()));
+			});
+
+		ret += rc::check(
 			"Some of first/last allocated regions can be freed",
 			[&](pmemstream_empty &&stream, bool free_heads) {
 				size_t no_regions = *rc::gen::inRange<std::size_t>(1, max_allocations + 1);
@@ -85,7 +121,6 @@ int main(int argc, char *argv[])
 			RC_ASSERT(no_regions - 1 == stream.helpers.count_regions());
 		});
 
-		// XXX: probably have to add a test to check proper iteration order of newly allocated regions
 		ret += rc::check("Regions can be allocated after some was freed", [&](pmemstream_empty &&stream) {
 			size_t no_regions = *rc::gen::inRange<std::size_t>(1, max_allocations + 1);
 
@@ -103,17 +138,28 @@ int main(int argc, char *argv[])
 			}
 
 			stream.helpers.remove_regions(to_delete_regs);
-			RC_ASSERT(no_regions - to_delete_regs.size() == stream.helpers.count_regions());
+			auto iterated = stream.helpers.get_regions();
+			RC_ASSERT(no_regions - to_delete_regs.size() == iterated.size());
 
 			/* allocate again, some extra number of regions */
 			size_t no_realloc_regions = *rc::gen::inRange<std::size_t>(0, to_delete_regs.size());
 
+			auto it = to_delete_regs.rbegin();
 			for (size_t i = 0; i < no_realloc_regions; i++) {
 				auto [ret, region] = stream.helpers.stream.region_allocate(test_config.region_size);
 				RC_ASSERT(ret == 0);
+
+				/* and check if regions are re-used in reversed order (comparing to freeing order) */
+				RC_ASSERT(region.offset == it->offset);
+				iterated.push_back(*it);
+				it++;
 			}
 			RC_ASSERT(no_regions - to_delete_regs.size() + no_realloc_regions ==
 				  stream.helpers.count_regions());
+
+			auto re_iterated = stream.helpers.get_regions();
+			RC_ASSERT(iterated.size() == re_iterated.size());
+			RC_ASSERT(std::equal(iterated.begin(), iterated.end(), re_iterated.begin()));
 		});
 	});
 }
