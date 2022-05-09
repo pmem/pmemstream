@@ -14,6 +14,8 @@ MAINTAINER igor.chorazewicz@intel.com
 USER root
 
 # Install all PMDK packages
+# Use non-released ("custom") version with the fix for proper ndctl header include
+ENV PMDK_VERSION bbd93c8c4c3ca8bc4d1136ad30b3bc15fa78919a
 RUN /opt/install-pmdk.sh /opt/pmdk/
 
 # Install rapidcheck
