@@ -23,11 +23,19 @@ ARG MISC_DEPS="\
 	clang-format-11"
 
 # Install all required packages
+# XXX: workaround for clang (v.14): default DWARF5 is not compatible with valgrind 3.19
 RUN apt-get update \
+ && apt-get remove -y clang \
+ && apt-get autoremove -y \
  && apt-get install -y --no-install-recommends \
 	${CODECOV_DEPS} \
 	${MISC_DEPS} \
+    clang-13 \
 && rm -rf /var/lib/apt/lists/*
+
+# XXX: workaround for clang (v.14): default DWARF5 is not compatible with valgrind 3.19
+RUN sudo ln -s /usr/bin/clang-13 /usr/bin/clang \
+ && sudo ln -s /usr/bin/clang++-13 /usr/bin/clang++
 
 # Install all PMDK packages
 RUN /opt/install-pmdk.sh /opt/pmdk/
