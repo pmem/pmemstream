@@ -50,7 +50,7 @@ int main(int argc, char *argv[])
 
 	int i = 0;
 	for (; i < EXAMPLE_ASYNC_COUNT; ++i) {
-		ret = pmemstream_region_iterator_next(riter, &regions[i]);
+		ret = pmemstream_region_iterator_next(riter); // , &regions[i]
 		if (ret != 0) {
 			break;
 		}

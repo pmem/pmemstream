@@ -25,10 +25,10 @@ void valid_input_test(char *path)
 	UT_ASSERTeq(ret, 0);
 	UT_ASSERTne(riter, NULL);
 
-	ret = pmemstream_region_iterator_next(riter, &region);
+	ret = pmemstream_region_iterator_next(riter);
 	UT_ASSERTeq(ret, 0);
 
-	ret = pmemstream_region_iterator_next(riter, &region);
+	ret = pmemstream_region_iterator_next(riter);
 	UT_ASSERTeq(ret, -1);
 
 	pmemstream_region_iterator_delete(&riter);
@@ -50,7 +50,7 @@ void null_iterator_test(char *path)
 	ret = pmemstream_region_iterator_new(NULL, env.stream);
 	UT_ASSERTeq(ret, -1);
 
-	ret = pmemstream_region_iterator_next(NULL, &region);
+	ret = pmemstream_region_iterator_next(NULL);
 	UT_ASSERTeq(ret, -1);
 
 	pmemstream_region_free(env.stream, region);
@@ -69,7 +69,7 @@ void invalid_region_test(char *path)
 	UT_ASSERTeq(ret, 0);
 	UT_ASSERTne(riter, NULL);
 
-	ret = pmemstream_region_iterator_next(riter, &invalid_region);
+	ret = pmemstream_region_iterator_next(riter);
 	UT_ASSERTeq(ret, -1);
 	UT_ASSERTeq(invalid_region.offset, invalid_offset);
 

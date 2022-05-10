@@ -151,7 +151,7 @@ int pmemstream_region_iterator_is_valid(struct pmemstream_region_iterator *itera
 
 void pmemstream_region_iterator_seek_first(struct pmemstream_region_iterator *iterator);
 
-void pmemstream_region_iterator_next(struct pmemstream_region_iterator *iterator);
+int pmemstream_region_iterator_next(struct pmemstream_region_iterator *iterator);
 
 int pmemstream_region_iterator_get(struct pmemstream_region_iterator *iterator, struct pmemstream_region *region);
 

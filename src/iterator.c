@@ -49,19 +49,26 @@ void pmemstream_region_iterator_seek_first(struct pmemstream_region_iterator *it
 }
 
 
-void pmemstream_region_iterator_next(struct pmemstream_region_iterator *it)
+int pmemstream_region_iterator_next(struct pmemstream_region_iterator *it)
 {
 	struct pmemstream_region next_region;
-	next_region.offset = SLIST_NEXT(struct span_region, &it->stream->data, it->region.offset,
+	uint64_t next_offset = SLIST_NEXT(struct span_region, &it->stream->data, it->region.offset,
 					allocator_entry_metadata.next_allocated);
 
+	if (next_offset == SLIST_INVALID_OFFSET) {
+		/* Required for iterator recovery */
+		it->prev_region = it->region;
+	}
+	next_region.offset = next_offset;
+
 	it->region.offset = next_region.offset;
+	return 0;
 }
 
 int pmemstream_region_iterator_get(struct pmemstream_region_iterator *it, struct pmemstream_region *region)
 {
 	int is_valid = pmemstream_region_iterator_is_valid(it);
-	if ( is_valid != 0) {
+	if (is_valid != 0) {
 		return is_valid;
 	}
 
