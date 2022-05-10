@@ -25,11 +25,12 @@ void valid_input_test(char *path)
 	UT_ASSERTeq(ret, 0);
 	UT_ASSERTne(riter, NULL);
 
-	ret = pmemstream_region_iterator_next(riter, &region);
+	pmemstream_region_iterator_seek_first(riter);
+
+	ret = pmemstream_region_iterator_is_valid(riter);
 	UT_ASSERTeq(ret, 0);
 
-	ret = pmemstream_region_iterator_next(riter, &region);
-	UT_ASSERTeq(ret, -1);
+	pmemstream_region_iterator_next(riter);
 
 	pmemstream_region_iterator_delete(&riter);
 	UT_ASSERTeq(riter, NULL);
@@ -37,6 +38,42 @@ void valid_input_test(char *path)
 	pmemstream_region_free(env.stream, region);
 	pmemstream_test_teardown(env);
 }
+
+// void valid_recovery_test(char *path)
+// {
+//	pmemstream_test_env env = pmemstream_test_make_default(path);
+
+//	struct pmemstream_region_iterator *riter;
+
+//	struct pmemstream_region region;
+//	int ret = pmemstream_region_allocate(env.stream, TEST_DEFAULT_REGION_MULTI_SIZE, &region);
+//	UT_ASSERTeq(ret, 0);
+
+//	ret = pmemstream_region_iterator_new(&riter, env.stream);
+//	UT_ASSERTeq(ret, 0);
+//	UT_ASSERTne(riter, NULL);
+
+//	ret = pmemstream_region_iterator_seek_first(riter);
+//	UT_ASSERTeq(ret, 0);
+
+//	ret = pmemstream_region_iterator_next(riter);
+//	UT_ASSERTeq(ret, -1);
+
+//	ret = pmemstream_region_allocate(env.stream, TEST_DEFAULT_REGION_MULTI_SIZE, &region);
+//	UT_ASSERTeq(ret, 0);
+
+//	ret = pmemstream_region_iterator_next(riter);
+//	UT_ASSERTeq(ret, 0);
+
+//	ret = pmemstream_region_iterator_next(riter);
+//	UT_ASSERTeq(ret, -1);
+
+//	pmemstream_region_iterator_delete(&riter);
+//	UT_ASSERTeq(riter, NULL);
+
+//	pmemstream_region_free(env.stream, region);
+//	pmemstream_test_teardown(env);
+// }
 
 void null_iterator_test(char *path)
 {
@@ -50,8 +87,15 @@ void null_iterator_test(char *path)
 	ret = pmemstream_region_iterator_new(NULL, env.stream);
 	UT_ASSERTeq(ret, -1);
 
-	ret = pmemstream_region_iterator_next(NULL, &region);
+	ret = pmemstream_region_iterator_is_valid(NULL);
 	UT_ASSERTeq(ret, -1);
+
+	pmemstream_region_iterator_next(NULL);
+
+	region = pmemstream_region_iterator_get(NULL);
+	UT_ASSERTeq(region.offset, SLIST_INVALID_OFFSET);
+
+	pmemstream_region_iterator_seek_first(NULL);
 
 	pmemstream_region_free(env.stream, region);
 	pmemstream_test_teardown(env);
@@ -69,9 +113,10 @@ void invalid_region_test(char *path)
 	UT_ASSERTeq(ret, 0);
 	UT_ASSERTne(riter, NULL);
 
-	ret = pmemstream_region_iterator_next(riter, &invalid_region);
-	UT_ASSERTeq(ret, -1);
-	UT_ASSERTeq(invalid_region.offset, invalid_offset);
+	pmemstream_region_iterator_seek_first(riter);
+
+	invalid_region = pmemstream_region_iterator_get(riter);
+	UT_ASSERTeq(invalid_region.offset, SLIST_INVALID_OFFSET);
 
 	pmemstream_region_iterator_delete(&riter);
 	pmemstream_test_teardown(env);
@@ -102,6 +147,7 @@ int main(int argc, char *argv[])
 	valid_input_test(path);
 	null_iterator_test(path);
 	invalid_region_test(path);
+	// valid_recovery_test(path);
 	null_stream_test();
 
 	return 0;

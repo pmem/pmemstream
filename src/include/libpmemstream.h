@@ -153,7 +153,7 @@ void pmemstream_region_iterator_seek_first(struct pmemstream_region_iterator *it
 
 void pmemstream_region_iterator_next(struct pmemstream_region_iterator *iterator);
 
-int pmemstream_region_iterator_get(struct pmemstream_region_iterator *iterator, struct pmemstream_region *region);
+struct pmemstream_region pmemstream_region_iterator_get(struct pmemstream_region_iterator *iterator);
 
 void pmemstream_region_iterator_delete(struct pmemstream_region_iterator **iterator);
 
