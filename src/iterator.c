@@ -96,7 +96,7 @@ int pmemstream_entry_iterator_new(struct pmemstream_entry_iterator **iterator, s
 		return -1;
 	}
 
-	int ret = entry_iterator_initialize(iter, stream, region, &region_runtime_initialize_for_read_locked);
+	int ret = entry_iterator_initialize(iter, stream, region, &region_runtime_initialize_for_write_locked);
 	if (ret) {
 		goto err;
 	}
@@ -141,7 +141,7 @@ static bool pmemstream_entry_iterator_offset_is_inside_region(struct pmemstream_
 /* Precondition: region_runtime is initialized. */
 static bool pmemstream_entry_iterator_offset_is_below_committed(struct pmemstream_entry_iterator *iterator)
 {
-	assert(region_runtime_get_state_acquire(iterator->region_runtime) != REGION_RUNTIME_STATE_UNINITIALIZED);
+	assert(region_runtime_get_state_acquire(iterator->region_runtime) == REGION_RUNTIME_STATE_WRITE_READY);
 
 	/* Make sure that we didn't go beyond committed entries. */
 	uint64_t committed_offset = region_runtime_get_committed_offset_acquire(iterator->region_runtime);
@@ -209,8 +209,7 @@ static int pmemstream_entry_iterator_next_when_region_not_initialized(struct pme
 	}
 
 	/* Lazy (re-)initialization of region, when needed. */
-	struct pmemstream_entry entry = {.offset = iterator->offset};
-	iterator->region_runtime_initialize_fn(iterator->region_runtime, entry);
+	iterator->region_runtime_initialize_fn(iterator->region_runtime, iterator->offset);
 	return -1;
 }
 
@@ -226,7 +225,7 @@ int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iterator, s
 		*region = iterator->region;
 	}
 
-	if (region_runtime_get_state_acquire(iterator->region_runtime) != REGION_RUNTIME_STATE_UNINITIALIZED) {
+	if (region_runtime_get_state_acquire(iterator->region_runtime) == REGION_RUNTIME_STATE_WRITE_READY) {
 		return pmemstream_entry_iterator_next_when_region_initialized(iterator, user_entry);
 	}
 

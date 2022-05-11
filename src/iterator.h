@@ -14,7 +14,7 @@
 extern "C" {
 #endif
 
-typedef void (*region_runtime_initialize_fn_type)(struct pmemstream_region_runtime *, struct pmemstream_entry);
+typedef void (*region_runtime_initialize_fn_type)(struct pmemstream_region_runtime *region_runtime, uint64_t offset);
 
 struct pmemstream_entry_iterator {
 	struct pmemstream *const stream;
