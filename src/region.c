@@ -8,9 +8,13 @@
 #include <assert.h>
 #include <errno.h>
 
-#ifndef NDEBUG
-#define PMEMSTREAM_OFFSET_UNINITIALIZED 0ULL
-#endif
+/* After opening pmemstream, each region_runtime is in one of those 2 states.
+ * The only possible state transition is: REGION_RUNTIME_STATE_READ_READY -> REGION_RUNTIME_STATE_WRITE_READY
+ */
+enum region_runtime_state {
+	REGION_RUNTIME_STATE_READ_READY, /* reading from the region is safe */
+	REGION_RUNTIME_STATE_WRITE_READY /* reading and writing to the region is safe */
+};
 
 /*
  * It contains all runtime data specific to a region.
@@ -25,13 +29,11 @@ struct pmemstream_region_runtime {
 	enum region_runtime_state state;
 
 	/*
-	 * Offset at which new entries will be appended. Also serves as indicator of region runtime initialization
-	 * state.
+	 * Offset at which new entries will be appended.
 	 */
 	uint64_t append_offset;
 
-	/*
-	 * All entries which start at offset < committed_offset can be treated as committed and safely read
+	/* All entries which start at offset < committed_offset can be treated as committed and safely read
 	 * from multiple threads.
 	 */
 	uint64_t committed_offset;
@@ -45,9 +47,10 @@ struct pmemstream_region_runtime {
  */
 struct region_runtimes_map {
 	critnib *container;
+	struct pmemstream_runtime *data;
 };
 
-struct region_runtimes_map *region_runtimes_map_new(void)
+struct region_runtimes_map *region_runtimes_map_new()
 {
 	struct region_runtimes_map *map = calloc(1, sizeof(*map));
 	if (!map) {
@@ -94,6 +97,9 @@ static int region_runtimes_map_create_or_fail(struct region_runtimes_map *map, s
 	if (!runtime) {
 		return -1;
 	}
+
+	runtime->state = REGION_RUNTIME_STATE_READ_READY;
+	runtime->append_offset = PMEMSTREAM_INVALID_OFFSET;
 
 	int ret = pthread_mutex_init(&runtime->region_lock, NULL);
 	if (ret) {
@@ -146,15 +152,21 @@ int region_runtimes_map_get_or_create(struct region_runtimes_map *map, struct pm
 	return region_runtimes_map_create(map, region, container_handle);
 }
 
+static enum region_runtime_state
+region_runtime_get_state_acquire(const struct pmemstream_region_runtime *region_runtime)
+{
+	return __atomic_load_n(&region_runtime->state, __ATOMIC_ACQUIRE);
+}
+
 uint64_t region_runtime_get_append_offset_acquire(const struct pmemstream_region_runtime *region_runtime)
 {
-	assert(region_runtime_get_state_acquire(region_runtime) != REGION_RUNTIME_STATE_UNINITIALIZED);
+	assert(region_runtime_get_state_acquire(region_runtime) == REGION_RUNTIME_STATE_WRITE_READY);
 	return __atomic_load_n(&region_runtime->append_offset, __ATOMIC_ACQUIRE);
 }
 
-uint64_t region_runtime_get_committed_offset_acquire(const struct pmemstream_region_runtime *region_runtime)
+static uint64_t region_runtime_get_committed_offset_acquire(const struct pmemstream_region_runtime *region_runtime)
 {
-	assert(region_runtime_get_state_acquire(region_runtime) != REGION_RUNTIME_STATE_UNINITIALIZED);
+	assert(region_runtime_get_state_acquire(region_runtime) == REGION_RUNTIME_STATE_WRITE_READY);
 	return __atomic_load_n(&region_runtime->committed_offset, __ATOMIC_ACQUIRE);
 }
 
@@ -162,11 +174,6 @@ void region_runtimes_map_remove(struct region_runtimes_map *map, struct pmemstre
 {
 	struct pmemstream_region_runtime *runtime = critnib_remove(map->container, region.offset);
 	free(runtime);
-}
-
-enum region_runtime_state region_runtime_get_state_acquire(const struct pmemstream_region_runtime *region_runtime)
-{
-	return __atomic_load_n(&region_runtime->state, __ATOMIC_ACQUIRE);
 }
 
 void region_runtime_increase_append_offset(struct pmemstream_region_runtime *region_runtime, uint64_t diff)
@@ -181,37 +188,38 @@ void region_runtime_increase_committed_offset(struct pmemstream_region_runtime *
 	__atomic_fetch_add(&region_runtime->committed_offset, diff, __ATOMIC_RELEASE);
 }
 
-static void region_runtime_initialize_for_read(struct pmemstream_region_runtime *region_runtime,
-					       struct pmemstream_entry tail)
+static void region_runtime_initialize_for_write_no_lock(struct pmemstream_region_runtime *region_runtime,
+							uint64_t tail_offset)
 {
 	/* invariant, region_initialization should always happen under a lock. */
 	assert(pthread_mutex_trylock(&region_runtime->region_lock) != 0);
 	assert(region_runtime);
-	assert(tail.offset != PMEMSTREAM_OFFSET_UNINITIALIZED);
+	assert(tail_offset != PMEMSTREAM_INVALID_OFFSET);
 
-	region_runtime->committed_offset = tail.offset;
-	region_runtime->append_offset = tail.offset;
-	__atomic_store_n(&region_runtime->state, REGION_RUNTIME_STATE_READ_READY, __ATOMIC_RELEASE);
+	region_runtime->append_offset = tail_offset;
+	region_runtime->committed_offset = tail_offset;
+
+	__atomic_store_n(&region_runtime->state, REGION_RUNTIME_STATE_WRITE_READY, __ATOMIC_RELEASE);
 }
 
-void region_runtime_initialize_for_read_locked(struct pmemstream_region_runtime *region_runtime,
-					       struct pmemstream_entry tail)
+static void region_runtime_initialize_for_write_locked(struct pmemstream_region_runtime *region_runtime,
+						       uint64_t offset)
 {
-	if (region_runtime_get_state_acquire(region_runtime) == REGION_RUNTIME_STATE_UNINITIALIZED) {
+	if (region_runtime_get_state_acquire(region_runtime) == REGION_RUNTIME_STATE_READ_READY) {
 		pthread_mutex_lock(&region_runtime->region_lock);
-		if (region_runtime_get_state_acquire(region_runtime) == REGION_RUNTIME_STATE_UNINITIALIZED) {
-			region_runtime_initialize_for_read(region_runtime, tail);
+		if (region_runtime_get_state_acquire(region_runtime) == REGION_RUNTIME_STATE_READ_READY) {
+			region_runtime_initialize_for_write_no_lock(region_runtime, offset);
 		}
 		pthread_mutex_unlock(&region_runtime->region_lock);
 	}
 
-	/* Now, region_runtime can be 'read_ready' or 'write_ready'. */
-	assert(region_runtime_get_state_acquire(region_runtime) != REGION_RUNTIME_STATE_UNINITIALIZED);
+	assert(region_runtime_get_state_acquire(region_runtime) == REGION_RUNTIME_STATE_WRITE_READY);
+	assert(region_runtime_get_append_offset_acquire(region_runtime) != PMEMSTREAM_INVALID_OFFSET);
 }
 
-/* Iterates over entire region. Might initialize region. Should be called under a lock. */
-static int region_iterate_and_initialize_for_read(struct pmemstream *stream, struct pmemstream_region region,
-						  struct pmemstream_region_runtime *region_runtime)
+static int region_runtime_iterate_and_initialize_for_write_no_lock(struct pmemstream *stream,
+								   struct pmemstream_region region,
+								   struct pmemstream_region_runtime *region_runtime)
 {
 	/* invariant, region_initialization should always happen under a lock. */
 	assert(pthread_mutex_trylock(&region_runtime->region_lock) != 0);
@@ -245,65 +253,74 @@ static int region_iterate_and_initialize_for_read(struct pmemstream *stream, str
 	 * region_runtime_initialize_for_read(region_runtime, pmemstream_entry_iterator_get());
 	 */
 
-	region_runtime_initialize_for_read(region_runtime, entry);
+	region_runtime_initialize_for_write_no_lock(region_runtime, entry.offset);
 
 	return 0;
 }
 
-static void region_runtime_clear_from_tail(struct pmemstream *stream, struct pmemstream_region region,
-					   struct pmemstream_region_runtime *region_runtime)
-{
-	/* invariant, region_initialization should always happend under a lock. */
-	assert(pthread_mutex_trylock(&region_runtime->region_lock) != 0);
-	assert(region_runtime_get_state_acquire(region_runtime) == REGION_RUNTIME_STATE_READ_READY);
-
-	uint64_t append_offset = region_runtime_get_append_offset_acquire(region_runtime);
-	const struct span_base *span_base = span_offset_to_span_ptr(&stream->data, region.offset);
-	size_t region_end_offset = region.offset + span_get_total_size(span_base);
-	size_t remaining_size = region_end_offset - append_offset;
-
-	if (remaining_size != 0) {
-		struct span_empty span_empty = {
-			.span_base = span_base_create(remaining_size - sizeof(span_empty), SPAN_EMPTY)};
-
-		uint8_t *destination = (uint8_t *)span_offset_to_span_ptr(&stream->data, append_offset);
-		stream->data.memcpy(destination, &span_empty, sizeof(span_empty), PMEM2_F_MEM_NOFLUSH);
-		stream->data.memset(destination + sizeof(span_empty), 0, remaining_size - sizeof(span_empty),
-				    PMEM2_F_MEM_NONTEMPORAL | PMEM2_F_MEM_NODRAIN);
-		stream->data.persist(destination, sizeof(span_empty));
-	}
-
-	__atomic_store_n(&region_runtime->state, REGION_RUNTIME_STATE_WRITE_READY, __ATOMIC_RELEASE);
-
-	assert(region_runtime_get_state_acquire(region_runtime) == REGION_RUNTIME_STATE_WRITE_READY);
-}
-
-int region_runtime_initialize_for_write_locked(struct pmemstream *stream, struct pmemstream_region region,
-					       struct pmemstream_region_runtime *region_runtime)
+int region_runtime_iterate_and_initialize_for_write_locked(struct pmemstream *stream, struct pmemstream_region region,
+							   struct pmemstream_region_runtime *region_runtime)
 {
 	int ret = 0;
-	assert(region_runtime);
-
-	if (region_runtime_get_state_acquire(region_runtime) == REGION_RUNTIME_STATE_WRITE_READY) {
-		/* Nothing to do . */
-		return 0;
+	if (region_runtime_get_state_acquire(region_runtime) == REGION_RUNTIME_STATE_READ_READY) {
+		pthread_mutex_lock(&region_runtime->region_lock);
+		if (region_runtime_get_state_acquire(region_runtime) == REGION_RUNTIME_STATE_READ_READY) {
+			ret = region_runtime_iterate_and_initialize_for_write_no_lock(stream, region, region_runtime);
+		}
+		pthread_mutex_unlock(&region_runtime->region_lock);
 	}
-
-	pthread_mutex_lock(&region_runtime->region_lock);
-
-	enum region_runtime_state state_locked = region_runtime_get_state_acquire(region_runtime);
-	if (state_locked == REGION_RUNTIME_STATE_UNINITIALIZED) {
-		ret = region_iterate_and_initialize_for_read(stream, region, region_runtime);
-		region_runtime_clear_from_tail(stream, region, region_runtime);
-	} else if (state_locked == REGION_RUNTIME_STATE_READ_READY) {
-		region_runtime_clear_from_tail(stream, region, region_runtime);
-	} else {
-		/* Write_ready. Nothing to do. */
-	}
-
-	pthread_mutex_unlock(&region_runtime->region_lock);
 
 	assert(region_runtime_get_state_acquire(region_runtime) == REGION_RUNTIME_STATE_WRITE_READY);
-	assert(region_runtime_get_append_offset_acquire(region_runtime) != PMEMSTREAM_OFFSET_UNINITIALIZED);
+	assert(region_runtime_get_append_offset_acquire(region_runtime) != PMEMSTREAM_INVALID_OFFSET);
 	return ret;
+}
+
+static bool check_entry_consistency_and_maybe_recover_region(struct pmemstream_entry_iterator *iterator)
+{
+	const struct span_region *span_region =
+		(const struct span_region *)span_offset_to_span_ptr(&iterator->stream->data, iterator->region.offset);
+	uint64_t region_end_offset = iterator->region.offset + span_get_total_size(&span_region->span_base);
+
+	if (iterator->offset >= region_end_offset) {
+		goto invalid_entry;
+	}
+
+	/* XXX: reading this span metadata is potentially dangerous. It might happen so that
+	 * before calling this function region_runtime is in UNINITIALIZED state but some other thread
+	 * changes it to CLEAR while span metadata is read. We might fix this using Optimistic Concurrency
+	 * Control (using region_runtime state). */
+	const struct span_base *span_base = span_offset_to_span_ptr(&iterator->stream->data, iterator->offset);
+	if (span_get_type(span_base) != SPAN_ENTRY) {
+		goto invalid_entry;
+	}
+
+	const struct span_entry *span_entry = (const struct span_entry *)span_base;
+	const void *entry_data = span_entry->data;
+	if (util_popcount_memory(entry_data, span_get_size(span_base)) == span_entry->popcount) {
+		return true;
+	}
+
+invalid_entry:
+	/* Lazy (re-)initialization of region, when needed. */
+	if (iterator->perform_recovery)
+		region_runtime_initialize_for_write_locked(iterator->region_runtime, iterator->offset);
+	return false;
+}
+
+bool check_entry_and_maybe_recover_region(struct pmemstream_entry_iterator *iterator)
+{
+	if (region_runtime_get_state_acquire(iterator->region_runtime) == REGION_RUNTIME_STATE_READ_READY)
+		return check_entry_consistency_and_maybe_recover_region(iterator);
+
+	/* Make sure that we didn't go beyond committed entries. */
+	uint64_t committed_offset = region_runtime_get_committed_offset_acquire(iterator->region_runtime);
+	if (iterator->offset >= committed_offset) {
+		return false;
+	}
+
+	/* Region is already recovered, and we did not encounter end of the data yet.
+	 * Span must be a valid entry. */
+	assert(check_entry_consistency_and_maybe_recover_region(iterator));
+
+	return true;
 }
