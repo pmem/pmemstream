@@ -8,6 +8,7 @@
 
 #include "critnib/critnib.h"
 #include "libpmemstream.h"
+#include "pmemstream_runtime.h"
 #include "span.h"
 
 #include <pthread.h>
@@ -25,7 +26,7 @@ extern "C" {
 struct pmemstream_region_runtime;
 struct region_runtimes_map;
 
-struct region_runtimes_map *region_runtimes_map_new();
+struct region_runtimes_map *region_runtimes_map_new(struct pmemstream_runtime *data);
 void region_runtimes_map_destroy(struct region_runtimes_map *map);
 
 /* Gets (or creates if missing) pointer to region_runtime associated with specified region. */

@@ -38,10 +38,6 @@ static_assert(offsetof(struct mpmc_queue, consume_offset) - offsetof(struct mpmc
 /* XXX: add support for dynamic producer registration? */
 struct mpmc_queue *mpmc_queue_new(size_t num_producers, size_t size)
 {
-	if (size == UINT64_MAX) {
-		return NULL;
-	}
-
 	struct mpmc_queue *queue = aligned_alloc(alignof(struct mpmc_queue),
 						 sizeof(*queue) + num_producers * sizeof(struct mpmc_queue_producer));
 	if (!queue) {

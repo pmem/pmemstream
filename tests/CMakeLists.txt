@@ -134,7 +134,7 @@ if(TESTS_RAPIDCHECK)
 	build_test_rc(NAME publish_append_async SRC_FILES unittest/publish_append_async.cpp LIBS miniasync)
 	add_test_generic(NAME publish_append_async TRACERS none)
 
-	build_test_rc(NAME region_runtime_initialize SRC_FILES unittest/region_runtime_initialize.cpp ../src/region.c ../src/critnib/critnib.c ../src/iterator.c)
+	build_test_rc(NAME region_runtime_initialize SRC_FILES unittest/region_runtime_initialize.cpp ../src/region.c ../src/critnib/critnib.c ../src/iterator.c ../src/mpmc_queue.c)
 	add_test_generic(NAME region_runtime_initialize TRACERS none memcheck)
 
 	build_test_rc(NAME reserve_publish SRC_FILES unittest/reserve_publish.cpp)

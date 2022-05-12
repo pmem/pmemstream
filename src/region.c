@@ -29,12 +29,31 @@ struct pmemstream_region_runtime {
 	enum region_runtime_state state;
 
 	/*
+	 * Runtime, needed to perform operations on persistent region.
+	 */
+	struct pmemstream_runtime *data;
+
+	/*
+	 * Points to underlying region.
+	 */
+	struct pmemstream_region region;
+
+	/*
 	 * Offset at which new entries will be appended.
 	 */
 	uint64_t append_offset;
 
-	/* All entries which start at offset < committed_offset can be treated as committed and safely read
+	/*
+	 * All entries which start at offset < committed_offset can be treated as committed and safely read
 	 * from multiple threads.
+	 *
+	 * XXX: committed offset is not reliable in case of concurrent appends to the same region. The reason is
+	 * that it is updated in pmemstream_publish/pmemstream_sync, potentially in different order than append_offset.
+	 *
+	 * To fix this, we might use mechanism similar to timestamp tracking. Alternatively we can batch (transparently
+	 * or via a transaction) appends and then, increase committed_offset on batch commit.
+	 *
+	 * XXX: add test for this: async_append entires of different sizes and call future_poll in different order.
 	 */
 	uint64_t committed_offset;
 
@@ -50,13 +69,14 @@ struct region_runtimes_map {
 	struct pmemstream_runtime *data;
 };
 
-struct region_runtimes_map *region_runtimes_map_new()
+struct region_runtimes_map *region_runtimes_map_new(struct pmemstream_runtime *data)
 {
 	struct region_runtimes_map *map = calloc(1, sizeof(*map));
 	if (!map) {
 		return NULL;
 	}
 
+	map->data = data;
 	map->container = critnib_new();
 	if (!map->container) {
 		goto err_critnib;
@@ -98,8 +118,11 @@ static int region_runtimes_map_create_or_fail(struct region_runtimes_map *map, s
 		return -1;
 	}
 
+	runtime->data = map->data;
+	runtime->region = region;
 	runtime->state = REGION_RUNTIME_STATE_READ_READY;
 	runtime->append_offset = PMEMSTREAM_INVALID_OFFSET;
+	runtime->committed_offset = PMEMSTREAM_INVALID_OFFSET;
 
 	int ret = pthread_mutex_init(&runtime->region_lock, NULL);
 	if (ret) {
@@ -199,6 +222,14 @@ static void region_runtime_initialize_for_write_no_lock(struct pmemstream_region
 	region_runtime->append_offset = tail_offset;
 	region_runtime->committed_offset = tail_offset;
 
+	uint8_t *next_entry_dst = (uint8_t *)pmemstream_offset_to_ptr(region_runtime->data, tail_offset);
+	region_runtime->data->memset(next_entry_dst, 0, sizeof(struct span_entry), 0);
+
+	struct span_region *span_region =
+		(struct span_region *)span_offset_to_span_ptr(region_runtime->data, region_runtime->region.offset);
+	span_region->max_valid_timestamp = PMEMSTREAM_INVALID_TIMESTAMP;
+	region_runtime->data->persist(&span_region->max_valid_timestamp, sizeof(span_region->max_valid_timestamp));
+
 	__atomic_store_n(&region_runtime->state, REGION_RUNTIME_STATE_WRITE_READY, __ATOMIC_RELEASE);
 }
 
@@ -286,24 +317,31 @@ static bool check_entry_consistency_and_maybe_recover_region(struct pmemstream_e
 	}
 
 	/* XXX: reading this span metadata is potentially dangerous. It might happen so that
-	 * before calling this function region_runtime is in UNINITIALIZED state but some other thread
-	 * changes it to CLEAR while span metadata is read. We might fix this using Optimistic Concurrency
-	 * Control (using region_runtime state). */
+	 * before calling this function region_runtime is in READ_READY state but some other thread
+	 * changes it to WRITE_READY while span metadata is read. We might fix this using Optimistic Locking.
+	 */
 	const struct span_base *span_base = span_offset_to_span_ptr(&iterator->stream->data, iterator->offset);
 	if (span_get_type(span_base) != SPAN_ENTRY) {
 		goto invalid_entry;
 	}
 
 	const struct span_entry *span_entry = (const struct span_entry *)span_base;
-	const void *entry_data = span_entry->data;
-	if (util_popcount_memory(entry_data, span_get_size(span_base)) == span_entry->popcount) {
+
+	/* XXX: max timestamp should be passed to iterator */
+	uint64_t committed_timestamp = pmemstream_committed_timestamp(iterator->stream);
+	uint64_t max_valid_timestamp = __atomic_load_n(&span_region->max_valid_timestamp, __ATOMIC_ACQUIRE);
+
+	if (committed_timestamp < max_valid_timestamp || max_valid_timestamp == PMEMSTREAM_INVALID_TIMESTAMP)
+		max_valid_timestamp = committed_timestamp;
+
+	if (span_entry->timestamp < max_valid_timestamp) {
 		return true;
 	}
 
 invalid_entry:
-	/* Lazy (re-)initialization of region, when needed. */
-	if (iterator->perform_recovery)
+	if (iterator->perform_recovery) {
 		region_runtime_initialize_for_write_locked(iterator->region_runtime, iterator->offset);
+	}
 	return false;
 }
 
