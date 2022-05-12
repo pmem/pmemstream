@@ -10,10 +10,12 @@
 
 #include "iterator.h"
 #include "libpmemstream.h"
+#include "mpmc_queue.h"
 #include "pmemstream_runtime.h"
 #include "region.h"
 #include "region_allocator/allocator_base.h"
 #include "span.h"
+#include "thread_id.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -22,10 +24,22 @@ extern "C" {
 #define PMEMSTREAM_SIGNATURE ("PMEMSTREAM")
 #define PMEMSTREAM_SIGNATURE_SIZE (64)
 
+#define PMEMSTREAM_INVALID_TIMESTAMP 0ULL
+
+/* XXX: lift this requirement */
+#define PMEMSTREAM_MAX_CONCURRENCY 64ULL
+
 struct pmemstream_header {
 	char signature[PMEMSTREAM_SIGNATURE_SIZE];
 	uint64_t stream_size;
 	uint64_t block_size;
+
+	/* XXX: investigate if it makes sense to store 'shadow' value in DRAM (for reads) */
+	/* XXX: we can 'distribute' persisted_timestamp and store multiple variables (one per thread) to speed up writes
+	 */
+	/* All entries with timestamp strictly less than 'persisted_timestamp' can be treated as persisted. */
+	uint64_t persisted_timestamp;
+
 	struct allocator_header region_allocator_header;
 };
 
@@ -41,6 +55,8 @@ struct pmemstream {
 	size_t block_size;
 
 	struct region_runtimes_map *region_runtimes_map;
+	struct mpmc_queue *timestamp_queue;
+	struct thread_id *thread_id;
 };
 
 static inline int pmemstream_validate_stream_and_offset(struct pmemstream *stream, uint64_t offset)
@@ -59,6 +75,17 @@ static inline const struct span_base *span_offset_to_span_ptr(const struct pmems
 {
 	assert(offset % sizeof(struct span_base) == 0);
 	return (const struct span_base *)pmemstream_offset_to_ptr(data, offset);
+}
+
+/* XXX: make those functions public */
+static inline uint64_t pmemstream_persisted_timestamp(struct pmemstream *stream)
+{
+	return __atomic_load_n(&stream->header->persisted_timestamp, __ATOMIC_ACQUIRE);
+}
+
+static inline uint64_t pmemstream_committed_timestamp(struct pmemstream *stream)
+{
+	return mpmc_queue_get_consumed_offset(stream->timestamp_queue) + 1;
 }
 
 #ifdef __cplusplus

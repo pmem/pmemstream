@@ -91,7 +91,7 @@ add_test_generic(NAME entry_iterator TRACERS none memcheck pmemcheck drd helgrin
 build_test(region_create api_c/region_create.c)
 add_test_generic(NAME region_create TRACERS none memcheck pmemcheck drd helgrind)
 
-build_test_ext(NAME region_initialize SRC_FILES unittest/region_initialize.cpp ../src/region.c ../src/critnib/critnib.c ../src/span.c ../src/iterator.c)
+build_test_ext(NAME region_initialize SRC_FILES unittest/region_initialize.cpp ../src/region.c ../src/critnib/critnib.c ../src/span.c ../src/iterator.c ../src/mpmc_queue.c)
 add_test_generic(NAME region_initialize TRACERS none memcheck)
 
 build_test(region_iterator api_c/region_iterator.c)

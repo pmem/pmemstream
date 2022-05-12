@@ -20,7 +20,7 @@ int main(int argc, char *argv[])
 {
 	return run_test([&] {
 		{
-			auto region_runtimes_map = make_region_runtimes_map();
+			auto region_runtimes_map = make_region_runtimes_map(nullptr); // XXX: mock pmemstream_runtime
 
 			struct pmemstream_region_runtime *region_runtime;
 			struct pmemstream_region region = {8};
@@ -46,10 +46,6 @@ int main(int argc, char *argv[])
 						if (initialized) {
 							auto append_offset = region_runtime_get_append_offset_acquire(
 								region_runtime);
-							auto committed_offset =
-								region_runtime_get_committed_offset_acquire(
-									region_runtime);
-							UT_ASSERTeq(append_offset, committed_offset);
 							UT_ASSERTeq(append_offset, region.offset);
 						}
 					}

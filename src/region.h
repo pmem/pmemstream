@@ -8,6 +8,7 @@
 
 #include "critnib/critnib.h"
 #include "libpmemstream.h"
+#include "pmemstream_runtime.h"
 #include "span.h"
 
 #include <pthread.h>
@@ -33,7 +34,7 @@ enum region_runtime_state {
 struct pmemstream_region_runtime;
 struct region_runtimes_map;
 
-struct region_runtimes_map *region_runtimes_map_new();
+struct region_runtimes_map *region_runtimes_map_new(struct pmemstream_runtime *data);
 void region_runtimes_map_destroy(struct region_runtimes_map *map);
 
 /*
@@ -50,12 +51,7 @@ enum region_runtime_state region_runtime_get_state_acquire(const struct pmemstre
 /* Precondition: region_runtime_get_state_acquire() == REGION_RUNTIME_STATE_WRITE_READY */
 uint64_t region_runtime_get_append_offset_acquire(const struct pmemstream_region_runtime *region_runtime);
 /* Precondition: region_runtime_get_state_acquire() == REGION_RUNTIME_STATE_WRITE_READY */
-uint64_t region_runtime_get_committed_offset_acquire(const struct pmemstream_region_runtime *region_runtime);
-
-/* Precondition: region_runtime_get_state_acquire() == REGION_RUNTIME_STATE_WRITE_READY */
 void region_runtime_increase_append_offset(struct pmemstream_region_runtime *region_runtime, uint64_t diff);
-/* Precondition: region_runtime_get_state_acquire() == REGION_RUNTIME_STATE_WRITE_READY */
-void region_runtime_increase_committed_offset(struct pmemstream_region_runtime *region_runtime, uint64_t diff);
 
 /*
  * Performs region recovery. Sets append/committed offsets to 'offset' value. After this call, it's safe to

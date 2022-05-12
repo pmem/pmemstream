@@ -37,6 +37,7 @@ static void pmemstream_init(struct pmemstream *stream)
 
 	stream->header->stream_size = stream->stream_size;
 	stream->header->block_size = stream->block_size;
+	stream->header->persisted_timestamp = PMEMSTREAM_INVALID_TIMESTAMP;
 	stream->data.persist(stream->header, sizeof(struct pmemstream_header));
 
 	stream->data.memcpy(stream->header->signature, PMEMSTREAM_SIGNATURE, strlen(PMEMSTREAM_SIGNATURE),
@@ -93,6 +94,38 @@ static int pmemstream_validate_sizes(size_t block_size, struct pmem2_map *map)
 	return 0;
 }
 
+/* XXX: this function could be made asynchronous perhaps? */
+// XXX: test this: crash before commiting new entry and then
+// on restart, add new entry (should have same timestamp), verify
+// that the unfinished entry is not visible.
+static int pmemstream_mark_regions_for_recovery(struct pmemstream *stream)
+{
+	struct pmemstream_region_iterator *iterator;
+	int ret = pmemstream_region_iterator_new(&iterator, stream);
+	if (ret) {
+		return ret;
+	}
+
+	/* XXX: we could keep list of active regions in stream header/lanes and only iterate over them. */
+	struct pmemstream_region region;
+	while (pmemstream_region_iterator_next(iterator, &region) == 0) {
+		struct span_region *span_region =
+			(struct span_region *)span_offset_to_span_ptr(&stream->data, region.offset);
+		if (span_region->max_valid_timestamp == PMEMSTREAM_INVALID_TIMESTAMP) {
+			span_region->max_valid_timestamp = stream->header->persisted_timestamp;
+			stream->data.flush(&span_region->max_valid_timestamp, sizeof(span_region->max_valid_timestamp));
+		} else {
+			/* If max_valid_timestamp points is equal to a valid timestamp, this means that this regions
+			 * hasn't recovered after previous restart yet, skip it. */
+		}
+	}
+	stream->data.drain();
+
+	pmemstream_region_iterator_delete(&iterator);
+
+	return 0;
+}
+
 int pmemstream_from_map(struct pmemstream **stream, size_t block_size, struct pmem2_map *map)
 {
 	if (!stream) {
@@ -127,15 +160,36 @@ int pmemstream_from_map(struct pmemstream **stream, size_t block_size, struct pm
 
 	allocator_runtime_initialize(&s->data, &s->header->region_allocator_header);
 
-	s->region_runtimes_map = region_runtimes_map_new();
+	int ret = pmemstream_mark_regions_for_recovery(s);
+	if (ret) {
+		return ret;
+	}
+
+	s->region_runtimes_map = region_runtimes_map_new(&s->data);
 	if (!s->region_runtimes_map) {
-		goto err;
+		goto err_region_runtimes;
+	}
+
+	s->timestamp_queue = mpmc_queue_new(PMEMSTREAM_MAX_CONCURRENCY, UINT64_MAX);
+	if (!s->timestamp_queue) {
+		goto err_queue;
+	}
+
+	mpmc_queue_reset(s->timestamp_queue, s->header->persisted_timestamp);
+
+	s->thread_id = thread_id_new();
+	if (!s->thread_id) {
+		goto err_thread_id;
 	}
 
 	*stream = s;
 	return 0;
 
-err:
+err_thread_id:
+	mpmc_queue_destroy(s->timestamp_queue);
+err_queue:
+	region_runtimes_map_destroy(s->region_runtimes_map);
+err_region_runtimes:
 	free(s);
 	return -1;
 }
@@ -146,6 +200,8 @@ void pmemstream_delete(struct pmemstream **stream)
 		return;
 	}
 	struct pmemstream *s = *stream;
+	thread_id_destroy(s->thread_id);
+	mpmc_queue_destroy(s->timestamp_queue);
 	region_runtimes_map_destroy(s->region_runtimes_map);
 	free(s);
 	*stream = NULL;
@@ -305,6 +361,46 @@ int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region regio
 	return ret;
 }
 
+static uint64_t pmemstream_acquire_timestamp(struct pmemstream *stream)
+{
+	uint64_t tid = thread_id_get(stream->thread_id);
+	return mpmc_queue_acquire(stream->timestamp_queue, tid, 1);
+}
+
+static void pmemstream_produce_timestamp(struct pmemstream *stream, uint64_t timestamp /*XXX*/)
+{
+	uint64_t tid = thread_id_get(stream->thread_id);
+	mpmc_queue_produce(stream->timestamp_queue, tid);
+}
+
+static uint64_t pmemstream_sync_timestamps(struct pmemstream *stream)
+{
+	uint64_t ready_timestamp;
+	uint64_t num_timestamps =
+		mpmc_queue_consume(stream->timestamp_queue, PMEMSTREAM_MAX_CONCURRENCY, &ready_timestamp);
+	uint64_t committed_timestamp = ready_timestamp + num_timestamps;
+
+	/* XXX: this should be done inside "PERISTENT" future or inside pmemstream_sync. */
+	stream->header->persisted_timestamp = committed_timestamp;
+	stream->data.persist(&stream->header->persisted_timestamp, sizeof(stream->header->persisted_timestamp));
+
+	return committed_timestamp;
+}
+
+static void pmemstream_store_entry_metadata(struct pmemstream *stream, uint8_t *destination,
+					    struct span_entry *span_entry)
+{
+	/* Store metadata. */
+	stream->data.memcpy(destination, span_entry, sizeof(*span_entry), PMEM2_F_MEM_NOFLUSH);
+
+	/* Clear next entry metadata. */
+	stream->data.memset(destination + span_get_total_size(&span_entry->span_base), 0, sizeof(*span_entry),
+			    PMEM2_F_MEM_NOFLUSH);
+
+	/* Persist data, metadata and zeroed region. */
+	stream->data.persist(destination, span_get_total_size(&span_entry->span_base) + sizeof(*span_entry));
+}
+
 int pmemstream_publish(struct pmemstream *stream, struct pmemstream_region region,
 		       struct pmemstream_region_runtime *region_runtime, const void *data, size_t size,
 		       struct pmemstream_entry reserved_entry)
@@ -324,15 +420,18 @@ int pmemstream_publish(struct pmemstream *stream, struct pmemstream_region regio
 		}
 	}
 
-	struct span_entry span_entry = {.span_base = span_base_create(size, SPAN_ENTRY),
-					.popcount = util_popcount_memory(data, size)};
-
 	uint8_t *destination = (uint8_t *)span_offset_to_span_ptr(&stream->data, reserved_entry.offset);
-	stream->data.memcpy(destination, &span_entry, sizeof(span_entry), PMEM2_F_MEM_NOFLUSH);
-	/* 'data' is already copied - we only need to persist. */
-	stream->data.persist(destination, pmemstream_entry_total_size_aligned(size));
+	uint64_t timestamp = pmemstream_acquire_timestamp(stream);
 
-	region_runtime_increase_committed_offset(region_runtime, pmemstream_entry_total_size_aligned(size));
+	struct span_entry span_entry = {.span_base = span_base_create(size, SPAN_ENTRY), .timestamp = timestamp};
+	pmemstream_store_entry_metadata(stream, destination, &span_entry);
+
+	pmemstream_produce_timestamp(stream, timestamp);
+
+	while (pmemstream_sync_timestamps(stream) <= timestamp) {
+		/* XXX: for async version, this loop should be implemented as a future_poll, for sync version we might
+		 * want to add blocking consume */
+	}
 
 	return 0;
 }
