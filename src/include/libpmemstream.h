@@ -139,15 +139,11 @@ struct pmemstream_async_append_fut pmemstream_async_append(struct pmemstream *st
 							   struct pmemstream_region_runtime *region_runtime,
 							   const void *data, size_t size);
 
-// returns pointer to the data of the entry
+/* Returns pointer to the data of the entry. Assumes that 'entry' points to a valid entry. */
 const void *pmemstream_entry_data(struct pmemstream *stream, struct pmemstream_entry entry);
 
-// returns the size of the entry
+/* Returns the size of the entry. Assumes that 'entry' points to a valid entry. */
 size_t pmemstream_entry_length(struct pmemstream *stream, struct pmemstream_entry entry);
-
-// an active pmemstream region or entry prevents the truncate function from
-// removing its memory location.
-// truncation can only affect regions.
 
 int pmemstream_region_iterator_new(struct pmemstream_region_iterator **iterator, struct pmemstream *stream);
 
@@ -158,8 +154,8 @@ void pmemstream_region_iterator_delete(struct pmemstream_region_iterator **itera
 int pmemstream_entry_iterator_new(struct pmemstream_entry_iterator **iterator, struct pmemstream *stream,
 				  struct pmemstream_region region);
 
-// if this function succeeds, entry points to a valid element in the stream, otherwise, it points to a memory
-// right after last valid entry or to a beggining of region if there are no valid entries
+/* If this function succeeds, entry points to a valid element in the stream. Otherwise, it points to a
+ * last valid entry or to a beggining of region if there are no valid entries. */
 int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iterator, struct pmemstream_region *region,
 				   struct pmemstream_entry *entry);
 
