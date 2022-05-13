@@ -218,16 +218,34 @@ static int region_iterate_and_initialize_for_read(struct pmemstream *stream, str
 
 	struct pmemstream_entry_iterator iterator;
 
-	/* do not use region_runtime_initialize_for_read_locked - current function is already executing under a
-	 * region_lock. */
-	int ret = entry_iterator_initialize(&iterator, stream, region, &region_runtime_initialize_for_read);
+	/* Do not attempt recovery inside iterator to avoid deadlocks on region_lock. */
+	int ret = entry_iterator_initialize(&iterator, stream, region, false);
 	if (ret) {
 		return ret;
 	}
 
-	/* Loop over all entries - initialization will happen when we encounter the last one. */
-	while (pmemstream_entry_iterator_next(&iterator, NULL, NULL) == 0) {
+	struct pmemstream_entry entry = {.offset = PMEMSTREAM_INVALID_OFFSET};
+	while (pmemstream_entry_iterator_next(&iterator, NULL, &entry) == 0) {
 	}
+
+	if (entry.offset != PMEMSTREAM_INVALID_OFFSET) {
+		const struct span_base *span_base = span_offset_to_span_ptr(&stream->data, entry.offset);
+		assert(span_get_type(span_base) == SPAN_ENTRY);
+
+		/* Move offset after last valid entry. */
+		entry.offset += span_get_total_size(span_base);
+	} else {
+		/* Set offset to beginning of the data. */
+		entry.offset = iterator.offset;
+	}
+
+	/* XXX: can be simplified after API refactor to:
+	 * pmemstream_entry_iterator_seek_first();
+	 * while (pmemstream_entry_iterator_is_valid() == 0) pmemstream_entry_iterator_next();
+	 * region_runtime_initialize_for_read(region_runtime, pmemstream_entry_iterator_get());
+	 */
+
+	region_runtime_initialize_for_read(region_runtime, entry);
 
 	return 0;
 }
