@@ -47,13 +47,16 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "pmemstream_region_iterator_new failed\n");
 		return ret;
 	}
+	pmemstream_region_iterator_seek_first(riter);
 
 	int i = 0;
 	for (; i < EXAMPLE_ASYNC_COUNT; ++i) {
-		ret = pmemstream_region_iterator_next(riter); // , &regions[i]
+		ret = pmemstream_region_iterator_is_valid(riter);
 		if (ret != 0) {
 			break;
 		}
+		regions[i] = pmemstream_region_iterator_get(riter);
+		pmemstream_region_iterator_next(riter);
 	}
 	/* if regions are missing - allocate them */
 	for (; i < EXAMPLE_ASYNC_COUNT; ++i) {

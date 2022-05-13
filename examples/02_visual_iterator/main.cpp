@@ -69,9 +69,11 @@ int main(int argc, char *argv[])
 		return ret;
 	}
 
+	pmemstream_region_iterator_seek_first(riter);
+
 	/* Iterate over all regions. */
 	size_t region_id = 0;
-	while (pmemstream_region_iterator_next(riter) == 0) {
+	while (pmemstream_region_iterator_is_valid(riter) == 0) {
 		struct pmemstream_entry entry;
 		struct pmemstream_entry_iterator *eiter;
 		ret = pmemstream_entry_iterator_new(&eiter, stream, region);
