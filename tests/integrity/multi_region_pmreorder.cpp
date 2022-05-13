@@ -54,13 +54,13 @@ void check_consistency(test_config_type test_config)
 	struct pmemstream_test_base s(copy_path, test_config.block_size, test_config.stream_size, no_truncate, no_init);
 
 	auto riter = s.sut.region_iterator();
-	int region_counter = -1;
+	pmemstream_region_iterator_seek_first(riter.get());
+	int region_counter = 0;
 	int ret = 0;
-	do {
+	while (pmemstream_region_iterator_is_valid(riter.get()) == 0) {
 		++region_counter;
-		struct pmemstream_region region;
-		ret = pmemstream_region_iterator_next(riter.get(), &region);
-	} while (ret == 0);
+		pmemstream_region_iterator_next(riter.get());
+	}
 
 	struct pmemstream_region region;
 	ret = pmemstream_region_allocate(s.sut.c_ptr(), TEST_DEFAULT_BLOCK_SIZE, &region);
