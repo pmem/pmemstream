@@ -26,7 +26,6 @@ struct pmemstream_entry_iterator {
 struct pmemstream_region_iterator {
 	struct pmemstream *const stream;
 	struct pmemstream_region region;
-	struct pmemstream_region prev_region;
 };
 
 /* Initializes pmemstream_entry_iterator pointed to by 'iterator'. 'perform_recovery' specifies whether this iterator

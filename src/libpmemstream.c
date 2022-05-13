@@ -108,7 +108,10 @@ static int pmemstream_mark_regions_for_recovery(struct pmemstream *stream)
 
 	/* XXX: we could keep list of active regions in stream header/lanes and only iterate over them. */
 	struct pmemstream_region region;
-	while (pmemstream_region_iterator_next(iterator, &region) == 0) {
+	pmemstream_region_iterator_seek_first(iterator);
+
+	while (pmemstream_region_iterator_is_valid(iterator) == 0) {
+		region = pmemstream_region_iterator_get(iterator);
 		struct span_region *span_region =
 			(struct span_region *)span_offset_to_span_ptr(&stream->data, region.offset);
 		if (span_region->max_valid_timestamp == PMEMSTREAM_INVALID_TIMESTAMP) {
@@ -118,6 +121,7 @@ static int pmemstream_mark_regions_for_recovery(struct pmemstream *stream)
 			/* If max_valid_timestamp points is equal to a valid timestamp, this means that this regions
 			 * hasn't recovered after previous restart yet, skip it. */
 		}
+		pmemstream_region_iterator_next(iterator);
 	}
 	stream->data.drain();
 
