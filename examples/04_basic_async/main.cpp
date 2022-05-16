@@ -118,8 +118,6 @@ int main(int argc, char *argv[])
 				completed++;
 				printf("Future %d is complete!\n", i);
 
-				// commited vs persist...
-
 				/* Since each append is done in an individual region, we may already, safely
 				 * read out and print appended value. */
 				struct pmemstream_async_append_output *out = FUTURE_OUTPUT(&append_futures[i]);

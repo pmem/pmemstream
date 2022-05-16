@@ -33,13 +33,8 @@ struct pmemstream_entry {
 	uint64_t offset;
 };
 
-/* async publish data:
- * - chained entries,
- * - data from user and from pmemstream_reserve
- */
+/* async publish data, filled with data from user and from pmemstream_reserve */
 struct pmemstream_async_publish_data {
-	FUTURE_CHAIN_ENTRY(struct XXX, XXX);
-	FUTURE_CHAIN_ENTRY_LAST(struct XXX, XXX); // this nope
 	struct pmemstream *stream;
 	struct pmemstream_region region;
 	struct pmemstream_region_runtime *region_runtime;
@@ -54,6 +49,20 @@ struct pmemstream_async_publish_output {
 };
 
 FUTURE(pmemstream_async_publish_fut, struct pmemstream_async_publish_data, struct pmemstream_async_publish_output);
+
+/* async persist data, filled with data from user and from pmemstream_publish */
+struct pmemstream_async_persist_data {
+	struct pmemstream *stream;
+	uint8_t *dest;
+	size_t size;
+};
+
+/* async persist output */
+struct pmemstream_async_persist_output {
+	int error_code;
+};
+
+FUTURE(pmemstream_async_persist_fut, struct pmemstream_async_persist_data, struct pmemstream_async_persist_output);
 
 /* async append data - two chained futures needed to complete append */
 struct pmemstream_async_append_data {
@@ -117,6 +126,9 @@ int pmemstream_publish(struct pmemstream *stream, struct pmemstream_region regio
 		       struct pmemstream_region_runtime *region_runtime, const void *data, size_t size,
 		       struct pmemstream_entry reserved_entry);
 
+/* persist data (with metadata) at selected address */
+int pmemstream_persist(struct pmemstream *stream, uint8_t *dest, size_t size);
+
 /* Synchronously appends data buffer after last valid entry in region.
  * Fails if no space is available.
  *
@@ -138,6 +150,9 @@ struct pmemstream_async_publish_fut pmemstream_async_publish(struct pmemstream *
 							     struct pmemstream_region_runtime *region_runtime,
 							     const void *data, size_t size,
 							     struct pmemstream_entry reserved_entry);
+
+/* asynchronous persist, using libminiasync */
+struct pmemstream_async_persist_fut pmemstream_async_persist(struct pmemstream *stream, uint8_t *dest, size_t size);
 
 /* asynchronous append, using libminiasync */
 struct pmemstream_async_append_fut pmemstream_async_append(struct pmemstream *stream, struct vdm *vdm,

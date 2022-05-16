@@ -305,6 +305,15 @@ int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region regio
 	return ret;
 }
 
+int pmemstream_persist(struct pmemstream *stream, uint8_t *dest, size_t size)
+{
+	// XXX: add checks or something
+
+	stream->data.persist(dest, size);
+
+	return 0;
+}
+
 int pmemstream_publish(struct pmemstream *stream, struct pmemstream_region region,
 		       struct pmemstream_region_runtime *region_runtime, const void *data, size_t size,
 		       struct pmemstream_entry reserved_entry)
@@ -329,11 +338,11 @@ int pmemstream_publish(struct pmemstream *stream, struct pmemstream_region regio
 
 	uint8_t *destination = (uint8_t *)span_offset_to_span_ptr(&stream->data, reserved_entry.offset);
 	stream->data.memcpy(destination, &span_entry, sizeof(span_entry), PMEM2_F_MEM_NOFLUSH);
-	/* 'data' is already copied - we only need to persist. */
-	stream->data.persist(destination, pmemstream_entry_total_size_aligned(size));
-	
-	// pmemstream_persist (only called on regular publish, not on async_publish)
 
+	/* 'data' is already copied at this moment; We need to persist data and metadata. */
+	// pmemstream_persist(stream, destination, pmemstream_entry_total_size_aligned(size));
+
+	/* XXX: update for timestamps...? */
 	region_runtime_increase_committed_offset(region_runtime, pmemstream_entry_total_size_aligned(size));
 
 	return 0;
@@ -362,19 +371,31 @@ int pmemstream_append(struct pmemstream *stream, struct pmemstream_region region
 
 	pmemstream_publish(stream, region, region_runtime, data, size, reserved_entry);
 
+	uint8_t *destination = (uint8_t *)span_offset_to_span_ptr(&stream->data, reserved_entry.offset);
+	size_t aligned_size = pmemstream_entry_total_size_aligned(size);
+	ret = pmemstream_persist(stream, destination, aligned_size);
+
 	if (new_entry) {
 		new_entry->offset = reserved_entry.offset;
 	}
 
-	return 0;
+	return ret;
 }
 
-static void publish_to_append_map(struct future_context *publish_ctx, struct future_context *append_ctx, void *arg)
+static void publish_to_persist_map(struct future_context *publish_ctx, struct future_context *persist_ctx, void *arg)
 {
 	struct pmemstream_async_publish_output *publish_output = future_context_get_output(publish_ctx);
+	struct pmemstream_async_persist_output *persist_output = future_context_get_output(persist_ctx);
+
+	persist_output->error_code = publish_output->error_code;
+}
+
+static void persist_to_append_map(struct future_context *persist_ctx, struct future_context *append_ctx, void *arg)
+{
+	struct pmemstream_async_persist_output *persist_output = future_context_get_output(persist_ctx);
 	struct pmemstream_async_append_output *append_output = future_context_get_output(append_ctx);
 
-	append_output->error_code = publish_output->error_code;
+	append_output->error_code = persist_output->error_code;
 }
 
 static enum future_state pmemstream_async_publish_impl(struct future_context *ctx, struct future_notifier *notifier)
@@ -412,6 +433,34 @@ struct pmemstream_async_publish_fut pmemstream_async_publish(struct pmemstream *
 	return future;
 }
 
+static enum future_state pmemstream_async_persist_impl(struct future_context *ctx, struct future_notifier *notifier)
+{
+	/* XXX: properly use/fix notifier */
+	if (notifier != NULL) {
+		notifier->notifier_used = FUTURE_NOTIFIER_NONE;
+	}
+
+	struct pmemstream_async_persist_data *data = future_context_get_data(ctx);
+	struct pmemstream_async_persist_output *out = future_context_get_output(ctx);
+
+	int ret = pmemstream_persist(data->stream, data->dest, data->size);
+	out->error_code = ret;
+
+	return FUTURE_STATE_COMPLETE;
+}
+
+struct pmemstream_async_persist_fut pmemstream_async_persist(struct pmemstream *stream, uint8_t *dest, size_t size)
+{
+	struct pmemstream_async_persist_fut future = {0};
+	future.data.stream = stream;
+	future.data.dest = dest;
+	future.data.size = size;
+
+	FUTURE_INIT(&future, pmemstream_async_persist_impl);
+
+	return future;
+}
+
 // asynchronously appends data buffer to the end of the region
 struct pmemstream_async_append_fut pmemstream_async_append(struct pmemstream *stream, struct vdm *vdm,
 							   struct pmemstream_region region,
@@ -440,13 +489,17 @@ struct pmemstream_async_append_fut pmemstream_async_append(struct pmemstream *st
 		return future;
 	}
 	future.output.new_entry = reserved_entry;
+	uint8_t *destination = (uint8_t *)span_offset_to_span_ptr(&stream->data, reserved_entry.offset);
+	size_t aligned_size = pmemstream_entry_total_size_aligned(size);
 
 	/* at this point, we have to chain tasks needed to complete an append and initialize the future */
 	FUTURE_CHAIN_ENTRY_INIT(&future.data.memcpy,
 				vdm_memcpy(vdm, reserved_dest, (void *)data, size, PMEM2_F_MEM_NOFLUSH), NULL, NULL);
 	FUTURE_CHAIN_ENTRY_INIT(&future.data.publish,
 				pmemstream_async_publish(stream, region, region_runtime, data, size, reserved_entry),
-				publish_to_append_map, NULL);
+				publish_to_persist_map, NULL);
+	FUTURE_CHAIN_ENTRY_INIT(&future.data.persist, pmemstream_async_persist(stream, destination, aligned_size),
+				persist_to_append_map, NULL);
 
 	// FUTURE_CHAIN_ENTRY_IS_PROCESSED
 	// update status (committed vs persisted) ???
