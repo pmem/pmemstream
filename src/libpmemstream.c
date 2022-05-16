@@ -305,11 +305,12 @@ int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region regio
 	return ret;
 }
 
-int pmemstream_persist(struct pmemstream *stream, uint8_t *dest, size_t size)
+int pmemstream_persist(struct pmemstream_region_runtime *region_runtime, size_t size)
 {
 	// XXX: add checks or something
 
-	stream->data.persist(dest, size);
+	// XXX: increasing committed offset may be wrong (if persisting various-sized entries out of original order)
+	region_runtime_increase_committed_offset(region_runtime, size);
 
 	return 0;
 }
@@ -340,10 +341,10 @@ int pmemstream_publish(struct pmemstream *stream, struct pmemstream_region regio
 	stream->data.memcpy(destination, &span_entry, sizeof(span_entry), PMEM2_F_MEM_NOFLUSH);
 
 	/* 'data' is already copied at this moment; We need to persist data and metadata. */
-	// pmemstream_persist(stream, destination, pmemstream_entry_total_size_aligned(size));
+	stream->data.persist(destination, pmemstream_entry_total_size_aligned(size));
 
-	/* XXX: update for timestamps...? */
-	region_runtime_increase_committed_offset(region_runtime, pmemstream_entry_total_size_aligned(size));
+	// region_runtime_increase_committed_offset(region_runtime, pmemstream_entry_total_size_aligned(size));
+	// pmemstream_persist(stream, region_runtime, pmemstream_entry_total_size_aligned(size));
 
 	return 0;
 }
@@ -371,9 +372,7 @@ int pmemstream_append(struct pmemstream *stream, struct pmemstream_region region
 
 	pmemstream_publish(stream, region, region_runtime, data, size, reserved_entry);
 
-	uint8_t *destination = (uint8_t *)span_offset_to_span_ptr(&stream->data, reserved_entry.offset);
-	size_t aligned_size = pmemstream_entry_total_size_aligned(size);
-	ret = pmemstream_persist(stream, destination, aligned_size);
+	ret = pmemstream_persist(region_runtime, pmemstream_entry_total_size_aligned(size));
 
 	if (new_entry) {
 		new_entry->offset = reserved_entry.offset;
@@ -443,17 +442,17 @@ static enum future_state pmemstream_async_persist_impl(struct future_context *ct
 	struct pmemstream_async_persist_data *data = future_context_get_data(ctx);
 	struct pmemstream_async_persist_output *out = future_context_get_output(ctx);
 
-	int ret = pmemstream_persist(data->stream, data->dest, data->size);
+	int ret = pmemstream_persist(data->region_runtime, data->size);
 	out->error_code = ret;
 
 	return FUTURE_STATE_COMPLETE;
 }
 
-struct pmemstream_async_persist_fut pmemstream_async_persist(struct pmemstream *stream, uint8_t *dest, size_t size)
+struct pmemstream_async_persist_fut pmemstream_async_persist(struct pmemstream_region_runtime *region_runtime,
+							     size_t size)
 {
 	struct pmemstream_async_persist_fut future = {0};
-	future.data.stream = stream;
-	future.data.dest = dest;
+	future.data.region_runtime = region_runtime;
 	future.data.size = size;
 
 	FUTURE_INIT(&future, pmemstream_async_persist_impl);
@@ -489,8 +488,6 @@ struct pmemstream_async_append_fut pmemstream_async_append(struct pmemstream *st
 		return future;
 	}
 	future.output.new_entry = reserved_entry;
-	uint8_t *destination = (uint8_t *)span_offset_to_span_ptr(&stream->data, reserved_entry.offset);
-	size_t aligned_size = pmemstream_entry_total_size_aligned(size);
 
 	/* at this point, we have to chain tasks needed to complete an append and initialize the future */
 	FUTURE_CHAIN_ENTRY_INIT(&future.data.memcpy,
@@ -498,7 +495,8 @@ struct pmemstream_async_append_fut pmemstream_async_append(struct pmemstream *st
 	FUTURE_CHAIN_ENTRY_INIT(&future.data.publish,
 				pmemstream_async_publish(stream, region, region_runtime, data, size, reserved_entry),
 				publish_to_persist_map, NULL);
-	FUTURE_CHAIN_ENTRY_INIT(&future.data.persist, pmemstream_async_persist(stream, destination, aligned_size),
+	FUTURE_CHAIN_ENTRY_INIT(&future.data.persist,
+				pmemstream_async_persist(region_runtime, pmemstream_entry_total_size_aligned(size)),
 				persist_to_append_map, NULL);
 
 	// FUTURE_CHAIN_ENTRY_IS_PROCESSED

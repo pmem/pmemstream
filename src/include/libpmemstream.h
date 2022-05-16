@@ -50,10 +50,9 @@ struct pmemstream_async_publish_output {
 
 FUTURE(pmemstream_async_publish_fut, struct pmemstream_async_publish_data, struct pmemstream_async_publish_output);
 
-/* async persist data, filled with data from user and from pmemstream_publish */
+/* async persist data, filled with data from user */
 struct pmemstream_async_persist_data {
-	struct pmemstream *stream;
-	uint8_t *dest;
+	struct pmemstream_region_runtime *region_runtime;
 	size_t size;
 };
 
@@ -127,7 +126,7 @@ int pmemstream_publish(struct pmemstream *stream, struct pmemstream_region regio
 		       struct pmemstream_entry reserved_entry);
 
 /* persist data (with metadata) at selected address */
-int pmemstream_persist(struct pmemstream *stream, uint8_t *dest, size_t size);
+int pmemstream_persist(struct pmemstream_region_runtime *region_runtime, size_t size);
 
 /* Synchronously appends data buffer after last valid entry in region.
  * Fails if no space is available.
@@ -152,7 +151,8 @@ struct pmemstream_async_publish_fut pmemstream_async_publish(struct pmemstream *
 							     struct pmemstream_entry reserved_entry);
 
 /* asynchronous persist, using libminiasync */
-struct pmemstream_async_persist_fut pmemstream_async_persist(struct pmemstream *stream, uint8_t *dest, size_t size);
+struct pmemstream_async_persist_fut pmemstream_async_persist(struct pmemstream_region_runtime *region_runtime,
+							     size_t size);
 
 /* asynchronous append, using libminiasync */
 struct pmemstream_async_append_fut pmemstream_async_append(struct pmemstream *stream, struct vdm *vdm,

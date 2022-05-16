@@ -112,21 +112,32 @@ int main(int argc, char *argv[])
 	int completed = 0;
 	do {
 		for (int i = 0; i < EXAMPLE_ASYNC_COUNT; i++) {
-			if (!completed_futures[i] &&
-			    future_poll(FUTURE_AS_RUNNABLE(&append_futures[i]), NULL) == FUTURE_STATE_COMPLETE) {
-				completed_futures[i] = 1;
-				completed++;
-				printf("Future %d is complete!\n", i);
+			if (!completed_futures[i]) {
+				auto fstate = future_poll(FUTURE_AS_RUNNABLE(&append_futures[i]), NULL);
+				if (fstate == FUTURE_STATE_COMPLETE) {
+					completed_futures[i] = 1;
+					completed++;
+					printf("Future %d is complete!\n", i);
 
-				/* Since each append is done in an individual region, we may already, safely
-				 * read out and print appended value. */
-				struct pmemstream_async_append_output *out = FUTURE_OUTPUT(&append_futures[i]);
-				if (out->error_code != 0) {
-					fprintf(stderr, "pmemstream_append_async (no. %d) failed\n", i);
-					return out->error_code;
+					/* Since each append is done in an individual region, we can right away
+					 * safely read out and print that appended value. */
+					struct pmemstream_async_append_output *out = FUTURE_OUTPUT(&append_futures[i]);
+					if (out->error_code != 0) {
+						fprintf(stderr, "pmemstream_append_async (no. %d) failed\n", i);
+						return out->error_code;
+					}
+					read_data = (const struct data_entry *)pmemstream_entry_data(stream,
+												     out->new_entry);
+					printf("async append (no. %d) read data: %lu\n", i, read_data->data);
+				} else {
+					/* this future is not completely done yet...
+					 * but the entry may be already committed. */
+
+					// uint8_t *data = (uint8_t
+					// *)future_context_get_data(&append_futures[i].base.context); struct
+					// future_chain_entry *entry = (struct future_chain_entry *)(data);
+					// entry->future.task
 				}
-				read_data = (const struct data_entry *)pmemstream_entry_data(stream, out->new_entry);
-				printf("async append (no. %d) read data: %lu\n", i, read_data->data);
 			}
 		}
 
