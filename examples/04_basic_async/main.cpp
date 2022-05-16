@@ -137,6 +137,35 @@ int main(int argc, char *argv[])
 					// *)future_context_get_data(&append_futures[i].base.context); struct
 					// future_chain_entry *entry = (struct future_chain_entry *)(data);
 					// entry->future.task
+					// .publish.fut.base.context.state == FUTURE_STATE_COMPLETE;
+					printf("   We're trying!\n");
+
+					struct future_chain_entry *memcpy_task =
+						(struct future_chain_entry *)&append_futures[i].data.memcpy;
+					if (append_futures[i].data.memcpy.init == NULL &&
+					    FUTURE_CHAIN_ENTRY_IS_PROCESSED(memcpy_task)) {
+						printf("   memcpy %i is now complete!\n", i);
+					}
+
+					struct future_chain_entry *publish_task =
+						(struct future_chain_entry *)&append_futures[i].data.publish;
+					if (append_futures[i].data.publish.init == NULL &&
+					    FUTURE_CHAIN_ENTRY_IS_PROCESSED(publish_task)) {
+						printf("   publish %i is now complete!\n", i);
+					}
+
+					struct future_chain_entry *persist_task =
+						(struct future_chain_entry *)&append_futures[i].data.persist;
+					if (append_futures[i].data.persist.init == NULL &&
+					    FUTURE_CHAIN_ENTRY_IS_PROCESSED(persist_task)) {
+						printf("   persist %i is now complete!\n", i);
+					}
+
+					// if (append_futures[i].data.memcpy.init == NULL &&
+					// append_futures[i].data.memcpy.fut.base.context.state ==
+					// FUTURE_STATE_COMPLETE) {
+					// printf("   Publish %i is now FOR sure! complete!\n", i);
+					// }
 				}
 			}
 		}

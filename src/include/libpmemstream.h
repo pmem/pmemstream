@@ -41,6 +41,7 @@ struct pmemstream_async_publish_data {
 	const void *data;
 	size_t size;
 	struct pmemstream_entry reserved_entry;
+	size_t value;
 };
 
 /* async publish output */
@@ -54,6 +55,7 @@ FUTURE(pmemstream_async_publish_fut, struct pmemstream_async_publish_data, struc
 struct pmemstream_async_persist_data {
 	struct pmemstream_region_runtime *region_runtime;
 	size_t size;
+	size_t value;
 };
 
 /* async persist output */

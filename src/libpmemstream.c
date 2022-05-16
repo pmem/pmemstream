@@ -411,6 +411,13 @@ static enum future_state pmemstream_async_publish_impl(struct future_context *ct
 				     data->reserved_entry);
 	out->error_code = ret;
 
+	for (; data->value > 1;) {
+		data->value--;
+		if (data->value >= 10) {
+			return FUTURE_STATE_RUNNING;
+		}
+	}
+
 	return FUTURE_STATE_COMPLETE;
 }
 
@@ -426,6 +433,7 @@ struct pmemstream_async_publish_fut pmemstream_async_publish(struct pmemstream *
 	future.data.data = data;
 	future.data.size = size;
 	future.data.reserved_entry = reserved_entry;
+	future.data.value = 13;
 
 	FUTURE_INIT(&future, pmemstream_async_publish_impl);
 
@@ -445,6 +453,13 @@ static enum future_state pmemstream_async_persist_impl(struct future_context *ct
 	int ret = pmemstream_persist(data->region_runtime, data->size);
 	out->error_code = ret;
 
+	for (; data->value > 1;) {
+		data->value--;
+		if (data->value >= 10) {
+			return FUTURE_STATE_RUNNING;
+		}
+	}
+
 	return FUTURE_STATE_COMPLETE;
 }
 
@@ -454,6 +469,7 @@ struct pmemstream_async_persist_fut pmemstream_async_persist(struct pmemstream_r
 	struct pmemstream_async_persist_fut future = {0};
 	future.data.region_runtime = region_runtime;
 	future.data.size = size;
+	future.data.value = 12;
 
 	FUTURE_INIT(&future, pmemstream_async_persist_impl);
 
