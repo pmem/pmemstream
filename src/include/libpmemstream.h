@@ -33,8 +33,13 @@ struct pmemstream_entry {
 	uint64_t offset;
 };
 
-/* async publish data, filled with data from user and from pmemstream_reserve */
+/* async publish data:
+ * - chained entries,
+ * - data from user and from pmemstream_reserve
+ */
 struct pmemstream_async_publish_data {
+	FUTURE_CHAIN_ENTRY(struct XXX, XXX);
+	FUTURE_CHAIN_ENTRY_LAST(struct XXX, XXX); // this nope
 	struct pmemstream *stream;
 	struct pmemstream_region region;
 	struct pmemstream_region_runtime *region_runtime;
@@ -54,6 +59,7 @@ FUTURE(pmemstream_async_publish_fut, struct pmemstream_async_publish_data, struc
 struct pmemstream_async_append_data {
 	FUTURE_CHAIN_ENTRY(struct vdm_operation_future, memcpy);
 	FUTURE_CHAIN_ENTRY(struct pmemstream_async_publish_fut, publish);
+	FUTURE_CHAIN_ENTRY_LAST(struct pmemstream_async_persist_fut, persist);
 };
 
 /* async append returns new entry's offset on success (error_code == 0) */

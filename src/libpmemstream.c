@@ -331,6 +331,8 @@ int pmemstream_publish(struct pmemstream *stream, struct pmemstream_region regio
 	stream->data.memcpy(destination, &span_entry, sizeof(span_entry), PMEM2_F_MEM_NOFLUSH);
 	/* 'data' is already copied - we only need to persist. */
 	stream->data.persist(destination, pmemstream_entry_total_size_aligned(size));
+	
+	// pmemstream_persist (only called on regular publish, not on async_publish)
 
 	region_runtime_increase_committed_offset(region_runtime, pmemstream_entry_total_size_aligned(size));
 
@@ -445,6 +447,9 @@ struct pmemstream_async_append_fut pmemstream_async_append(struct pmemstream *st
 	FUTURE_CHAIN_ENTRY_INIT(&future.data.publish,
 				pmemstream_async_publish(stream, region, region_runtime, data, size, reserved_entry),
 				publish_to_append_map, NULL);
+
+	// FUTURE_CHAIN_ENTRY_IS_PROCESSED
+	// update status (committed vs persisted) ???
 
 	FUTURE_CHAIN_INIT(&future);
 

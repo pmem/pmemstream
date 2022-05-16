@@ -105,7 +105,7 @@ int main(int argc, char *argv[])
 
 	/* For simply scenarios just run and wait for multiple futures: */
 	// struct runtime *r = runtime_new();
-	// runtime_wait_multiple(r, futures, EXAMPLE_ASYNC_COUNT);
+	// runtime_wait_multiple(r, append_futures, EXAMPLE_ASYNC_COUNT);
 
 	/* ... or alternatively manually poll until completion. */
 	int completed_futures[EXAMPLE_ASYNC_COUNT] = {0};
@@ -117,6 +117,8 @@ int main(int argc, char *argv[])
 				completed_futures[i] = 1;
 				completed++;
 				printf("Future %d is complete!\n", i);
+
+				// commited vs persist...
 
 				/* Since each append is done in an individual region, we may already, safely
 				 * read out and print appended value. */
