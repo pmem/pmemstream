@@ -58,8 +58,7 @@ void pmemstream_region_iterator_delete(struct pmemstream_region_iterator **itera
 }
 
 int entry_iterator_initialize(struct pmemstream_entry_iterator *iterator, struct pmemstream *stream,
-			      struct pmemstream_region region,
-			      region_runtime_initialize_fn_type region_runtime_initialize_fn)
+			      struct pmemstream_region region, bool perform_recovery)
 {
 	int ret = pmemstream_validate_stream_and_offset(stream, region.offset);
 	if (ret) {
@@ -78,7 +77,7 @@ int entry_iterator_initialize(struct pmemstream_entry_iterator *iterator, struct
 						 .offset = region.offset + offsetof(struct span_region, data),
 						 .region = region,
 						 .region_runtime = region_rt,
-						 .region_runtime_initialize_fn = region_runtime_initialize_fn};
+						 .perform_recovery = perform_recovery};
 	memcpy(iterator, &iter, sizeof(struct pmemstream_entry_iterator));
 
 	return 0;
@@ -96,7 +95,7 @@ int pmemstream_entry_iterator_new(struct pmemstream_entry_iterator **iterator, s
 		return -1;
 	}
 
-	int ret = entry_iterator_initialize(iter, stream, region, &region_runtime_initialize_for_read_locked);
+	int ret = entry_iterator_initialize(iter, stream, region, true);
 	if (ret) {
 		goto err;
 	}
@@ -210,7 +209,8 @@ static int pmemstream_entry_iterator_next_when_region_not_initialized(struct pme
 
 	/* Lazy (re-)initialization of region, when needed. */
 	struct pmemstream_entry entry = {.offset = iterator->offset};
-	iterator->region_runtime_initialize_fn(iterator->region_runtime, entry);
+	if (iterator->perform_recovery)
+		region_runtime_initialize_for_read_locked(iterator->region_runtime, entry);
 	return -1;
 }
 
