@@ -2,6 +2,7 @@
 /* Copyright 2021-2022, Intel Corporation */
 
 #include "common/util.h"
+#include "pmemstream_runtime.h"
 #include "span.h"
 #include "stream_helpers.h"
 #include "unittest.h"
@@ -20,7 +21,6 @@ void valid_input_test(char *path)
 	pmemstream_test_env env = pmemstream_test_make_default(path);
 
 	int ret;
-	struct pmemstream_entry entry;
 	struct pmemstream_entry_iterator *eiter;
 
 	struct pmemstream_region region;
@@ -31,8 +31,18 @@ void valid_input_test(char *path)
 	UT_ASSERTeq(ret, 0);
 	UT_ASSERTne(eiter, NULL);
 
-	ret = pmemstream_entry_iterator_next(eiter, &region, &entry);
+	pmemstream_entry_iterator_seek_first(eiter);
+
+	ret = pmemstream_entry_iterator_is_valid(eiter);
 	UT_ASSERTeq(ret, -1);
+
+	pmemstream_entry_iterator_next(eiter);
+	ret = pmemstream_entry_iterator_is_valid(eiter);
+
+	UT_ASSERTeq(ret, -1);
+
+	struct pmemstream_entry entry = pmemstream_entry_iterator_get(eiter);
+	UT_ASSERTeq(entry.offset, PMEMSTREAM_INVALID_OFFSET);
 
 	pmemstream_entry_iterator_delete(&eiter);
 	UT_ASSERTeq(eiter, NULL);
@@ -65,8 +75,9 @@ void test_get_last_entry(char *path)
 	UT_ASSERTne(eiter, NULL);
 
 	struct pmemstream_entry last_entry;
-	while (pmemstream_entry_iterator_next(eiter, &region, &last_entry) == 0) {
-		/* NOP */
+	for (pmemstream_entry_iterator_seek_first(eiter); pmemstream_entry_iterator_is_valid(eiter) == 0;
+	     pmemstream_entry_iterator_next(eiter)) {
+		last_entry = pmemstream_entry_iterator_get(eiter);
 	}
 
 	const struct entry_data *last_entry_data = pmemstream_entry_data(env.stream, last_entry);
@@ -86,7 +97,6 @@ void null_iterator_test(char *path)
 	pmemstream_test_env env = pmemstream_test_make_default(path);
 
 	int ret;
-	struct pmemstream_entry entry;
 
 	struct pmemstream_region region;
 	ret = pmemstream_region_allocate(env.stream, TEST_DEFAULT_REGION_SIZE, &region);
@@ -95,8 +105,16 @@ void null_iterator_test(char *path)
 	ret = pmemstream_entry_iterator_new(NULL, env.stream, region);
 	UT_ASSERTeq(ret, -1);
 
-	ret = pmemstream_entry_iterator_next(NULL, &region, &entry);
+	/* It's void, so just check for crash. */
+	pmemstream_entry_iterator_seek_first(NULL);
+	pmemstream_entry_iterator_next(NULL);
+
+	ret = pmemstream_entry_iterator_is_valid(NULL);
+
 	UT_ASSERTeq(ret, -1);
+
+	struct pmemstream_entry entry = pmemstream_entry_iterator_get(NULL);
+	UT_ASSERTeq(entry.offset, PMEMSTREAM_INVALID_OFFSET);
 
 	pmemstream_region_free(env.stream, region);
 	pmemstream_test_teardown(env);
@@ -109,7 +127,6 @@ void invalid_region_test(char *path)
 	int ret;
 	const uint64_t invalid_offset = ALIGN_DOWN(UINT64_MAX, sizeof(span_bytes));
 	struct pmemstream_entry_iterator *eiter = NULL;
-	struct pmemstream_entry entry;
 	struct pmemstream_region region;
 	struct pmemstream_region invalid_region = {.offset = invalid_offset};
 	ret = pmemstream_region_allocate(env.stream, TEST_DEFAULT_REGION_SIZE, &region);
@@ -119,11 +136,7 @@ void invalid_region_test(char *path)
 	UT_ASSERTeq(ret, -1);
 	UT_ASSERTeq(eiter, NULL);
 
-	ret = pmemstream_entry_iterator_new(&eiter, env.stream, region);
-	UT_ASSERTeq(ret, 0);
-	ret = pmemstream_entry_iterator_next(eiter, &invalid_region, &entry);
-	UT_ASSERTeq(ret, -1);
-	UT_ASSERTne(invalid_region.offset, invalid_offset);
+	UT_ASSERTeq(invalid_region.offset, invalid_offset);
 
 	pmemstream_entry_iterator_delete(&eiter);
 	pmemstream_region_free(env.stream, region);
@@ -175,29 +188,6 @@ void null_entry_iterator_test(char *path)
 	pmemstream_test_teardown(env);
 }
 
-void null_entry_test(char *path)
-{
-	pmemstream_test_env env = pmemstream_test_make_default(path);
-
-	int ret;
-	struct pmemstream_entry_iterator *eiter;
-	struct pmemstream_entry *entry = NULL;
-	struct pmemstream_region region;
-	ret = pmemstream_region_allocate(env.stream, TEST_DEFAULT_REGION_SIZE, &region);
-	UT_ASSERTeq(ret, 0);
-
-	ret = pmemstream_entry_iterator_new(&eiter, env.stream, region);
-	UT_ASSERTeq(ret, 0);
-
-	ret = pmemstream_entry_iterator_next(eiter, &region, entry);
-	UT_ASSERTeq(ret, -1);
-	UT_ASSERTeq(entry, NULL);
-
-	pmemstream_entry_iterator_delete(&eiter);
-	pmemstream_region_free(env.stream, region);
-	pmemstream_test_teardown(env);
-}
-
 int main(int argc, char *argv[])
 {
 	if (argc < 2) {
@@ -215,7 +205,6 @@ int main(int argc, char *argv[])
 	null_stream_test(path);
 	null_stream_and_invalid_region_test(path);
 	null_entry_iterator_test(path);
-	null_entry_test(path);
 
 	return 0;
 }

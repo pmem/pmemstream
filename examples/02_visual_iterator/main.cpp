@@ -75,7 +75,6 @@ int main(int argc, char *argv[])
 	size_t region_id = 0;
 	while (pmemstream_region_iterator_is_valid(riter) == 0) {
 		region = pmemstream_region_iterator_get(riter);
-		struct pmemstream_entry entry;
 		struct pmemstream_entry_iterator *eiter;
 		ret = pmemstream_entry_iterator_new(&eiter, stream, region);
 		if (ret == -1) {
@@ -86,7 +85,9 @@ int main(int argc, char *argv[])
 		       pmemstream_region_size(stream, region));
 
 		/* Iterate over all elements in a region and save last entry value. */
-		while (pmemstream_entry_iterator_next(eiter, NULL, &entry) == 0) {
+		for (pmemstream_entry_iterator_seek_first(eiter); pmemstream_entry_iterator_is_valid(eiter) == 0;
+		     pmemstream_entry_iterator_next(eiter)) {
+			struct pmemstream_entry entry = pmemstream_entry_iterator_get(eiter);
 			auto entry_length = pmemstream_entry_length(stream, entry);
 			printf("%s%s0x%-3X %ldbytes ", inner_pointers[1].data(), inner_pointers[0].data(),
 			       (unsigned int)entry.offset, entry_length);
