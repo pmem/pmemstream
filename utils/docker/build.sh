@@ -110,7 +110,15 @@ docker run --privileged=true --name=${CONTAINER_NAME} -i \
 	--env WORKDIR=${WORKDIR} \
 	--env SCRIPTSDIR=${SCRIPTSDIR} \
 	--env GITHUB_ACTIONS=${GITHUB_ACTIONS} \
-	--env GITHUB_REPO=${GITHUB_REPO} \
+	--env GITHUB_ACTION \
+	--env GITHUB_REPO \
+	--env GITHUB_HEAD_REF \
+	--env GITHUB_REF \
+	--env GITHUB_REPOSITORY \
+	--env GITHUB_RUN_ID \
+	--env GITHUB_SERVER_URL \
+	--env GITHUB_SHA \
+	--env GITHUB_WORKFLOW \
 	--env CI_COMMIT=${CI_COMMIT} \
 	--env CI_COMMIT_RANGE=${CI_COMMIT_RANGE} \
 	--env CI_BRANCH=${CI_BRANCH} \
