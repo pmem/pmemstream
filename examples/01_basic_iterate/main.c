@@ -47,7 +47,6 @@ int main(int argc, char *argv[])
 	/* Iterate over all regions. */
 	for (pmemstream_region_iterator_seek_first(riter); pmemstream_region_iterator_is_valid(riter) == 0;
 	     pmemstream_region_iterator_next(riter)) {
-		struct pmemstream_entry entry;
 		struct pmemstream_entry_iterator *eiter;
 
 		struct pmemstream_region region = pmemstream_region_iterator_get(riter);
@@ -59,8 +58,10 @@ int main(int argc, char *argv[])
 		}
 
 		/* Iterate over all elements in a region and save last entry value. */
-		uint64_t last_entry_data = 0;
-		while (pmemstream_entry_iterator_next(eiter, NULL, &entry) == 0) {
+		uint64_t last_entry_data;
+		for (pmemstream_entry_iterator_seek_first(eiter); pmemstream_entry_iterator_is_valid(eiter) == 0;
+		     pmemstream_entry_iterator_next(eiter)) {
+			struct pmemstream_entry entry = pmemstream_entry_iterator_get(eiter);
 			const struct data_entry *d = pmemstream_entry_data(stream, entry);
 			if (d == NULL) {
 				fprintf(stderr, "pmemstream_entry_data failed\n");

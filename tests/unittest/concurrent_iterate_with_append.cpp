@@ -24,19 +24,29 @@ void concurrent_iterate_verify(pmemstream_test_base &stream, pmemstream_region r
 	std::vector<std::string> result;
 
 	auto eiter = stream.sut.entry_iterator(region);
-	struct pmemstream_entry entry;
+
+	while (pmemstream_entry_iterator_is_valid(eiter.get()) != 0)
+		pmemstream_entry_iterator_seek_first(eiter.get());
 
 	/* Loop until all entries are found. */
 	while (result.size() < data.size() + extra_data.size()) {
-		int next = pmemstream_entry_iterator_next(eiter.get(), NULL, &entry);
-		if (next == 0) {
+		if (pmemstream_entry_iterator_is_valid(eiter.get()) == 0) {
+			struct pmemstream_entry entry = pmemstream_entry_iterator_get(eiter.get());
 			result.emplace_back(stream.sut.get_entry(entry));
+			pmemstream_entry_iterator_next(eiter.get());
 		}
 	}
 
 	UT_ASSERT(std::equal(data.begin(), data.end(), result.begin()));
-	UT_ASSERT(
-		std::equal(extra_data.begin(), extra_data.end(), result.begin() + static_cast<long long>(data.size())));
+	auto is_equal =
+		std::equal(extra_data.begin(), extra_data.end(), result.begin() + static_cast<long long>(data.size()));
+	if (!is_equal) {
+		/* tmp: for easier debug */
+		auto mismatch = std::mismatch(extra_data.begin(), extra_data.end(),
+					      result.begin() + static_cast<long long>(data.size()));
+		(void)mismatch;
+		UT_ASSERT_UNREACHABLE;
+	}
 }
 
 void verify_no_garbage(pmemstream_test_base &&stream, const std::vector<std::string> &data,
