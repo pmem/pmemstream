@@ -6,6 +6,7 @@
 #include <rapidcheck.h>
 
 #include "common/util.h"
+#include "libpmemstream_internal.h"
 #include "rapidcheck_helpers.hpp"
 #include "stream_helpers.hpp"
 #include "thread_helpers.hpp"
@@ -48,38 +49,25 @@ int main(int argc, char *argv[])
 			});
 
 		ret += rc::check(
-			"verify that pmemstream_region_runtime_initialize clears region after last entry",
-			[&](const std::vector<std::string> &data, const std::string &garbage) {
-				RC_PRE(data.size() > 0);
-
-				pmemstream_region region;
-				pmemstream_entry last_entry;
-
-				pmemstream_test_base stream(get_test_config().filename, get_test_config().block_size,
-							    get_test_config().stream_size);
-
-				auto garbage_destination = [&](pmemstream_entry last_entry) {
-					/* garbage_destination is surely bigger than end offset of last_entry
-					 * (including any padding). */
-					auto last_entry_data = stream.sut.get_entry(last_entry);
-					auto *data = const_cast<char *>(last_entry_data.data());
-					return data + last_entry_data.size() + get_test_config().block_size;
-				};
-
-				region = stream.helpers.initialize_single_region(TEST_DEFAULT_REGION_SIZE, data);
-
-				last_entry = stream.helpers.get_last_entry(region);
-				auto garbage_dst = garbage_destination(last_entry);
-
-				std::memcpy(garbage_dst, garbage.data(), garbage.size());
+			"verify that pmemstream is ready to be written to after region_runtime_initialize_for_write_locked",
+			[&](pmemstream_with_single_init_region &&stream) {
+				const auto concurrency = *rc::gen::inRange<std::size_t>(0, max_concurrency);
 
 				stream.reopen();
-				stream.sut.region_runtime_initialize(region);
 
-				garbage_dst = garbage_destination(last_entry);
-				for (size_t i = 0; i < garbage.size(); i++) {
-					UT_ASSERTeq(garbage_dst[i], 0);
-				}
+				auto region = stream.helpers.get_first_region();
+
+				auto *c_stream = stream.sut.c_ptr();
+				struct pmemstream_region_runtime *region_runtime;
+				UT_ASSERTeq(region_runtimes_map_get_or_create(c_stream->region_runtimes_map, region,
+									      &region_runtime),
+					    0);
+
+				parallel_exec(concurrency, [&](size_t tid) {
+					UT_ASSERTeq(region_runtime_iterate_and_initialize_for_write_locked(
+							    c_stream, region, region_runtime),
+						    0);
+				});
 			});
 	});
 }

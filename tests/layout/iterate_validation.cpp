@@ -39,15 +39,15 @@ std::vector<uint64_t> generate_inconsistent_span(span_type stype)
 
 	garbage[0] = size | static_cast<uint64_t>(stype);
 	if (stype == SPAN_ENTRY) {
-		/* Always wrong popcount. */
-		auto popcount = *rc::gen::inRange<size_t>(max_entry_size + 1, std::numeric_limits<size_t>::max());
+		/* Always wrong timestamp. */
+		auto popcount = std::numeric_limits<uint64_t>::max();
 		garbage[1] = popcount;
 	}
 
 	return garbage;
 }
 
-std::vector<uint64_t> generate_consistent_entry_span()
+std::vector<uint64_t> generate_consistent_entry_span(uint64_t timestamp)
 {
 	static constexpr size_t max_entry_size = 1024;
 
@@ -58,7 +58,7 @@ std::vector<uint64_t> generate_consistent_entry_span()
 		(metadata_size + size + sizeof(uint64_t)) / sizeof(uint64_t), rc::gen::arbitrary<uint64_t>());
 
 	data[0] = size | static_cast<uint64_t>(SPAN_ENTRY);
-	data[1] = util_popcount_memory(reinterpret_cast<const uint8_t *>(data.data()) + metadata_size, size);
+	data[1] = timestamp;
 
 	return data;
 }
@@ -114,7 +114,8 @@ int main(int argc, char *argv[])
 					 auto region = stream.helpers.initialize_single_region(TEST_DEFAULT_REGION_SIZE,
 											       data);
 
-					 auto span = generate_consistent_entry_span();
+					 auto span = generate_consistent_entry_span(
+						 stream.helpers.get_elements_in_region(region).size());
 					 write_custom_span_at_tail(stream, region, span);
 
 					 stream.reopen();
