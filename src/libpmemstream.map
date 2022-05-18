@@ -12,8 +12,11 @@ LIBPMEMSTREAM_1.0 {
 		pmemstream_delete;
 		pmemstream_entry_data;
 		pmemstream_entry_iterator_delete;
+		pmemstream_entry_iterator_get;
+		pmemstream_entry_iterator_is_valid;
 		pmemstream_entry_iterator_new;
 		pmemstream_entry_iterator_next;
+		pmemstream_entry_iterator_seek_first;
 		pmemstream_entry_length;
 		pmemstream_entry_timestamp;
 		pmemstream_from_map;

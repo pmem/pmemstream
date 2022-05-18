@@ -24,19 +24,36 @@ void concurrent_iterate_verify(pmemstream_test_base &stream, pmemstream_region r
 	std::vector<std::string> result;
 
 	auto eiter = stream.sut.entry_iterator(region);
-	struct pmemstream_entry entry;
+
+	while (pmemstream_entry_iterator_is_valid(eiter.get()) != 0)
+		pmemstream_entry_iterator_seek_first(eiter.get());
+
+	uint64_t expected_timestamp = 1;
 
 	/* Loop until all entries are found. */
 	while (result.size() < data.size() + extra_data.size()) {
-		int next = pmemstream_entry_iterator_next(eiter.get(), NULL, &entry);
-		if (next == 0) {
+		if (pmemstream_entry_iterator_is_valid(eiter.get()) == 0) {
+			struct pmemstream_entry entry = pmemstream_entry_iterator_get(eiter.get());
+
+			uint64_t timestamp = pmemstream_entry_timestamp(stream.sut.c_ptr(), entry);
+			UT_ASSERTeq(timestamp, expected_timestamp);
+			expected_timestamp++;
+
 			result.emplace_back(stream.sut.get_entry(entry));
+			pmemstream_entry_iterator_next(eiter.get());
 		}
 	}
 
 	UT_ASSERT(std::equal(data.begin(), data.end(), result.begin()));
-	UT_ASSERT(
-		std::equal(extra_data.begin(), extra_data.end(), result.begin() + static_cast<long long>(data.size())));
+	auto is_equal =
+		std::equal(extra_data.begin(), extra_data.end(), result.begin() + static_cast<long long>(data.size()));
+	if (!is_equal) {
+		/* tmp: for easier debug */
+		auto mismatch = std::mismatch(extra_data.begin(), extra_data.end(),
+					      result.begin() + static_cast<long long>(data.size()));
+		(void)mismatch;
+		UT_ASSERT_UNREACHABLE;
+	}
 }
 
 void verify_no_garbage(pmemstream_test_base &&stream, const std::vector<std::string> &data,
@@ -84,6 +101,7 @@ int main(int argc, char *argv[])
 			"verify if iterators concurrent to append work do not return garbage (no preinitialization)",
 			[&](pmemstream_empty &&stream, const std::vector<std::string> &extra_data, bool reopen,
 			    ranged<size_t, 1, max_concurrency> concurrency) {
+				RC_PRE(extra_data.size() > 0);
 				stream.helpers.initialize_single_region(region_size, {});
 				verify_no_garbage(std::move(stream), {}, extra_data, reopen, concurrency);
 			});
@@ -92,6 +110,7 @@ int main(int argc, char *argv[])
 				 [&](pmemstream_empty &&stream, const std::vector<std::string> &data,
 				     const std::vector<std::string> &extra_data, bool reopen,
 				     ranged<size_t, 1, max_concurrency> concurrency) {
+					 RC_PRE(data.size() + extra_data.size() > 0);
 					 stream.helpers.initialize_single_region(region_size, data);
 					 verify_no_garbage(std::move(stream), data, extra_data, reopen, concurrency);
 				 });
