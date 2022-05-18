@@ -94,7 +94,7 @@ int entry_iterator_initialize(struct pmemstream_entry_iterator *iterator, struct
 	}
 
 	struct pmemstream_entry_iterator iter = {.stream = stream,
-						 .offset = region.offset + offsetof(struct span_region, data),
+						 .offset = PMEMSTREAM_INVALID_OFFSET,
 						 .region = region,
 						 .region_runtime = region_rt,
 						 .perform_recovery = perform_recovery};
@@ -129,48 +129,88 @@ err:
 	return ret;
 }
 
-#ifndef NDEBUG
+int pmemstream_entry_iterator_is_valid(struct pmemstream_entry_iterator *iterator)
+{
+	if (!iterator) {
+		return -1;
+	}
+
+	if (iterator->offset == PMEMSTREAM_INVALID_OFFSET) {
+		return -1;
+	}
+
+	if (check_entry_consistency(iterator)) {
+		return 0;
+	}
+	return -1;
+}
+
 static bool pmemstream_entry_iterator_offset_is_inside_region(struct pmemstream_entry_iterator *iterator)
 {
 	const struct span_base *span_base = span_offset_to_span_ptr(&iterator->stream->data, iterator->region.offset);
 	uint64_t region_end_offset = iterator->region.offset + span_get_total_size(span_base);
 	return iterator->offset >= iterator->region.offset && iterator->offset <= region_end_offset;
 }
-#endif
 
 static void pmemstream_entry_iterator_advance(struct pmemstream_entry_iterator *iterator)
 {
-	/* Verify that all metadata and data fits inside the region before and after iterator
-	 * increment - those checks should not fail unless stream was corrupted. */
 	assert(pmemstream_entry_iterator_offset_is_inside_region(iterator));
 
 	const struct span_base *span_base = span_offset_to_span_ptr(&iterator->stream->data, iterator->offset);
 	iterator->offset += span_get_total_size(span_base);
-
-	assert(pmemstream_entry_iterator_offset_is_inside_region(iterator));
 }
 
 /* Advances entry iterator by one. Verifies entry integrity and initializes region runtime if end of data is found. */
-int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iterator, struct pmemstream_region *region,
-				   struct pmemstream_entry *user_entry)
+void pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iterator)
 {
 	if (!iterator) {
-		return -1;
+		return;
 	}
 
-	if (region) {
-		*region = iterator->region;
+	if (iterator->offset == PMEMSTREAM_INVALID_OFFSET) {
+		return;
 	}
 
-	if (check_entry_and_maybe_recover_region(iterator)) {
-		if (user_entry) {
-			user_entry->offset = iterator->offset;
-		}
+	assert(pmemstream_entry_iterator_is_valid(iterator) == 0);
+
+	struct pmemstream_entry_iterator tmp_iterator = *iterator;
+	pmemstream_entry_iterator_advance(&tmp_iterator);
+	if (pmemstream_entry_iterator_offset_is_inside_region(&tmp_iterator)) {
 		pmemstream_entry_iterator_advance(iterator);
-		return 0;
+		/* Verify that all metadata and data fits inside the region after iterator
+		 * increment - this check should not fail unless stream was corrupted. */
+		assert(pmemstream_entry_iterator_offset_is_inside_region(iterator));
 	}
+	check_entry_and_maybe_recover_region(iterator);
+}
 
-	return -1;
+void pmemstream_entry_iterator_seek_first(struct pmemstream_entry_iterator *iterator)
+{
+	if (!iterator) {
+		return;
+	}
+	struct pmemstream_entry_iterator tmp_iterator = *iterator;
+
+	tmp_iterator.offset = region_first_entry_offset(iterator->region);
+	if (!check_entry_and_maybe_recover_region(&tmp_iterator)) {
+		iterator->offset = PMEMSTREAM_INVALID_OFFSET;
+		return;
+	}
+	iterator->offset = tmp_iterator.offset;
+	assert(pmemstream_entry_iterator_is_valid(iterator) == 0);
+}
+
+struct pmemstream_entry pmemstream_entry_iterator_get(struct pmemstream_entry_iterator *iterator)
+{
+	struct pmemstream_entry entry;
+	if (!iterator) {
+		entry.offset = PMEMSTREAM_INVALID_OFFSET;
+	} else {
+		assert(iterator->offset == PMEMSTREAM_INVALID_OFFSET ||
+		       (pmemstream_entry_iterator_is_valid(iterator) == 0));
+		entry.offset = iterator->offset;
+	}
+	return entry;
 }
 
 void pmemstream_entry_iterator_delete(struct pmemstream_entry_iterator **iterator)
