@@ -14,7 +14,7 @@ function get_commit_range_from_last_merge {
 	LAST_MERGE=$(git log --merges --pretty=%H -1)
 	LAST_COMMIT=$(git log --pretty=%H -1)
 	RANGE_END="HEAD"
-	if [ -n "${GITHUB_ACTIONS}" ] && [ "${GITHUB_EVENT_NAME}" == "pull_request" ] && [ "${LAST_MERGE}" == "${LAST_COMMIT}" ]; then
+	if [ -n "${GITHUB_ACTION}" ] && [ "${GITHUB_EVENT_NAME}" == "pull_request" ] && [ "${LAST_MERGE}" == "${LAST_COMMIT}" ]; then
 		# GitHub Actions commits its own merge in case of pull requests
 		# so the first merge commit has to be skipped.
 
@@ -74,7 +74,7 @@ if [ -n "${TRAVIS}" ]; then
 		;;
 	esac
 
-elif [ -n "${GITHUB_ACTIONS}" ]; then
+elif [ -n "${GITHUB_ACTION}" ]; then
 	CI_COMMIT=${GITHUB_SHA}
 	CI_COMMIT_RANGE=${COMMIT_RANGE_FROM_LAST_MERGE}
 	CI_BRANCH=$(echo ${GITHUB_REF} | cut -d'/' -f3)

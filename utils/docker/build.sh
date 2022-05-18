@@ -90,10 +90,10 @@ fi
 if [ -n "${DNS_SERVER}" ]; then DOCKER_OPTS="${DOCKER_OPTS} --dns=${DNS_SERVER}"; fi
 
 # Check if we are running on a CI (Travis or GitHub Actions)
-[ -n "${GITHUB_ACTIONS}" -o -n "${TRAVIS}" ] && CI_RUN="YES" || CI_RUN="NO"
+[ -n "${GITHUB_ACTION}" -o -n "${TRAVIS}" ] && CI_RUN="YES" || CI_RUN="NO"
 
 # Do not allocate a pseudo-TTY if we are running on GitHub Actions
-[ ! "${GITHUB_ACTIONS}" ] && DOCKER_OPTS="${DOCKER_OPTS} --tty=true"
+[ ! "${GITHUB_ACTION}" ] && DOCKER_OPTS="${DOCKER_OPTS} --tty=true"
 
 
 echo "Running build using Docker image: ${IMAGE_NAME}"
@@ -109,7 +109,7 @@ docker run --privileged=true --name=${CONTAINER_NAME} -i \
 	--env TERM=xterm-256color \
 	--env WORKDIR=${WORKDIR} \
 	--env SCRIPTSDIR=${SCRIPTSDIR} \
-	--env GITHUB_ACTIONS=${GITHUB_ACTIONS} \
+	--env GITHUB_ACTION=${GITHUB_ACTION} \
 	--env GITHUB_REPO=${GITHUB_REPO} \
 	--env CI_COMMIT=${CI_COMMIT} \
 	--env CI_COMMIT_RANGE=${CI_COMMIT_RANGE} \
