@@ -373,15 +373,14 @@ struct pmemstream_helpers_type {
 		auto eiter = stream.entry_iterator(region);
 
 		struct pmemstream_entry last_entry = {0};
-		struct pmemstream_entry tmp_entry;
-		while (pmemstream_entry_iterator_next(eiter.get(), nullptr, &tmp_entry) == 0) {
-			last_entry = tmp_entry;
+		for (pmemstream_entry_iterator_seek_first(eiter.get());
+		     pmemstream_entry_iterator_is_valid(eiter.get()) == 0;
+		     pmemstream_entry_iterator_next(eiter.get())) {
+			last_entry = pmemstream_entry_iterator_get(eiter.get());
 		}
 
 		if (last_entry.offset == 0)
 			throw std::runtime_error("No elements in this region.");
-
-		UT_ASSERTeq(last_entry.offset, tmp_entry.offset);
 
 		return last_entry;
 	}
@@ -391,11 +390,11 @@ struct pmemstream_helpers_type {
 		std::vector<std::string> result;
 
 		auto eiter = stream.entry_iterator(region);
-		struct pmemstream_entry entry;
-		struct pmemstream_region r;
-		while (pmemstream_entry_iterator_next(eiter.get(), &r, &entry) == 0) {
-			UT_ASSERTeq(r.offset, region.offset);
-			result.emplace_back(stream.get_entry(entry));
+
+		for (pmemstream_entry_iterator_seek_first(eiter.get());
+		     pmemstream_entry_iterator_is_valid(eiter.get()) == 0;
+		     pmemstream_entry_iterator_next(eiter.get())) {
+			result.emplace_back(stream.get_entry(pmemstream_entry_iterator_get(eiter.get())));
 		}
 
 		return result;

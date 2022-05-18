@@ -39,21 +39,23 @@ void initialize_stream(const char *path, struct pmem2_map **map, struct pmemstre
 	(void)ret;
 }
 
-int verify_stream(pmemstream *stream, pmemstream_region region, data_entry my_entry)
+int verify_first_entry(pmemstream *stream, pmemstream_region region, data_entry my_entry)
 {
-	struct pmemstream_entry entry;
 	struct pmemstream_entry_iterator *eiter;
 
 	int ret = pmemstream_entry_iterator_new(&eiter, stream, region);
 	assert(ret == 0);
-	ret = pmemstream_entry_iterator_next(eiter, NULL, &entry);
+
+	pmemstream_entry_iterator_seek_first(eiter);
+	ret = pmemstream_entry_iterator_is_valid(eiter);
 	assert(ret == 0);
 	(void)ret;
-	pmemstream_entry_iterator_delete(&eiter);
 
-	auto read_data = reinterpret_cast<const data_entry *>(pmemstream_entry_data(stream, entry));
+	auto read_data = reinterpret_cast<const data_entry *>(
+		pmemstream_entry_data(stream, pmemstream_entry_iterator_get(eiter)));
 	data_entry read_entry = *read_data;
 
+	pmemstream_entry_iterator_delete(&eiter);
 	if (read_entry != my_entry) {
 		printf("Stored entry (%lu) differs from original entry (%lu)\n", read_entry.data, my_entry.data);
 		return -1;
@@ -111,7 +113,7 @@ int main(int argc, char *argv[])
 	}
 
 	/* Now, we make sure the only entry is stored as expected. */
-	verify_stream(stream, region, my_entry);
+	verify_first_entry(stream, region, my_entry);
 
 	/* Finally we have to clean up */
 	pmemstream_region_free(stream, region);
