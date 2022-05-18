@@ -94,7 +94,7 @@ int entry_iterator_initialize(struct pmemstream_entry_iterator *iterator, struct
 	}
 
 	struct pmemstream_entry_iterator iter = {.stream = stream,
-						 .offset = region.offset + offsetof(struct span_region, data),
+						 .offset = PMEMSTREAM_INVALID_OFFSET,
 						 .region = region,
 						 .region_runtime = region_rt,
 						 .perform_recovery = perform_recovery};
@@ -129,6 +129,19 @@ err:
 	return ret;
 }
 
+int pmemstream_entry_iterator_is_valid(struct pmemstream_entry_iterator *iterator)
+{
+	if (!iterator) {
+		return -1;
+	}
+	// XXX: Improve check
+	const struct span_base *span_base = span_offset_to_span_ptr(&iterator->stream->data, iterator->offset);
+	if(span_get_type(span_base) != SPAN_ENTRY){
+		return -1;
+	}
+	return 0;
+}
+
 #ifndef NDEBUG
 static bool pmemstream_entry_iterator_offset_is_inside_region(struct pmemstream_entry_iterator *iterator)
 {
@@ -151,26 +164,38 @@ static void pmemstream_entry_iterator_advance(struct pmemstream_entry_iterator *
 }
 
 /* Advances entry iterator by one. Verifies entry integrity and initializes region runtime if end of data is found. */
-int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iterator, struct pmemstream_region *region,
-				   struct pmemstream_entry *user_entry)
+void pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iterator)
 {
 	if (!iterator) {
-		return -1;
-	}
-
-	if (region) {
-		*region = iterator->region;
+		return;
 	}
 
 	if (check_entry_and_maybe_recover_region(iterator)) {
-		if (user_entry) {
-			user_entry->offset = iterator->offset;
-		}
 		pmemstream_entry_iterator_advance(iterator);
-		return 0;
+		return;
 	}
+}
 
-	return -1;
+void pmemstream_entry_iterator_seek_first(struct pmemstream_entry_iterator *iterator)
+{
+	if (!iterator) {
+		return;
+	}
+	/* XXX: validate entry */
+
+	uint64_t firtst_entry_offset = iterator->region.offset + offsetof(struct span_region, data);
+	iterator->offset = firtst_entry_offset;
+}
+
+struct pmemstream_entry pmemstream_entry_iterator_get(struct pmemstream_entry_iterator *iterator)
+{
+	struct pmemstream_entry entry;
+	if (!iterator) {
+		entry.offset = PMEMSTREAM_INVALID_OFFSET;
+	} else {
+		entry.offset = iterator->offset;
+	}
+	return entry;
 }
 
 void pmemstream_entry_iterator_delete(struct pmemstream_entry_iterator **iterator)

@@ -102,39 +102,44 @@ class entry_iterator {
 	{
 		struct pmemstream_entry_iterator *new_entry_iterator;
 		if (pmemstream_entry_iterator_new(&new_entry_iterator, stream, region) != 0) {
-			std::runtime_error("Cannot create entry iterators");
+			throw std::runtime_error("Cannot create entry iterators");
 		}
 		it = std::shared_ptr<pmemstream_entry_iterator>(new_entry_iterator, [](pmemstream_entry_iterator *eit) {
 			pmemstream_entry_iterator_delete(&eit);
 		});
-		++*this;
+		pmemstream_entry_iterator_seek_first(it.get());
+		if(pmemstream_entry_iterator_is_valid(it.get()) != 0){
+			throw std::runtime_error("No entries to iterate");
+		}
 	}
 
 	void operator++()
 	{
-		pmemstream_entry entry;
-		if (pmemstream_entry_iterator_next(it.get(), &region, &entry) == 0) {
-			last_entry = (timestamped_entry *)pmemstream_entry_data(stream, entry);
-		} else {
-			last_entry = &end;
-		}
+		pmemstream_entry_iterator_next(it.get());
 	}
 
 	bool operator<(entry_iterator &other)
 	{
-		return (last_entry->is_older(other.last_entry));
+		pmemstream_entry entry = pmemstream_entry_iterator_get(it.get());
+		timestamped_entry *ts_entry = (timestamped_entry*)&entry;
+		auto other_entry = pmemstream_entry_iterator_get(other.it.get());
+		timestamped_entry *ts_o_entry = (timestamped_entry*)&other_entry;
+		return (ts_entry->is_older(ts_o_entry));
 	}
 
 	timestamped_entry get_data()
 	{
-		return *last_entry;
+		if(pmemstream_entry_iterator_is_valid(it.get()) == 0) {
+			pmemstream_entry entry = pmemstream_entry_iterator_get(it.get());
+			return *(timestamped_entry *)pmemstream_entry_data(stream, entry);
+		}
+		return end;
 	}
 
  private:
 	pmemstream *stream;
 	pmemstream_region region;
 	std::shared_ptr<pmemstream_entry_iterator> it;
-	timestamped_entry *last_entry;
 	timestamped_entry end;
 };
 
@@ -156,7 +161,7 @@ int main(int argc, char *argv[])
 
 	std::string path(argv[1]);
 
-	constexpr size_t concurrency = 3;
+	constexpr size_t concurrency = 2;
 	constexpr size_t samples_per_thread = 10;
 
 	/* Initialize stream with multiple regions */

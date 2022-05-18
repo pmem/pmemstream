@@ -262,22 +262,25 @@ static int region_runtime_iterate_and_initialize_for_write_no_lock(struct pmemst
 	if (ret) {
 		return ret;
 	}
-
-	struct pmemstream_entry entry = {.offset = PMEMSTREAM_INVALID_OFFSET};
-	while (pmemstream_entry_iterator_next(&iterator, NULL, &entry) == 0) {
+	
+	pmemstream_entry_iterator_seek_first(&iterator);
+	while(pmemstream_entry_iterator_is_valid(&iterator) ==0) {
+		pmemstream_entry_iterator_next(&iterator);
 	}
 
-	if (entry.offset != PMEMSTREAM_INVALID_OFFSET) {
-		const struct span_base *span_base = span_offset_to_span_ptr(&stream->data, entry.offset);
-		assert(span_get_type(span_base) == SPAN_ENTRY);
+	struct pmemstream_entry entry = pmemstream_entry_iterator_get(&iterator);
 
-		/* Move offset after last valid entry. */
-		entry.offset += span_get_total_size(span_base);
-	} else {
-		/* Set offset to beginning of the data. */
-		entry.offset = iterator.offset;
-	}
-
+//	if (entry.offset != PMEMSTREAM_INVALID_OFFSET) {
+//		const struct span_base *span_base = span_offset_to_span_ptr(&stream->data, entry.offset);
+//		assert(span_get_type(span_base) == SPAN_ENTRY);
+//
+//		/* Move offset after last valid entry. */
+//		entry.offset += span_get_total_size(span_base);
+//	} else {
+//		/* Set offset to beginning of the data. */
+//		entry.offset = region.offset + offsetof(struct span_region, data);
+//	}
+	
 	/* XXX: can be simplified after API refactor to:
 	 * pmemstream_entry_iterator_seek_first();
 	 * while (pmemstream_entry_iterator_is_valid() == 0) pmemstream_entry_iterator_next();
