@@ -41,7 +41,7 @@ struct span_base {
 struct span_region {
 	alignas(CACHELINE_SIZE) struct span_base span_base;
 	struct allocator_entry_metadata allocator_entry_metadata;
-	uint64_t max_valid_timestamp;
+	uint64_t max_valid_timestamp; /* used for region recovery */
 
 	alignas(CACHELINE_SIZE) uint64_t data[];
 };
