@@ -104,12 +104,12 @@ echo "Running build using Docker image: ${IMAGE_NAME}"
 #  - working directory set (-w)
 docker run --privileged=true --name=${CONTAINER_NAME} -i \
 	${DOCKER_OPTS} \
-	--env http_proxy=${http_proxy} \
-	--env https_proxy=${https_proxy} \
+	--env http_proxy \
+	--env https_proxy \
 	--env TERM=xterm-256color \
 	--env WORKDIR=${WORKDIR} \
 	--env SCRIPTSDIR=${SCRIPTSDIR} \
-	--env GITHUB_ACTIONS=${GITHUB_ACTIONS} \
+	--env GITHUB_ACTIONS \
 	--env GITHUB_ACTION \
 	--env GITHUB_REPO \
 	--env GITHUB_HEAD_REF \
@@ -119,25 +119,25 @@ docker run --privileged=true --name=${CONTAINER_NAME} -i \
 	--env GITHUB_SERVER_URL \
 	--env GITHUB_SHA \
 	--env GITHUB_WORKFLOW \
-	--env CI_COMMIT=${CI_COMMIT} \
-	--env CI_COMMIT_RANGE=${CI_COMMIT_RANGE} \
-	--env CI_BRANCH=${CI_BRANCH} \
-	--env CI_EVENT_TYPE=${CI_EVENT_TYPE} \
-	--env CI_REPO_SLUG=${CI_REPO_SLUG} \
+	--env CI_COMMIT \
+	--env CI_COMMIT_RANGE \
+	--env CI_BRANCH \
+	--env CI_EVENT_TYPE \
+	--env CI_REPO_SLUG \
 	--env CI_RUN=${CI_RUN} \
-	--env DOC_UPDATE_GITHUB_TOKEN=${DOC_UPDATE_GITHUB_TOKEN} \
-	--env DOC_UPDATE_BOT_NAME=${DOC_UPDATE_BOT_NAME} \
-	--env DOC_REPO_OWNER=${DOC_REPO_OWNER} \
-	--env COVERITY_SCAN_TOKEN=${COVERITY_SCAN_TOKEN} \
-	--env COVERITY_SCAN_NOTIFICATION_EMAIL=${COVERITY_SCAN_NOTIFICATION_EMAIL} \
+	--env DOC_UPDATE_GITHUB_TOKEN \
+	--env DOC_UPDATE_BOT_NAME \
+	--env DOC_REPO_OWNER \
+	--env COVERITY_SCAN_TOKEN \
+	--env COVERITY_SCAN_NOTIFICATION_EMAIL \
 	--env CHECK_CPP_STYLE=${CHECK_CPP_STYLE:-OFF} \
-	--env COVERAGE=${COVERAGE} \
+	--env COVERAGE \
 	--env DEFAULT_TEST_DIR=/mnt/pmem \
 	--env TESTS_LONG=${TESTS_LONG:-OFF} \
 	--env TESTS_ASAN=${TESTS_ASAN:-OFF} \
 	--env TESTS_UBSAN=${TESTS_UBSAN:-OFF} \
 	--env TESTS_PMREORDER=${TESTS_PMREORDER:-ON} \
-	--env TEST_TIMEOUT=${TEST_TIMEOUT} \
+	--env TEST_TIMEOUT \
 	--env TZ='Europe/Warsaw' \
 	--shm-size=4G \
 	-v ${HOST_WORKDIR}:${WORKDIR} \
