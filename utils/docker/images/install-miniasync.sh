@@ -16,8 +16,8 @@ fi
 PREFIX="/usr"
 PACKAGE_TYPE=${PACKAGE_MANAGER,,} # make it lowercase
 
-# master: Merge pull request #76 from lplewa/zero, 04.04.2022
-MINIASYNC_VERSION="6c21f8a6ab634d3860886c6b041107631db6e69e"
+# 0.1.0 release, 20.05.2022
+MINIASYNC_VERSION="706d2635f355e31fa44b50d0e337af4ce73086e7"
 echo "MINIASYNC_VERSION: ${MINIASYNC_VERSION}"
 
 build_dir=$(mktemp -d -t miniasync-XXX)
