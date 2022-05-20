@@ -149,9 +149,6 @@ if(TESTS_RAPIDCHECK)
 	build_test_rc(NAME singly_linked_list_state SRC_FILES unittest/singly_linked_list_state.cpp)
 	add_test_generic(NAME singly_linked_list_state TRACERS none memcheck)
 
-	build_test_rc(NAME util_popcount SRC_FILES unittest/util_popcount.cpp)
-	add_test_generic(NAME util_popcount TRACERS none)
-
 	build_test_rc(NAME util_common SRC_FILES unittest/util_common.cpp)
 	add_test_generic(NAME util_common TRACERS none)
 
