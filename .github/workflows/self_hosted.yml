@@ -1,0 +1,24 @@
+name: Self_hosted
+
+on: [push, pull_request]
+
+jobs:
+  linux:
+    name: Linux-Self_Hosted
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [[self-hosted, ubuntu]]
+    env:
+      PMEMSTREAM_TEST_DIR: /mnt/pmem0
+      CHECK_CPP_STYLE: OFF
+
+    steps:
+
+        - name: Clone the git repo
+          uses: actions/checkout@v2
+
+        - name: Build pmemstream and run basic tests
+          run: |
+            ./utils/docker/run-build.sh tests_gcc_debug_cpp17_no_valgrind
