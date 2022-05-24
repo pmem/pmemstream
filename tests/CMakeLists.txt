@@ -171,6 +171,9 @@ endif()
 if(GDB AND DEBUG_BUILD)
 	build_test(append_break integrity/append_break.cpp)
 	add_test_generic(NAME append_break SCRIPT integrity/append_break.cmake TRACERS none)
+
+	build_test(append_timestamp_recovery integrity/append_timestamp_recovery.cpp)
+	add_test_generic(NAME append_timestamp_recovery SCRIPT integrity/append_timestamp_recovery.cmake TRACERS none)
 endif()
 
 check_test_dependecies(NAME symbols_dependencies DEPENDENCIES bash awk grep objdump)

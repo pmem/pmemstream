@@ -10,6 +10,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <stdatomic.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -95,9 +96,6 @@ static int pmemstream_validate_sizes(size_t block_size, struct pmem2_map *map)
 }
 
 /* XXX: this function could be made asynchronous perhaps? */
-// XXX: test this: crash before committing new entry and then
-// on restart, add new entry (should have same timestamp), verify
-// that the unfinished entry is not visible.
 static int pmemstream_mark_regions_for_recovery(struct pmemstream *stream)
 {
 	struct pmemstream_region_iterator *iterator;
@@ -427,6 +425,7 @@ int pmemstream_publish(struct pmemstream *stream, struct pmemstream_region regio
 
 	uint8_t *destination = (uint8_t *)span_offset_to_span_ptr(&stream->data, reserved_entry.offset);
 	uint64_t timestamp = pmemstream_acquire_timestamp(stream);
+	printf("DEBUUUUG publish: %lu\n", timestamp);
 
 	/* Store metadata. */
 	struct span_entry span_entry = {.span_base = span_base_create(size, SPAN_ENTRY), .timestamp = timestamp};
