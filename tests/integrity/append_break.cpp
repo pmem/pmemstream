@@ -5,11 +5,16 @@
  * append_break.cpp -- pmemstream_append break - data integrity test
  */
 
+#include "libpmemstream_internal.h"
+#include "span.h"
 #include "stream_helpers.hpp"
+#include "stream_span_helpers.hpp"
 #include "unittest.hpp"
 
 #include <cstring>
 #include <vector>
+
+static constexpr size_t regions_count = 2;
 
 static void test(char mode)
 {
@@ -23,28 +28,32 @@ static void test(char mode)
 
 		pmemstream_test_base s(get_test_config().filename, get_test_config().block_size,
 				       get_test_config().stream_size);
-		s.helpers.initialize_single_region(TEST_DEFAULT_REGION_SIZE, init_data);
+
+		/* initialized multiple regions and append only to the first one */
+		s.helpers.initialize_multi_regions(regions_count, get_test_config().region_size, {});
+		auto r1 = s.helpers.get_first_region();
+		s.helpers.append(r1, init_data);
 
 	} else if (mode == 'b') {
 		/* break in the middle of an append */
 
 		pmemstream_test_base s(get_test_config().filename, get_test_config().block_size, 0, false);
-		auto r = s.helpers.get_first_region();
+		auto r1 = s.helpers.get_first_region();
 
 		/* append (gdb script should tear the memcpy) */
 		/* add entry longer than 512 */
 		std::string buf(1500, '~');
-		s.sut.append(r, buf);
+		s.sut.append(r1, buf);
 		UT_ASSERT_UNREACHABLE;
 
 	} else if (mode == 'i') {
-		/* iterate all entries */
+		/* iterate all entries BEFORE an append */
 
 		pmemstream_test_base s(get_test_config().filename, get_test_config().block_size, 0, false);
-		auto r = s.helpers.get_first_region();
+		auto r1 = s.helpers.get_first_region();
 
 		/* read back data and count for the same output */
-		auto read_elements = s.helpers.get_elements_in_region(r);
+		auto read_elements = s.helpers.get_elements_in_region(r1);
 		/* While iterating over all entries, entry torn
 		 * in the previous append should be cleared now. */
 		auto cnt = read_elements.size();
@@ -52,6 +61,109 @@ static void test(char mode)
 		for (size_t i = 0; i < cnt; ++i) {
 			UT_ASSERT(init_data[i] == read_elements[i]);
 		}
+
+		auto r2 = s.helpers.get_region(1);
+		read_elements = s.helpers.get_elements_in_region(r2);
+		cnt = read_elements.size();
+		UT_ASSERTeq(cnt, 0);
+
+		/* timestamp should be equal to the number of all elements in the stream */
+		auto committed_timestamp = pmemstream_committed_timestamp(s.helpers.stream.c_ptr());
+		auto persisted_timestamp = pmemstream_persisted_timestamp(s.helpers.stream.c_ptr());
+		UT_ASSERTeq(init_data.size(), committed_timestamp);
+		UT_ASSERTeq(init_data.size(), persisted_timestamp);
+
+		/* append new entry to the second (empty) region */
+		std::string buf(128, 'A');
+		s.sut.append(r2, buf);
+
+		/* we're using regular append here, so both timestamps should be immediately updated */
+		committed_timestamp = pmemstream_committed_timestamp(s.helpers.stream.c_ptr());
+		persisted_timestamp = pmemstream_persisted_timestamp(s.helpers.stream.c_ptr());
+		UT_ASSERTeq(init_data.size() + 1, committed_timestamp);
+		UT_ASSERTeq(init_data.size() + 1, persisted_timestamp);
+
+		/* iterate, recover (underneath) and make sure the entries count is as expected */
+		read_elements = s.helpers.get_elements_in_region(r1);
+		cnt = read_elements.size();
+		UT_ASSERTeq(cnt, init_data.size());
+
+		read_elements = s.helpers.get_elements_in_region(r2);
+		cnt = read_elements.size();
+		UT_ASSERTeq(cnt, 1);
+
+	} else if (mode == 'y') {
+		/* iterate all entries AFTER an append */
+
+		pmemstream_test_base s(get_test_config().filename, get_test_config().block_size, 0, false);
+
+		auto committed_timestamp = pmemstream_committed_timestamp(s.helpers.stream.c_ptr());
+		auto persisted_timestamp = pmemstream_persisted_timestamp(s.helpers.stream.c_ptr());
+		UT_ASSERTeq(init_data.size(), committed_timestamp);
+		UT_ASSERTeq(init_data.size(), persisted_timestamp);
+
+		/* append new entry to the second (empty) region */
+		auto r2 = s.helpers.get_region(1);
+		std::string buf(100, 'A');
+		s.sut.append(r2, buf);
+
+		/* we're using regular append here, so both timestamps should be immediately updated */
+		committed_timestamp = pmemstream_committed_timestamp(s.helpers.stream.c_ptr());
+		persisted_timestamp = pmemstream_persisted_timestamp(s.helpers.stream.c_ptr());
+		UT_ASSERTeq(init_data.size() + 1, committed_timestamp);
+		UT_ASSERTeq(init_data.size() + 1, persisted_timestamp);
+
+		/* check if we have for sure a duplicated timestamp */
+		auto regions = span_runtimes_from_stream(s.sut, 0, UINT64_MAX);
+		UT_ASSERTeq(regions[0].sub_spans.size(), 5); /* 4 entry spans (incl. broken one) + 1 empty span */
+		auto broken_entry_in_r1 = (struct span_entry *)span_offset_to_span_ptr(&s.sut.c_ptr()->data,
+										       regions[0].sub_spans[3].offset);
+		UT_ASSERT(span_get_type(&broken_entry_in_r1->span_base) == SPAN_ENTRY);
+		UT_ASSERTeq(regions[1].sub_spans.size(), 2); /* 1 entry + 1 empty span */
+		auto new_entry_in_r2 = (struct span_entry *)span_offset_to_span_ptr(&s.sut.c_ptr()->data,
+										    regions[1].sub_spans[0].offset);
+		UT_ASSERT(span_get_type(&new_entry_in_r2->span_base) == SPAN_ENTRY);
+		UT_ASSERTeq(broken_entry_in_r1->timestamp, new_entry_in_r2->timestamp);
+
+		/* iterate, recover (underneath) and make sure the entries count is as expected */
+		auto read_elements = s.helpers.get_elements_in_region(r2);
+		auto cnt = read_elements.size();
+		UT_ASSERTeq(cnt, 1);
+
+		auto r1 = s.helpers.get_first_region();
+		read_elements = s.helpers.get_elements_in_region(r1);
+		cnt = read_elements.size();
+		UT_ASSERTeq(cnt, init_data.size());
+
+		/* recovery done, so another new entry in the 1. region should be right next to
+		 * the initial 3 entries and should have the next proper timestamp */
+		s.sut.append(r1, buf);
+
+		committed_timestamp = pmemstream_committed_timestamp(s.helpers.stream.c_ptr());
+		persisted_timestamp = pmemstream_persisted_timestamp(s.helpers.stream.c_ptr());
+		UT_ASSERTeq(init_data.size() + 2, committed_timestamp);
+		UT_ASSERTeq(init_data.size() + 2, persisted_timestamp);
+
+		/* check if new entries (in both regions) have proper timestamps and each of these
+		 * entries are followed by an empty span */
+		UT_ASSERT(regions[0].sub_spans.size() >= 5); /* 4 entry spans + 1 empty span (+ possible trash) */
+		auto new_entry_in_r1 = (struct span_entry *)span_offset_to_span_ptr(&s.sut.c_ptr()->data,
+										    regions[0].sub_spans[3].offset);
+		UT_ASSERT(span_get_type(&new_entry_in_r1->span_base) == SPAN_ENTRY);
+		auto next_empty_in_r1 = (struct span_base *)span_offset_to_span_ptr(&s.sut.c_ptr()->data,
+										    regions[0].sub_spans[4].offset);
+		UT_ASSERT(span_get_type(next_empty_in_r1) == SPAN_EMPTY);
+
+		UT_ASSERTeq(regions[1].sub_spans.size(), 2); /* 1 entry span + 1 empty span */
+		new_entry_in_r2 = (struct span_entry *)span_offset_to_span_ptr(&s.sut.c_ptr()->data,
+									       regions[1].sub_spans[0].offset);
+		UT_ASSERT(span_get_type(&new_entry_in_r2->span_base) == SPAN_ENTRY);
+		auto next_empty_in_r2 = (struct span_base *)span_offset_to_span_ptr(&s.sut.c_ptr()->data,
+										    regions[1].sub_spans[1].offset);
+		UT_ASSERT(span_get_type(next_empty_in_r2) == SPAN_EMPTY);
+
+		UT_ASSERTeq(new_entry_in_r1->timestamp, persisted_timestamp);
+		UT_ASSERTeq(new_entry_in_r1->timestamp, new_entry_in_r2->timestamp + 1);
 	}
 }
 
