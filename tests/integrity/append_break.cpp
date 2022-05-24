@@ -11,6 +11,8 @@
 #include <cstring>
 #include <vector>
 
+static constexpr size_t regions_count = 2;
+
 static void test(char mode)
 {
 	std::vector<std::string> init_data;
@@ -23,28 +25,32 @@ static void test(char mode)
 
 		pmemstream_test_base s(get_test_config().filename, get_test_config().block_size,
 				       get_test_config().stream_size);
-		s.helpers.initialize_single_region(TEST_DEFAULT_REGION_SIZE, init_data);
+
+		/* initialized multiple regions and append only to the first one */
+		s.helpers.initialize_multi_regions(regions_count, get_test_config().region_size, {});
+		auto r1 = s.helpers.get_first_region();
+		s.helpers.append(r1, init_data);
 
 	} else if (mode == 'b') {
 		/* break in the middle of an append */
 
 		pmemstream_test_base s(get_test_config().filename, get_test_config().block_size, 0, false);
-		auto r = s.helpers.get_first_region();
+		auto r1 = s.helpers.get_first_region();
 
 		/* append (gdb script should tear the memcpy) */
 		/* add entry longer than 512 */
 		std::string buf(1500, '~');
-		s.sut.append(r, buf);
+		s.sut.append(r1, buf);
 		UT_ASSERT_UNREACHABLE;
 
 	} else if (mode == 'i') {
 		/* iterate all entries */
 
 		pmemstream_test_base s(get_test_config().filename, get_test_config().block_size, 0, false);
-		auto r = s.helpers.get_first_region();
+		auto r1 = s.helpers.get_first_region();
 
 		/* read back data and count for the same output */
-		auto read_elements = s.helpers.get_elements_in_region(r);
+		auto read_elements = s.helpers.get_elements_in_region(r1);
 		/* While iterating over all entries, entry torn
 		 * in the previous append should be cleared now. */
 		auto cnt = read_elements.size();
@@ -52,6 +58,32 @@ static void test(char mode)
 		for (size_t i = 0; i < cnt; ++i) {
 			UT_ASSERT(init_data[i] == read_elements[i]);
 		}
+
+		/* timestamp should be equal to the number of all elements in stream */
+		auto committed_timestamp = pmemstream_committed_timestamp(s.helpers.stream.c_ptr());
+		auto persisted_timestamp = pmemstream_persisted_timestamp(s.helpers.stream.c_ptr());
+		UT_ASSERTeq(cnt, committed_timestamp);
+		UT_ASSERTeq(cnt, persisted_timestamp);
+
+		/* append new entry to the second (empty) region */
+		auto r2 = s.helpers.get_region(1);
+		std::string buf(128, 'A');
+		s.sut.append(r2, buf);
+
+		/* count elements in both regions */
+		read_elements = s.helpers.get_elements_in_region(r1);
+		cnt = read_elements.size();
+		UT_ASSERTeq(cnt, init_data.size());
+
+		read_elements = s.helpers.get_elements_in_region(r2);
+		cnt = read_elements.size();
+		UT_ASSERTeq(cnt, 1);
+
+		/* we're using regular append here, so both timestamps should be immediately updated */
+		committed_timestamp = pmemstream_committed_timestamp(s.helpers.stream.c_ptr());
+		persisted_timestamp = pmemstream_persisted_timestamp(s.helpers.stream.c_ptr());
+		UT_ASSERTeq(init_data.size() + 1, committed_timestamp);
+		UT_ASSERTeq(init_data.size() + 1, persisted_timestamp);
 	}
 }
 

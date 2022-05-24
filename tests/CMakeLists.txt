@@ -163,7 +163,9 @@ endif()
 
 if(GDB AND DEBUG_BUILD)
 	build_test_ext(NAME append_break SRC_FILES integrity/append_break.cpp LIBS miniasync)
-	add_test_generic(NAME append_break SCRIPT integrity/append_break.cmake TRACERS none)
+	add_test_generic(NAME append_break SCRIPT integrity/append_break.cmake CASE 0 TRACERS none)
+	add_test_generic(NAME append_break SCRIPT integrity/append_break.cmake CASE 1 TRACERS none)
+	add_test_generic(NAME append_break SCRIPT integrity/append_break.cmake CASE 2 TRACERS none)
 endif()
 
 check_test_dependecies(NAME symbols_dependencies DEPENDENCIES bash awk grep objdump)
