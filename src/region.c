@@ -7,6 +7,7 @@
 
 #include <assert.h>
 #include <errno.h>
+#include <stdio.h>
 
 /* After opening pmemstream, each region_runtime is in one of those 2 states.
  * The only possible state transition is: REGION_RUNTIME_STATE_READ_READY -> REGION_RUNTIME_STATE_WRITE_READY
@@ -218,6 +219,8 @@ static void region_runtime_initialize_for_write_no_lock(struct pmemstream_region
 	assert(pthread_mutex_trylock(&region_runtime->region_lock) != 0);
 	assert(region_runtime);
 	assert(tail_offset != PMEMSTREAM_INVALID_OFFSET);
+
+	printf("tail_offset? %lu\n", tail_offset);
 
 	region_runtime->append_offset = tail_offset;
 	region_runtime->committed_offset = tail_offset;
