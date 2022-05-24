@@ -62,6 +62,22 @@ struct rc_verify_command : public pmemstream_command {
 	}
 };
 
+/* Holds integer value between Min ans Max (inclusive) */
+template <typename T, size_t Min, size_t Max>
+struct ranged {
+	static constexpr T min = Min;
+	static constexpr T max = Max;
+	T value;
+
+	ranged(T val)
+	{
+		if (val < min || val > max) {
+			throw std::runtime_error("Improper value");
+		}
+		value = val;
+	}
+};
+
 /* Generators for custom structures. */
 namespace rc
 {
@@ -111,6 +127,14 @@ struct Arbitrary<pmemstream_with_single_init_region> {
 	{
 		return gen::noShrink(gen::construct<pmemstream_with_single_init_region>(
 			gen::arbitrary<pmemstream_test_base>(), gen::arbitrary<std::vector<std::string>>()));
+	}
+};
+
+template <typename T, size_t Min, size_t Max>
+struct Arbitrary<ranged<T, Min, Max>> {
+	static Gen<ranged<T, Min, Max>> arbitrary()
+	{
+		return gen::construct<ranged<T, Min, Max>>(gen::inRange<T>(Min, Max + 1));
 	}
 };
 
