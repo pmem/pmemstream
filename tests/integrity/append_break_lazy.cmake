@@ -7,6 +7,6 @@ setup()
 
 execute(${EXECUTABLE} a ${DIR}/testfile)
 run_with_gdb(${TESTS_ROOT_DIR}/integrity/append_break_${TESTCASE}.gdb ${EXECUTABLE} b ${DIR}/testfile)
-execute(${EXECUTABLE} i ${DIR}/testfile)
+execute(${EXECUTABLE} y ${DIR}/testfile)
 
 finish()
