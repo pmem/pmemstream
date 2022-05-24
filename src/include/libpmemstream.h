@@ -70,6 +70,10 @@ FUTURE(pmemstream_async_append_fut, struct pmemstream_async_append_data, struct 
 int pmemstream_from_map(struct pmemstream **stream, size_t block_size, struct pmem2_map *map);
 void pmemstream_delete(struct pmemstream **stream);
 
+/* Gets the last committed/persisted timestamp in pmemstream */
+uint64_t pmemstream_committed_timestamp(struct pmemstream *stream);
+uint64_t pmemstream_persisted_timestamp(struct pmemstream *stream);
+
 // stream owns the region object - the user gets a reference, but it's not
 // necessary to hold on to it and explicitly delete it.
 // Only fixed-sized regions are supported for now (pmemstream_region_allocate must always be called with the
