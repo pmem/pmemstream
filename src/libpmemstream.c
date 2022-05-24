@@ -95,9 +95,6 @@ static int pmemstream_validate_sizes(size_t block_size, struct pmem2_map *map)
 }
 
 /* XXX: this function could be made asynchronous perhaps? */
-// XXX: test this: crash before committing new entry and then
-// on restart, add new entry (should have same timestamp), verify
-// that the unfinished entry is not visible.
 static int pmemstream_mark_regions_for_recovery(struct pmemstream *stream)
 {
 	struct pmemstream_region_iterator *iterator;

@@ -5,12 +5,12 @@ set confirm off
 set breakpoint pending on
 set disable-randomization off
 
-# go to memcpy in append
+# go to the first memcpy in "append" - it happens after the "reserve" part
+# and it's writing at reserved_dest address.
 b pmemstream_reserve
 r
-# Unfortunately on some systems (various gdb ver.) there's no way to jump straight
-# to the stream->memset line, so we go to the point with "reserved_dest" available.
 finish
+
 # reserved_dest before memcpy should be 0'ed
 print *(uint8_t *)reserved_dest
 

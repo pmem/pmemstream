@@ -52,6 +52,26 @@ static void test(char mode)
 		for (size_t i = 0; i < cnt; ++i) {
 			UT_ASSERT(init_data[i] == read_elements[i]);
 		}
+
+		/* timestamp should be equal to the number of elements */
+		auto committed_timestamp = pmemstream_committed_timestamp(s.helpers.stream.c_ptr());
+		auto persisted_timestamp = pmemstream_persisted_timestamp(s.helpers.stream.c_ptr());
+		UT_ASSERTeq(cnt, committed_timestamp);
+		UT_ASSERTeq(cnt, persisted_timestamp);
+
+		std::string buf(128, 'A');
+		s.sut.append(r, buf);
+
+		/* calculate all elements again */
+		read_elements = s.helpers.get_elements_in_region(r);
+		cnt = read_elements.size();
+		UT_ASSERTeq(cnt, init_data.size() + 1);
+
+		/* we're using regular append here, so both timestamps should be immediately updated */
+		committed_timestamp = pmemstream_committed_timestamp(s.helpers.stream.c_ptr());
+		persisted_timestamp = pmemstream_persisted_timestamp(s.helpers.stream.c_ptr());
+		UT_ASSERTeq(cnt, committed_timestamp);
+		UT_ASSERTeq(cnt, persisted_timestamp);
 	}
 }
 
