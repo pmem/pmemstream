@@ -10,6 +10,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <stdatomic.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -37,7 +38,7 @@ static void pmemstream_init(struct pmemstream *stream)
 
 	stream->header->stream_size = stream->stream_size;
 	stream->header->block_size = stream->block_size;
-	stream->header->persisted_timestamp = PMEMSTREAM_INVALID_TIMESTAMP;
+	stream->header->persisted_timestamp = PMEMSTREAM_INVALID_TIMESTAMP + 1;
 	stream->data.persist(stream->header, sizeof(struct pmemstream_header));
 
 	stream->data.memcpy(stream->header->signature, PMEMSTREAM_SIGNATURE, strlen(PMEMSTREAM_SIGNATURE),
@@ -95,9 +96,6 @@ static int pmemstream_validate_sizes(size_t block_size, struct pmem2_map *map)
 }
 
 /* XXX: this function could be made asynchronous perhaps? */
-// XXX: test this: crash before committing new entry and then
-// on restart, add new entry (should have same timestamp), verify
-// that the unfinished entry is not visible.
 static int pmemstream_mark_regions_for_recovery(struct pmemstream *stream)
 {
 	struct pmemstream_region_iterator *iterator;
@@ -117,6 +115,8 @@ static int pmemstream_mark_regions_for_recovery(struct pmemstream *stream)
 		if (span_region->max_valid_timestamp == PMEMSTREAM_INVALID_TIMESTAMP) {
 			span_region->max_valid_timestamp = stream->header->persisted_timestamp;
 			stream->data.flush(&span_region->max_valid_timestamp, sizeof(span_region->max_valid_timestamp));
+
+			printf("mark regions for recovery: %lu\n", span_region->max_valid_timestamp);
 		} else {
 			/* If max_valid_timestamp points is equal to a valid timestamp, this means that these regions
 			 * hasn't recovered after previous restart yet, skip it. */
@@ -414,6 +414,7 @@ int pmemstream_publish(struct pmemstream *stream, struct pmemstream_region regio
 		       struct pmemstream_region_runtime *region_runtime, const void *data, size_t size,
 		       struct pmemstream_entry reserved_entry)
 {
+	printf("publish offset: %lu\n", reserved_entry.offset);
 	int ret = pmemstream_validate_stream_and_offset(stream, region.offset);
 	if (ret) {
 		return ret;
@@ -431,6 +432,7 @@ int pmemstream_publish(struct pmemstream *stream, struct pmemstream_region regio
 
 	uint8_t *destination = (uint8_t *)span_offset_to_span_ptr(&stream->data, reserved_entry.offset);
 	uint64_t timestamp = pmemstream_acquire_timestamp(stream);
+	printf("DEBUUUUG publish: %lu\n", timestamp);
 
 	/* Store metadata. */
 	struct span_entry span_entry = {.span_base = span_base_create(size, SPAN_ENTRY), .timestamp = timestamp};

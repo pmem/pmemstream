@@ -7,6 +7,7 @@
 
 #include <assert.h>
 #include <errno.h>
+#include <stdio.h>
 
 /* After opening pmemstream, each region_runtime is in one of those 2 states.
  * The only possible state transition is: REGION_RUNTIME_STATE_READ_READY -> REGION_RUNTIME_STATE_WRITE_READY
@@ -219,6 +220,8 @@ static void region_runtime_initialize_for_write_no_lock(struct pmemstream_region
 	assert(region_runtime);
 	assert(tail_offset != PMEMSTREAM_INVALID_OFFSET);
 
+	printf("tail_offset? %lu\n", tail_offset);
+
 	region_runtime->append_offset = tail_offset;
 	region_runtime->committed_offset = tail_offset;
 
@@ -227,8 +230,13 @@ static void region_runtime_initialize_for_write_no_lock(struct pmemstream_region
 
 	struct span_region *span_region =
 		(struct span_region *)span_offset_to_span_ptr(region_runtime->data, region_runtime->region.offset);
+
+	printf("Init for write max BEFORE: %lu\n", span_region->max_valid_timestamp);
+
 	span_region->max_valid_timestamp = PMEMSTREAM_INVALID_TIMESTAMP;
 	region_runtime->data->persist(&span_region->max_valid_timestamp, sizeof(span_region->max_valid_timestamp));
+
+	printf("Init for write max after: %lu\n", span_region->max_valid_timestamp);
 
 	__atomic_store_n(&region_runtime->state, REGION_RUNTIME_STATE_WRITE_READY, __ATOMIC_RELEASE);
 }
@@ -325,16 +333,23 @@ static bool check_entry_consistency(struct pmemstream_entry_iterator *iterator)
 	if (span_get_type(span_base) != SPAN_ENTRY) {
 		return false;
 	}
+	printf("Check entry off: %lu\n", iterator->offset);
 
 	const struct span_entry *span_entry = (const struct span_entry *)span_base;
 
 	/* XXX: max timestamp should be passed to iterator */
 	uint64_t committed_timestamp = pmemstream_committed_timestamp(iterator->stream);
 	uint64_t max_valid_timestamp = __atomic_load_n(&span_region->max_valid_timestamp, __ATOMIC_ACQUIRE);
+	printf("Check entry 1: %lu, commited tmps: %lu\n", span_region->max_valid_timestamp, committed_timestamp);
 
 	if (committed_timestamp < max_valid_timestamp || max_valid_timestamp == PMEMSTREAM_INVALID_TIMESTAMP)
 		max_valid_timestamp = committed_timestamp;
 
+	if (span_entry->timestamp == PMEMSTREAM_INVALID_TIMESTAMP) {
+		return false;
+	}
+
+	printf("Check entry 2: %lu, curr timestamp: %lu\n", span_region->max_valid_timestamp, span_entry->timestamp);
 	if (span_entry->timestamp < max_valid_timestamp) {
 		return true;
 	}

@@ -46,7 +46,7 @@ struct mpmc_queue *mpmc_queue_new(size_t num_producers, size_t size)
 
 	queue->size = size;
 	queue->num_producers = num_producers;
-	mpmc_queue_reset(queue, 0);
+	mpmc_queue_reset(queue, 1);
 
 	return queue;
 }
