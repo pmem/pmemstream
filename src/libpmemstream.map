@@ -5,6 +5,7 @@
 #
 LIBPMEMSTREAM_1.0 {
 	global:
+		pmemstream_committed_timestamp;
 		pmemstream_delete;
 		pmemstream_entry_data;
 		pmemstream_entry_iterator_delete;
@@ -12,6 +13,7 @@ LIBPMEMSTREAM_1.0 {
 		pmemstream_entry_iterator_next;
 		pmemstream_entry_length;
 		pmemstream_from_map;
+		pmemstream_persisted_timestamp;
 		pmemstream_region_runtime_initialize;
 		pmemstream_region_iterator_delete;
 		pmemstream_region_iterator_new;
