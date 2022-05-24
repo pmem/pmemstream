@@ -77,17 +77,6 @@ static inline const struct span_base *span_offset_to_span_ptr(const struct pmems
 	return (const struct span_base *)pmemstream_offset_to_ptr(data, offset);
 }
 
-/* XXX: make those functions public */
-static inline uint64_t pmemstream_persisted_timestamp(struct pmemstream *stream)
-{
-	return __atomic_load_n(&stream->header->persisted_timestamp, __ATOMIC_ACQUIRE);
-}
-
-static inline uint64_t pmemstream_committed_timestamp(struct pmemstream *stream)
-{
-	return mpmc_queue_get_consumed_offset(stream->timestamp_queue) + 1;
-}
-
 #ifdef __cplusplus
 } /* end extern "C" */
 #endif
