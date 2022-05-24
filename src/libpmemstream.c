@@ -207,6 +207,17 @@ void pmemstream_delete(struct pmemstream **stream)
 	*stream = NULL;
 }
 
+// XXX: add more tests using these 2 timestamp functions
+uint64_t pmemstream_persisted_timestamp(struct pmemstream *stream)
+{
+	return __atomic_load_n(&stream->header->persisted_timestamp, __ATOMIC_ACQUIRE);
+}
+
+uint64_t pmemstream_committed_timestamp(struct pmemstream *stream)
+{
+	return mpmc_queue_get_consumed_offset(stream->timestamp_queue);
+}
+
 static size_t pmemstream_region_total_size_aligned(struct pmemstream *stream, size_t size)
 {
 	struct span_region span_region = {.span_base = span_base_create(size, SPAN_REGION)};
