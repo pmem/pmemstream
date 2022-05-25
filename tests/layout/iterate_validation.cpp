@@ -40,8 +40,7 @@ std::vector<uint64_t> generate_inconsistent_span(span_type stype)
 	garbage[0] = size | static_cast<uint64_t>(stype);
 	if (stype == SPAN_ENTRY) {
 		/* Always wrong timestamp. */
-		auto popcount = std::numeric_limits<uint64_t>::max();
-		garbage[1] = popcount;
+		garbage[1] = std::numeric_limits<uint64_t>::max();
 	}
 
 	return garbage;

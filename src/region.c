@@ -53,7 +53,7 @@ struct pmemstream_region_runtime {
 	 * To fix this, we might use mechanism similar to timestamp tracking. Alternatively we can batch (transparently
 	 * or via a transaction) appends and then, increase committed_offset on batch commit.
 	 *
-	 * XXX: add test for this: async_append entires of different sizes and call future_poll in different order.
+	 * XXX: add test for this: async_append entries of different sizes and call future_poll in different order.
 	 */
 	uint64_t committed_offset;
 
@@ -306,14 +306,15 @@ int region_runtime_iterate_and_initialize_for_write_locked(struct pmemstream *st
 	return ret;
 }
 
-static bool check_entry_consistency_and_maybe_recover_region(struct pmemstream_entry_iterator *iterator)
+/* it returns false, when entry is invalid */
+static bool check_entry_consistency(struct pmemstream_entry_iterator *iterator)
 {
 	const struct span_region *span_region =
 		(const struct span_region *)span_offset_to_span_ptr(&iterator->stream->data, iterator->region.offset);
 	uint64_t region_end_offset = iterator->region.offset + span_get_total_size(&span_region->span_base);
 
 	if (iterator->offset >= region_end_offset) {
-		goto invalid_entry;
+		return false;
 	}
 
 	/* XXX: reading this span metadata is potentially dangerous. It might happen so that
@@ -322,7 +323,7 @@ static bool check_entry_consistency_and_maybe_recover_region(struct pmemstream_e
 	 */
 	const struct span_base *span_base = span_offset_to_span_ptr(&iterator->stream->data, iterator->offset);
 	if (span_get_type(span_base) != SPAN_ENTRY) {
-		goto invalid_entry;
+		return false;
 	}
 
 	const struct span_entry *span_entry = (const struct span_entry *)span_base;
@@ -338,17 +339,18 @@ static bool check_entry_consistency_and_maybe_recover_region(struct pmemstream_e
 		return true;
 	}
 
-invalid_entry:
-	if (iterator->perform_recovery) {
-		region_runtime_initialize_for_write_locked(iterator->region_runtime, iterator->offset);
-	}
 	return false;
 }
 
 bool check_entry_and_maybe_recover_region(struct pmemstream_entry_iterator *iterator)
 {
-	if (region_runtime_get_state_acquire(iterator->region_runtime) == REGION_RUNTIME_STATE_READ_READY)
-		return check_entry_consistency_and_maybe_recover_region(iterator);
+	if (region_runtime_get_state_acquire(iterator->region_runtime) == REGION_RUNTIME_STATE_READ_READY) {
+		bool valid_entry = check_entry_consistency(iterator);
+		if (!valid_entry && iterator->perform_recovery) {
+			region_runtime_initialize_for_write_locked(iterator->region_runtime, iterator->offset);
+		}
+		return valid_entry;
+	}
 
 	/* Make sure that we didn't go beyond committed entries. */
 	uint64_t committed_offset = region_runtime_get_committed_offset_acquire(iterator->region_runtime);
@@ -358,7 +360,7 @@ bool check_entry_and_maybe_recover_region(struct pmemstream_entry_iterator *iter
 
 	/* Region is already recovered, and we did not encounter end of the data yet.
 	 * Span must be a valid entry. */
-	assert(check_entry_consistency_and_maybe_recover_region(iterator));
+	assert(check_entry_consistency(iterator));
 
 	return true;
 }

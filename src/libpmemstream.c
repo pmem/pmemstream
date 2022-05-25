@@ -95,7 +95,7 @@ static int pmemstream_validate_sizes(size_t block_size, struct pmem2_map *map)
 }
 
 /* XXX: this function could be made asynchronous perhaps? */
-// XXX: test this: crash before commiting new entry and then
+// XXX: test this: crash before committing new entry and then
 // on restart, add new entry (should have same timestamp), verify
 // that the unfinished entry is not visible.
 static int pmemstream_mark_regions_for_recovery(struct pmemstream *stream)
@@ -118,7 +118,7 @@ static int pmemstream_mark_regions_for_recovery(struct pmemstream *stream)
 			span_region->max_valid_timestamp = stream->header->persisted_timestamp;
 			stream->data.flush(&span_region->max_valid_timestamp, sizeof(span_region->max_valid_timestamp));
 		} else {
-			/* If max_valid_timestamp points is equal to a valid timestamp, this means that this regions
+			/* If max_valid_timestamp points is equal to a valid timestamp, this means that these regions
 			 * hasn't recovered after previous restart yet, skip it. */
 		}
 		pmemstream_region_iterator_next(iterator);
@@ -209,6 +209,17 @@ void pmemstream_delete(struct pmemstream **stream)
 	region_runtimes_map_destroy(s->region_runtimes_map);
 	free(s);
 	*stream = NULL;
+}
+
+// XXX: add more tests using these 2 timestamp functions
+uint64_t pmemstream_persisted_timestamp(struct pmemstream *stream)
+{
+	return __atomic_load_n(&stream->header->persisted_timestamp, __ATOMIC_ACQUIRE);
+}
+
+uint64_t pmemstream_committed_timestamp(struct pmemstream *stream)
+{
+	return mpmc_queue_get_consumed_offset(stream->timestamp_queue);
 }
 
 static size_t pmemstream_region_total_size_aligned(struct pmemstream *stream, size_t size)
@@ -392,7 +403,7 @@ static uint64_t pmemstream_sync_timestamps(struct pmemstream *stream)
 		mpmc_queue_consume(stream->timestamp_queue, PMEMSTREAM_MAX_CONCURRENCY, &ready_timestamp);
 	uint64_t committed_timestamp = ready_timestamp + num_timestamps;
 
-	/* XXX: this should be done inside "PERISTENT" future or inside pmemstream_sync. */
+	/* XXX: this should be done inside "PERSISTENT" future or inside pmemstream_sync. */
 	stream->header->persisted_timestamp = committed_timestamp;
 	stream->data.persist(&stream->header->persisted_timestamp, sizeof(stream->header->persisted_timestamp));
 

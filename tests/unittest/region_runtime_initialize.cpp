@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
 
 		ret += rc::check(
 			"verify pmemstream_region_runtime_initialize return the same value for all threads", [&]() {
-				const auto concurrency = *rc::gen::inRange<std::size_t>(0, max_concurrency);
+				const auto concurrency = *rc::gen::inRange<std::size_t>(1, max_concurrency);
 
 				pmemstream_test_base stream(get_test_config().filename, get_test_config().block_size,
 							    get_test_config().stream_size);
