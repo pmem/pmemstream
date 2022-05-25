@@ -1,3 +1,4 @@
+DELETEME
 # pmemstream
 
 [![Basic Tests](https://github.com/pmem/pmemstream/actions/workflows/basic.yml/badge.svg)](https://github.com/pmem/pmemstream/actions/workflows/basic.yml)
