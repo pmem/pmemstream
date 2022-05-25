@@ -145,10 +145,39 @@ const void *pmemstream_entry_data(struct pmemstream *stream, struct pmemstream_e
 /* Returns the size of the entry. Assumes that 'entry' points to a valid entry. */
 size_t pmemstream_entry_length(struct pmemstream *stream, struct pmemstream_entry entry);
 
+/* Creates new region iterator
+ *
+ * Default state is undefined: every new iterator should be moved to first element in the stream.
+ * Returns -1 if there is an error.
+ * See also: `pmemstream_region_iterator_seek_first`
+ */
 int pmemstream_region_iterator_new(struct pmemstream_region_iterator **iterator, struct pmemstream *stream);
 
-int pmemstream_region_iterator_next(struct pmemstream_region_iterator *iterator, struct pmemstream_region *region);
+/* Checks that iterator is in valid state.
+ *
+ * Returns 0 when iterator is valid, and error code otherwise.
+ */
+int pmemstream_region_iterator_is_valid(struct pmemstream_region_iterator *iterator);
 
+/* Set iterator to first region.
+ *
+ * Function sets iterator to first region, or sets iterator to invalid region.
+ */
+void pmemstream_region_iterator_seek_first(struct pmemstream_region_iterator *iterator);
+
+/* Moves iterator to next region.
+ *
+ * Moves to next region, or sets iterator to invalid region.
+ */
+void pmemstream_region_iterator_next(struct pmemstream_region_iterator *iterator);
+
+/* Get region from iterator.
+ *
+ * Function returns region that iterator points to, or invalid region otherwise.
+ */
+struct pmemstream_region pmemstream_region_iterator_get(struct pmemstream_region_iterator *iterator);
+
+/* Release iterator resources. */
 void pmemstream_region_iterator_delete(struct pmemstream_region_iterator **iterator);
 
 int pmemstream_entry_iterator_new(struct pmemstream_entry_iterator **iterator, struct pmemstream *stream,

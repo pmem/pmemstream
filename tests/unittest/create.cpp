@@ -73,13 +73,14 @@ int main(int argc, char *argv[])
 				stream.helpers.verify(region, data, {});
 
 				auto riter = stream.sut.region_iterator();
-
-				struct pmemstream_region r;
-				int ret = pmemstream_region_iterator_next(riter.get(), &r);
+				pmemstream_region_iterator_seek_first(riter.get());
+				int ret = pmemstream_region_iterator_is_valid(riter.get());
 				UT_ASSERTeq(ret, 0);
+				struct pmemstream_region r = pmemstream_region_iterator_get(riter.get());
 				UT_ASSERTeq(region.offset, r.offset);
 				/* there should be no more regions */
-				ret = pmemstream_region_iterator_next(riter.get(), &r);
+				pmemstream_region_iterator_next(riter.get());
+				ret = pmemstream_region_iterator_is_valid(riter.get());
 				UT_ASSERTeq(ret, -1);
 
 				UT_ASSERTeq(stream.sut.region_free(region), 0);

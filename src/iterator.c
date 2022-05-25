@@ -24,29 +24,49 @@ int pmemstream_region_iterator_new(struct pmemstream_region_iterator **iterator,
 	*(struct pmemstream **)&iter->stream = stream;
 
 	/* XXX: lock */
-	iter->region.offset = stream->header->region_allocator_header.allocated_list.head;
+	iter->region.offset = SLIST_INVALID_OFFSET;
 	*iterator = iter;
 
 	return 0;
 }
 
-int pmemstream_region_iterator_next(struct pmemstream_region_iterator *it, struct pmemstream_region *region)
+int pmemstream_region_iterator_is_valid(struct pmemstream_region_iterator *iterator)
 {
-	if (!it) {
+	if (!iterator) {
 		return -1;
 	}
 
-	if (it->region.offset == SLIST_INVALID_OFFSET) {
+	if (iterator->region.offset == SLIST_INVALID_OFFSET) {
 		return -1;
 	}
 
-	*region = it->region;
-
-	/* XXX: hide this in allocator? */
-	/* XXX: lock */
-	it->region.offset = SLIST_NEXT(struct span_region, &it->stream->data, it->region.offset,
-				       allocator_entry_metadata.next_allocated);
 	return 0;
+}
+
+void pmemstream_region_iterator_seek_first(struct pmemstream_region_iterator *iterator)
+{
+	if (!iterator)
+		return;
+	iterator->region.offset = iterator->stream->header->region_allocator_header.allocated_list.head;
+}
+
+void pmemstream_region_iterator_next(struct pmemstream_region_iterator *iterator)
+{
+	if (!iterator)
+		return;
+	iterator->region.offset = SLIST_NEXT(struct span_region, &iterator->stream->data, iterator->region.offset,
+					     allocator_entry_metadata.next_allocated);
+}
+
+struct pmemstream_region pmemstream_region_iterator_get(struct pmemstream_region_iterator *iterator)
+{
+	int is_valid = pmemstream_region_iterator_is_valid(iterator);
+	if (is_valid != 0) {
+		struct pmemstream_region region = {.offset = SLIST_INVALID_OFFSET};
+		return region;
+	}
+
+	return iterator->region;
 }
 
 void pmemstream_region_iterator_delete(struct pmemstream_region_iterator **iterator)
