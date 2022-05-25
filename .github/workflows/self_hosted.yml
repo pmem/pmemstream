@@ -5,6 +5,7 @@ on: [push, pull_request]
 jobs:
   linux:
     name: Linux-Self_Hosted
+    if: github.repository == 'pmem/pmemstream'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
