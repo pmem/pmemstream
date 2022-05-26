@@ -158,6 +158,11 @@ struct stream {
 		return pmemstream_region_size(c_stream.get(), region);
 	}
 
+	size_t region_usable_size(pmemstream_region region)
+	{
+		return pmemstream_region_usable_size(c_stream.get(), region);
+	}
+
 	auto entry_timestamp(pmemstream_entry entry)
 	{
 		return pmemstream_entry_timestamp(c_stream.get(), entry);
