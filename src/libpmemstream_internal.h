@@ -24,7 +24,11 @@ extern "C" {
 #define PMEMSTREAM_SIGNATURE ("PMEMSTREAM")
 #define PMEMSTREAM_SIGNATURE_SIZE (64)
 
-#define PMEMSTREAM_INVALID_TIMESTAMP 0ULL
+/* In some cases we relay on incrementing timestamp by 1.
+ * Because of that we require FIRST timestamp to be exactly "1 away" from INVALID. */
+#define PMEMSTREAM_INVALID_TIMESTAMP (0ULL)
+#define PMEMSTREAM_FIRST_TIMESTAMP (PMEMSTREAM_INVALID_TIMESTAMP + 1ULL)
+static_assert(PMEMSTREAM_INVALID_TIMESTAMP + 1 == PMEMSTREAM_FIRST_TIMESTAMP, "wrong timestamp's macros values");
 
 /* XXX: lift this requirement */
 #define PMEMSTREAM_MAX_CONCURRENCY 64ULL
