@@ -335,6 +335,10 @@ static bool check_entry_consistency(struct pmemstream_entry_iterator *iterator)
 	if (committed_timestamp < max_valid_timestamp || max_valid_timestamp == PMEMSTREAM_INVALID_TIMESTAMP)
 		max_valid_timestamp = committed_timestamp;
 
+	if (span_entry->timestamp == PMEMSTREAM_INVALID_TIMESTAMP) {
+		return false;
+	}
+
 	if (span_entry->timestamp < max_valid_timestamp) {
 		return true;
 	}

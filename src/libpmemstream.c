@@ -37,7 +37,7 @@ static void pmemstream_init(struct pmemstream *stream)
 
 	stream->header->stream_size = stream->stream_size;
 	stream->header->block_size = stream->block_size;
-	stream->header->persisted_timestamp = PMEMSTREAM_INVALID_TIMESTAMP;
+	stream->header->persisted_timestamp = PMEMSTREAM_FIRST_TIMESTAMP;
 	stream->data.persist(stream->header, sizeof(struct pmemstream_header));
 
 	stream->data.memcpy(stream->header->signature, PMEMSTREAM_SIGNATURE, strlen(PMEMSTREAM_SIGNATURE),
