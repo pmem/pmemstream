@@ -46,11 +46,16 @@ int main(int argc, char *argv[])
 			pmemstream_with_single_empty_region stream(make_default_test_stream());
 			auto region = stream.helpers.get_first_region();
 
+			UT_ASSERTeq(stream.sut.region_size(region), stream.sut.region_usable_size(region));
+
 			std::string entry;
 			auto [ret, new_entry] = stream.sut.append(region, entry);
 			UT_ASSERTeq(ret, 0);
 			UT_ASSERT(entry == stream.sut.get_entry(new_entry));
 			stream.helpers.verify(region, {entry}, {});
+
+			UT_ASSERTeq(stream.sut.region_size(region) - stream.helpers.entry_metadata(),
+				    stream.sut.region_usable_size(region));
 		}
 
 		/* and entry with size > region's size cannot be appended */

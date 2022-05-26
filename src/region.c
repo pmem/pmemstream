@@ -22,6 +22,7 @@ enum region_runtime_state {
  * in few different ways:
  * - By explicitly calling pmemstream_region_runtime_initialize() for the first time
  * - By calling pmemstream_append (only if region_runtime does not exist yet)
+ * - By calling pmemstream_region_usable_size (only if region_runtime does not exist yet)
  * - By advancing an entry iterator past last entry in a region (only if region_runtime does not exist yet)
  */
 struct pmemstream_region_runtime {
@@ -164,6 +165,11 @@ static enum region_runtime_state
 region_runtime_get_state_acquire(const struct pmemstream_region_runtime *region_runtime)
 {
 	return __atomic_load_n(&region_runtime->state, __ATOMIC_ACQUIRE);
+}
+
+uint64_t region_runtime_get_append_offset_relaxed(const struct pmemstream_region_runtime *region_runtime)
+{
+	return __atomic_load_n(&region_runtime->append_offset, __ATOMIC_RELAXED);
 }
 
 uint64_t region_runtime_get_append_offset_acquire(const struct pmemstream_region_runtime *region_runtime)

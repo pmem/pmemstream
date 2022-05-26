@@ -12,6 +12,7 @@
 #include <tuple>
 #include <vector>
 
+#include "../src/span.h"
 #include "stream_span_helpers.hpp"
 #include "unittest.hpp"
 
@@ -152,6 +153,11 @@ struct stream {
 	size_t region_size(pmemstream_region region)
 	{
 		return pmemstream_region_size(c_stream.get(), region);
+	}
+
+	size_t region_usable_size(pmemstream_region region)
+	{
+		return pmemstream_region_usable_size(c_stream.get(), region);
 	}
 
 	auto entry_iterator(pmemstream_region region)
@@ -325,6 +331,22 @@ struct pmemstream_helpers_type {
 
 		return regions;
 	}
+
+	size_t entry_metadata()
+	{
+		return sizeof(span_entry);
+	}
+
+	// XXX: add something like this, perhaps along with public API function
+	// size_t region_metadata()
+	// {
+	// return sizeof(span_region);
+	// }
+
+	// size_t stream_metadata()
+	// {
+	// return ALIGN_UP(sizeof(pmemstream_header), stream.c_ptr()->block_size);
+	// }
 
 	/* Get n-th region in the stream (counts from 0);
 	 * It will fail assertion if n-th region is missing. */
