@@ -34,6 +34,9 @@ int main(int argc, char *argv[])
 						break;
 					}
 				}
+				auto usable_size = stream.helpers.stream.region_usable_size(region);
+				auto total_entry_size = ALIGN_UP(sizeof(span_entry) + value.size(), sizeof(span_bytes));
+				UT_ASSERT(usable_size < total_entry_size);
 			});
 	});
 }

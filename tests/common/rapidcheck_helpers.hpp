@@ -7,6 +7,7 @@
 #include <rapidcheck.h>
 #include <rapidcheck/state.h>
 
+#include "span.h"
 #include "stream_helpers.hpp"
 
 /*
@@ -58,6 +59,15 @@ struct rc_verify_command : public pmemstream_command {
 	{
 		for (auto data : m.regions) {
 			s.helpers.verify(pmemstream_region{data.first}, {data.second}, {});
+
+			size_t total_entries_size = 0;
+			for (auto append : data.second) {
+				size_t total_entry_size = sizeof(span_entry) + append.size();
+				total_entries_size += ALIGN_UP(total_entry_size, sizeof(span_bytes));
+			}
+
+			UT_ASSERTeq(s.sut.region_size(pmemstream_region{data.first}) - total_entries_size,
+				    s.sut.region_usable_size(pmemstream_region{data.first}));
 		}
 	}
 };
