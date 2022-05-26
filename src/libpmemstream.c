@@ -5,6 +5,7 @@
 
 #include "common/util.h"
 #include "libpmemstream_internal.h"
+#include "region.h"
 #include "region_allocator/region_allocator.h"
 
 #include <assert.h>
@@ -273,6 +274,28 @@ size_t pmemstream_region_size(struct pmemstream *stream, struct pmemstream_regio
 	const struct span_base *span_region = span_offset_to_span_ptr(&stream->data, region.offset);
 	assert(span_get_type(span_region) == SPAN_REGION);
 	return span_get_size(span_region);
+}
+
+/// XXX: add tests
+size_t pmemstream_region_usable_size(struct pmemstream *stream, struct pmemstream_region region)
+{
+	int ret = pmemstream_validate_stream_and_offset(stream, region.offset);
+	if (ret) {
+		return 0;
+	}
+
+	const struct span_base *span_region = span_offset_to_span_ptr(&stream->data, region.offset);
+	assert(span_get_type(span_region) == SPAN_REGION);
+	uint64_t region_end_offset = region.offset + span_get_total_size(span_region);
+
+	struct pmemstream_region_runtime *region_runtime;
+	ret = pmemstream_region_runtime_initialize(stream, region, &region_runtime);
+	if (ret) {
+		return 0;
+	}
+	uint64_t append_offset = region_runtime_get_append_offset_relaxed(region_runtime);
+
+	return region_end_offset - append_offset;
 }
 
 int pmemstream_region_free(struct pmemstream *stream, struct pmemstream_region region)

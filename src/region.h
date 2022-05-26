@@ -34,6 +34,9 @@ int region_runtimes_map_get_or_create(struct region_runtimes_map *map, struct pm
 				      struct pmemstream_region_runtime **container_handle);
 void region_runtimes_map_remove(struct region_runtimes_map *map, struct pmemstream_region region);
 
+/* No precondition - it just reads the current append_offset. */
+uint64_t region_runtime_get_append_offset_relaxed(const struct pmemstream_region_runtime *region_runtime);
+
 /* Precondition: region_runtime_iterate_and_initialize_for_write_locked must have been called. */
 uint64_t region_runtime_get_append_offset_acquire(const struct pmemstream_region_runtime *region_runtime);
 
