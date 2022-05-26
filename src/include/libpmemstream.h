@@ -82,7 +82,12 @@ int pmemstream_region_allocate(struct pmemstream *stream, size_t size, struct pm
 
 int pmemstream_region_free(struct pmemstream *stream, struct pmemstream_region region);
 
+/* Returns region's size. It may differ from size given to 'pmemstream_region_allocate'
+ * due to alignment. */
 size_t pmemstream_region_size(struct pmemstream *stream, struct pmemstream_region region);
+
+/* Returns current region's usable size. It equals to: region size - total size of all entries. */
+size_t pmemstream_region_usable_size(struct pmemstream *stream, struct pmemstream_region region);
 
 /* Returns pointer to pmemstream_region_runtime. The runtime is managed by libpmemstream - user does not
  * have to explicitly delete/free it. Runtime becomes invalid after corresponding region is freed.

@@ -8,7 +8,8 @@
 
 /**
  * region_create - unit test for pmemstream_region_allocate, pmemstream_region_free,
- *					pmemstream_region_size, pmemstream_region_runtime_initialize
+ *					pmemstream_region_size, pmemstream_region_usable_size,
+ *					pmemstream_region_runtime_initialize
  */
 
 void valid_input_test(char *path)
@@ -20,6 +21,7 @@ void valid_input_test(char *path)
 	UT_ASSERTeq(ret, 0);
 
 	UT_ASSERT(pmemstream_region_size(env.stream, region) >= TEST_DEFAULT_REGION_SIZE);
+	// UT_ASSERT(pmemstream_region_usable_size(env.stream, region) < TEST_DEFAULT_REGION_SIZE);
 
 	struct pmemstream_region_runtime *rtm = NULL;
 	ret = pmemstream_region_runtime_initialize(env.stream, region, &rtm);
@@ -45,6 +47,7 @@ void null_stream_test(char *path)
 	UT_ASSERTeq(ret, 0);
 
 	UT_ASSERTeq(pmemstream_region_size(NULL, region), 0);
+	UT_ASSERT(pmemstream_region_usable_size(env.stream, region) <= TEST_DEFAULT_STREAM_SIZE);
 
 	struct pmemstream_region_runtime *rtm = NULL;
 	ret = pmemstream_region_runtime_initialize(NULL, region, &rtm);
@@ -72,6 +75,7 @@ void invalid_region_test(char *path)
 
 	struct pmemstream_region invalid_region = {.offset = ALIGN_DOWN(UINT64_MAX, sizeof(span_bytes))};
 	UT_ASSERT(pmemstream_region_size(env.stream, invalid_region) == 0);
+	UT_ASSERT(pmemstream_region_usable_size(env.stream, invalid_region) == 0);
 
 	struct pmemstream_region_runtime *rtm = NULL;
 	int ret = pmemstream_region_runtime_initialize(env.stream, invalid_region, &rtm);

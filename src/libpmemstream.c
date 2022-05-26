@@ -275,6 +275,37 @@ size_t pmemstream_region_size(struct pmemstream *stream, struct pmemstream_regio
 	return span_get_size(span_region);
 }
 
+/// XXX: add tests
+size_t pmemstream_region_usable_size(struct pmemstream *stream, struct pmemstream_region region)
+{
+	int ret = pmemstream_validate_stream_and_offset(stream, region.offset);
+	if (ret) {
+		return 0;
+	}
+
+	const struct span_base *span_region = span_offset_to_span_ptr(&stream->data, region.offset);
+	assert(span_get_type(span_region) == SPAN_REGION);
+
+	size_t total_region_size = span_get_total_size(span_region);
+	size_t total_entries_size = 0;
+
+	struct pmemstream_entry_iterator *eiter;
+	ret = pmemstream_entry_iterator_new(&eiter, stream, region);
+	if (ret) {
+		return 0;
+	}
+
+	struct pmemstream_entry entry;
+	while (pmemstream_entry_iterator_next(eiter, NULL, &entry) == 0) {
+		const struct span_base *span_entry = span_offset_to_span_ptr(&stream->data, entry.offset);
+		assert(span_get_type(span_entry) == SPAN_ENTRY);
+		total_entries_size += span_get_total_size(span_entry);
+	}
+	pmemstream_entry_iterator_delete(&eiter);
+
+	return total_region_size - total_entries_size;
+}
+
 int pmemstream_region_free(struct pmemstream *stream, struct pmemstream_region region)
 {
 	// XXX: unlock
