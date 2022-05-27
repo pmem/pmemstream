@@ -118,6 +118,7 @@ struct produce_command : public mpmc_command {
 			size_ready_to_consume = next_model.acquired_but_not_produced.begin()->first;
 
 		auto snapshot = mpmc_queue_copy(q.queue.get());
+		UT_ASSERTne(snapshot, NULL);
 		verify_consume(snapshot, size_ready_to_consume, 0);
 		mpmc_queue_destroy(snapshot);
 	}
