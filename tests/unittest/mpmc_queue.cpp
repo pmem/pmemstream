@@ -48,6 +48,7 @@ struct mpmc_sut {
 
 	mpmc_sut(mpmc_sut &&) = delete;
 	mpmc_sut(const mpmc_sut &) = delete;
+	mpmc_sut &operator=(const mpmc_sut &) = delete;
 
 	mpmc_queue_handle queue;
 };

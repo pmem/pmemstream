@@ -474,6 +474,8 @@ struct pmemstream_test_base {
 	}
 
 	pmemstream_test_base(const pmemstream_test_base &) = delete;
+	pmemstream_test_base &operator=(const pmemstream_test_base &) = delete;
+
 	pmemstream_test_base(pmemstream_test_base &&rhs)
 	    : sut(std::move(rhs.sut)),
 	      file(rhs.file),
