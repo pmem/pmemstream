@@ -134,12 +134,10 @@ int pmemstream_entry_iterator_is_valid(struct pmemstream_entry_iterator *iterato
 	if (!iterator) {
 		return -1;
 	}
-	// XXX: Improve check
-	const struct span_base *span_base = span_offset_to_span_ptr(&iterator->stream->data, iterator->offset);
-	if(span_get_type(span_base) != SPAN_ENTRY){
-		return -1;
+	if (check_entry_consistency(iterator)) {
+		return 0;
 	}
-	return 0;
+	return -1;
 }
 
 #ifndef NDEBUG
@@ -181,10 +179,13 @@ void pmemstream_entry_iterator_seek_first(struct pmemstream_entry_iterator *iter
 	if (!iterator) {
 		return;
 	}
-	/* XXX: validate entry */
+	struct pmemstream_entry_iterator tmp_iterator = *iterator;
 
-	uint64_t firtst_entry_offset = iterator->region.offset + offsetof(struct span_region, data);
-	iterator->offset = firtst_entry_offset;
+	tmp_iterator.offset = first_entry_offset(iterator->region);
+	if (!check_entry_consistency(&tmp_iterator)) {
+		return;
+	}
+	iterator->offset = tmp_iterator.offset;
 }
 
 struct pmemstream_entry pmemstream_entry_iterator_get(struct pmemstream_entry_iterator *iterator)

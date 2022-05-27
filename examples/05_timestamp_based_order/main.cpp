@@ -108,7 +108,7 @@ class entry_iterator {
 			pmemstream_entry_iterator_delete(&eit);
 		});
 		pmemstream_entry_iterator_seek_first(it.get());
-		if(pmemstream_entry_iterator_is_valid(it.get()) != 0){
+		if (pmemstream_entry_iterator_is_valid(it.get()) != 0) {
 			throw std::runtime_error("No entries to iterate");
 		}
 	}
@@ -121,15 +121,15 @@ class entry_iterator {
 	bool operator<(entry_iterator &other)
 	{
 		pmemstream_entry entry = pmemstream_entry_iterator_get(it.get());
-		timestamped_entry *ts_entry = (timestamped_entry*)&entry;
+		timestamped_entry *ts_entry = (timestamped_entry *)&entry;
 		auto other_entry = pmemstream_entry_iterator_get(other.it.get());
-		timestamped_entry *ts_o_entry = (timestamped_entry*)&other_entry;
+		timestamped_entry *ts_o_entry = (timestamped_entry *)&other_entry;
 		return (ts_entry->is_older(ts_o_entry));
 	}
 
 	timestamped_entry get_data()
 	{
-		if(pmemstream_entry_iterator_is_valid(it.get()) == 0) {
+		if (pmemstream_entry_iterator_is_valid(it.get()) == 0) {
 			pmemstream_entry entry = pmemstream_entry_iterator_get(it.get());
 			return *(timestamped_entry *)pmemstream_entry_data(stream, entry);
 		}

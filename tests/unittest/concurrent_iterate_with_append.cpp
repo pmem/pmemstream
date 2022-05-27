@@ -11,7 +11,7 @@
 #include "thread_helpers.hpp"
 #include "unittest.hpp"
 
-static constexpr size_t concurrency = 4;
+static constexpr size_t concurrency = 2;
 static constexpr size_t max_size = 1024; /* Max number of elements in stream and max size of single entry. */
 static constexpr size_t stream_size = max_size * max_size * concurrency * 10 /* 10x-margin */;
 static constexpr size_t region_size = stream_size - STREAM_METADATA_SIZE;
@@ -37,8 +37,15 @@ void concurrent_iterate_verify(pmemstream_test_base &stream, pmemstream_region r
 	}
 
 	UT_ASSERT(std::equal(data.begin(), data.end(), result.begin()));
-	UT_ASSERT(
-		std::equal(extra_data.begin(), extra_data.end(), result.begin() + static_cast<long long>(data.size())));
+	auto is_equal =
+		std::equal(extra_data.begin(), extra_data.end(), result.begin() + static_cast<long long>(data.size()));
+	if (!is_equal) {
+		/* tmp: for easier debug */
+		auto mismatch = std::mismatch(extra_data.begin(), extra_data.end(),
+					      result.begin() + static_cast<long long>(data.size()));
+		(void)mismatch;
+		UT_ASSERT_UNREACHABLE;
+	}
 }
 
 void verify_no_garbage(pmemstream_test_base &&stream, const std::vector<std::string> &data,

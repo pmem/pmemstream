@@ -248,6 +248,11 @@ static void region_runtime_initialize_for_write_locked(struct pmemstream_region_
 	assert(region_runtime_get_append_offset_acquire(region_runtime) != PMEMSTREAM_INVALID_OFFSET);
 }
 
+uint64_t first_entry_offset(struct pmemstream_region region)
+{
+	return region.offset + offsetof(struct span_region, data);
+}
+
 static int region_runtime_iterate_and_initialize_for_write_no_lock(struct pmemstream *stream,
 								   struct pmemstream_region region,
 								   struct pmemstream_region_runtime *region_runtime)
@@ -262,30 +267,13 @@ static int region_runtime_iterate_and_initialize_for_write_no_lock(struct pmemst
 	if (ret) {
 		return ret;
 	}
-	
-	pmemstream_entry_iterator_seek_first(&iterator);
-	while(pmemstream_entry_iterator_is_valid(&iterator) ==0) {
+
+	iterator.offset = first_entry_offset(region);
+	while (pmemstream_entry_iterator_is_valid(&iterator) == 0) {
 		pmemstream_entry_iterator_next(&iterator);
 	}
 
 	struct pmemstream_entry entry = pmemstream_entry_iterator_get(&iterator);
-
-//	if (entry.offset != PMEMSTREAM_INVALID_OFFSET) {
-//		const struct span_base *span_base = span_offset_to_span_ptr(&stream->data, entry.offset);
-//		assert(span_get_type(span_base) == SPAN_ENTRY);
-//
-//		/* Move offset after last valid entry. */
-//		entry.offset += span_get_total_size(span_base);
-//	} else {
-//		/* Set offset to beginning of the data. */
-//		entry.offset = region.offset + offsetof(struct span_region, data);
-//	}
-	
-	/* XXX: can be simplified after API refactor to:
-	 * pmemstream_entry_iterator_seek_first();
-	 * while (pmemstream_entry_iterator_is_valid() == 0) pmemstream_entry_iterator_next();
-	 * region_runtime_initialize_for_read(region_runtime, pmemstream_entry_iterator_get());
-	 */
 
 	region_runtime_initialize_for_write_no_lock(region_runtime, entry.offset);
 
@@ -310,7 +298,7 @@ int region_runtime_iterate_and_initialize_for_write_locked(struct pmemstream *st
 }
 
 /* it returns false, when entry is invalid */
-static bool check_entry_consistency(struct pmemstream_entry_iterator *iterator)
+bool check_entry_consistency(const struct pmemstream_entry_iterator *iterator)
 {
 	const struct span_region *span_region =
 		(const struct span_region *)span_offset_to_span_ptr(&iterator->stream->data, iterator->region.offset);

@@ -48,8 +48,11 @@ void region_runtime_increase_committed_offset(struct pmemstream_region_runtime *
 int region_runtime_iterate_and_initialize_for_write_locked(struct pmemstream *stream, struct pmemstream_region region,
 							   struct pmemstream_region_runtime *region_runtime);
 
+bool check_entry_consistency(const struct pmemstream_entry_iterator *iterator);
+
 bool check_entry_and_maybe_recover_region(struct pmemstream_entry_iterator *iterator);
 
+uint64_t first_entry_offset(struct pmemstream_region region);
 #ifdef __cplusplus
 } /* end extern "C" */
 #endif

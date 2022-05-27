@@ -53,5 +53,5 @@ target_link_libraries(example-02_visual_iterator ${LIBPMEM2_LIBRARIES})
 add_example(04_basic_async 04_basic_async/main.cpp)
 target_link_libraries(example-04_basic_async ${LIBPMEM2_LIBRARIES} ${MINIASYNC_LIBRARIES})
 
-add_example(05_timestamp_based_order 05_timestamp_based_order/main.cpp)
-target_link_libraries(example-05_timestamp_based_order ${LIBPMEM2_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+#add_example(05_timestamp_based_order 05_timestamp_based_order/main.cpp)
+#target_link_libraries(example-05_timestamp_based_order ${LIBPMEM2_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
