@@ -8,7 +8,7 @@
 
 /*
  * XXX: put async functions into separate file...?
- * We wouldn't require then, miniasync installation everytime.
+ * We wouldn't require then, miniasync installation every time.
  */
 #include <libminiasync.h>
 #include <libpmem2.h>
@@ -188,7 +188,7 @@ int pmemstream_entry_iterator_new(struct pmemstream_entry_iterator **iterator, s
 				  struct pmemstream_region region);
 
 /* If this function succeeds, entry points to a valid element in the stream. Otherwise, it points to a
- * last valid entry or to a beggining of region if there are no valid entries. */
+ * last valid entry or to a beginning of a region if there are no valid entries. */
 int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iterator, struct pmemstream_region *region,
 				   struct pmemstream_entry *entry);
 

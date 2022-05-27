@@ -30,7 +30,7 @@ void fill(test_config_type test_config, size_t cmd_count = TEST_COMMANDS_COUNT)
 
 			regions.push_back(region);
 		} else if (command == 1) {
-			/* free (only if preceeded by any, non-freed allocation) */
+			/* free (only if preceded by any, non-freed allocation) */
 			if (regions.size() == 0) {
 				continue;
 			}

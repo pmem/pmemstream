@@ -126,7 +126,7 @@ uint64_t mpmc_queue_consume(struct mpmc_queue *queue, uint64_t max_producer_id, 
 		}
 	}
 
-	/* All producers have commited. */
+	/* All producers have committed. */
 	if (min_granted_offset == MPMC_QUEUE_OFFSET_MAX) {
 		min_granted_offset = produce_offset;
 	}

@@ -93,7 +93,7 @@ struct append_manager {
 	size_t timestamp = 0;
 };
 
-/* pmememstream entry iterator wrapper, which helps to manage entries from
+/* pmemstream entry iterator wrapper, which helps to manage entries from
  * different regions in global order. */
 class entry_iterator {
  public:

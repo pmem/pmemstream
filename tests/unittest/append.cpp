@@ -79,7 +79,7 @@ int main(int argc, char *argv[])
 				stream.helpers.verify(region, {entry}, {});
 			});
 
-		ret += rc::check("verify if sequence of append and reopen commands leads to consitent state",
+		ret += rc::check("verify if sequence of append and reopen commands leads to a consistent state",
 				 [](pmemstream_with_single_empty_region &&s) {
 					 pmemstream_model model;
 

@@ -38,7 +38,7 @@ struct singly_linked_list_model {
 };
 
 /*
- * SUT struct with NULL-ed begining of the spans.
+ * SUT struct with NULL-ed beginning of the spans.
  * It simplifies evaluating the pointer of each node (for the sake of testing).
  */
 struct singly_linked_list_test {

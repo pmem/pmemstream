@@ -21,7 +21,7 @@ extern "C" {
 #endif
 
 /**
- * Span is a contiguous sequence of bytes, which are located on peristent storage.
+ * Span is a contiguous sequence of bytes, which are located on persistent storage.
  * Span is always 8-bytes aligned. Its first 8 bytes hold information about size and type of a span.
  */
 enum span_type {
