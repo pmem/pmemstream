@@ -59,9 +59,13 @@ int main(int argc, char *argv[])
 		}
 
 		/* Iterate over all elements in a region and save last entry value. */
-		uint64_t last_entry_data;
+		uint64_t last_entry_data = 0;
 		while (pmemstream_entry_iterator_next(eiter, NULL, &entry) == 0) {
 			const struct data_entry *d = pmemstream_entry_data(stream, entry);
+			if (d == NULL) {
+				fprintf(stderr, "pmemstream_entry_data failed\n");
+				return -1;
+			}
 			printf("data entry %lu: %lu in region %lu\n", entry.offset, d->data, region.offset);
 			last_entry_data = d->data;
 		}
