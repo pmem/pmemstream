@@ -7,6 +7,9 @@
 #define LIBPMEMSTREAM_INTERNAL_H
 
 #include <assert.h>
+#include <semaphore.h>
+
+#include <libminiasync.h>
 
 #include "iterator.h"
 #include "libpmemstream.h"
@@ -30,8 +33,8 @@ extern "C" {
 #define PMEMSTREAM_FIRST_TIMESTAMP (PMEMSTREAM_INVALID_TIMESTAMP + 1ULL)
 static_assert(PMEMSTREAM_INVALID_TIMESTAMP + 1 == PMEMSTREAM_FIRST_TIMESTAMP, "wrong timestamp's macros values");
 
-/* XXX: lift this requirement */
-#define PMEMSTREAM_MAX_CONCURRENCY 64ULL
+/* XXX: make this a parameter */
+#define PMEMSTREAM_MAX_CONCURRENCY 1024ULL
 
 struct pmemstream_header {
 	char signature[PMEMSTREAM_SIGNATURE_SIZE];
@@ -41,10 +44,23 @@ struct pmemstream_header {
 	/* XXX: investigate if it makes sense to store 'shadow' value in DRAM (for reads) */
 	/* XXX: we can 'distribute' persisted_timestamp and store multiple variables (one per thread) to speed up writes
 	 */
-	/* All entries with timestamp strictly less than 'persisted_timestamp' can be treated as persisted. */
+	/* All entries with timestamps less than or equal to 'persisted_timestamp' can be treated as persisted. */
 	uint64_t persisted_timestamp;
 
 	struct allocator_header region_allocator_header;
+};
+
+/* Description of an async operation. */
+struct async_operation {
+	/* Data memcpy future */
+	struct vdm_operation_future future;
+
+	/* Description of append operation. */
+	struct pmemstream_region region;
+	struct pmemstream_entry entry;
+	size_t size;
+
+	struct pmemstream_region_runtime *region_runtime;
 };
 
 struct pmemstream {
@@ -59,8 +75,32 @@ struct pmemstream {
 	size_t block_size;
 
 	struct region_runtimes_map *region_runtimes_map;
-	struct mpmc_queue *timestamp_queue;
-	struct thread_id *thread_id;
+
+	/* All entries with timestamps less than or equal to 'committed_timestamp' can be treated as committed. */
+	alignas(CACHELINE_SIZE) uint64_t committed_timestamp;
+
+	/* This timestamp is used to generate timestamps for append. It is always increased monotonically. */
+	alignas(CACHELINE_SIZE) uint64_t next_timestamp;
+
+	/* Protects slots in async_ops array. */
+	pthread_mutex_t *async_ops_locks;
+
+	/* Stores in-progress operations, indexed by timestamp mod array size. */
+	struct async_operation *async_ops;
+
+	/* Protects increasing committed timestamp. */
+	// XXX: this lock can be used to synchronize iterators when updating committed offset for multiple regions (e.g.
+	// in tx)
+	pthread_mutex_t commit_lock;
+
+	/* Protects increasing persisted timestamp. */
+	pthread_mutex_t persist_lock;
+
+	/* Used to perform synchronous memcpy. */
+	struct data_mover_sync *data_mover_sync;
+
+	/* Protects against exceeding PMEMSTREAM_MAX_CONCURRENCY. */
+	sem_t async_ops_semaphore;
 };
 
 static inline int pmemstream_validate_stream_and_offset(struct pmemstream *stream, uint64_t offset)

@@ -31,6 +31,7 @@ void concurrent_iterate_verify(pmemstream_test_base &stream, pmemstream_region r
 		int next = pmemstream_entry_iterator_next(eiter.get(), NULL, &entry);
 		if (next == 0) {
 			result.emplace_back(stream.sut.get_entry(entry));
+			UT_ASSERT(stream.sut.entry_timestamp(entry) <= stream.sut.committed_timestamp());
 		}
 	}
 
@@ -40,7 +41,7 @@ void concurrent_iterate_verify(pmemstream_test_base &stream, pmemstream_region r
 }
 
 void verify_no_garbage(pmemstream_test_base &&stream, const std::vector<std::string> &data,
-		       const std::vector<std::string> &extra_data, bool reopen)
+		       const std::vector<std::string> &extra_data, bool reopen, bool async)
 {
 	auto region = stream.helpers.get_first_region();
 
@@ -50,7 +51,11 @@ void verify_no_garbage(pmemstream_test_base &&stream, const std::vector<std::str
 	parallel_exec(concurrency, [&](size_t tid) {
 		if (tid == 0) {
 			/* appender */
-			stream.helpers.append(region, extra_data);
+			if (async)
+				stream.helpers.async_append(region, extra_data);
+			else
+				stream.helpers.append(region, extra_data);
+
 			stream.helpers.verify(region, data, extra_data);
 		} else {
 			/* iterators */
@@ -81,15 +86,16 @@ int main(int argc, char *argv[])
 
 		ret += rc::check(
 			"verify if iterators concurrent to append work do not return garbage (no preinitialization)",
-			[&](pmemstream_empty &&stream, const std::vector<std::string> &extra_data, bool reopen) {
+			[&](pmemstream_empty &&stream, const std::vector<std::string> &extra_data, bool reopen,
+			    bool async) {
 				stream.helpers.initialize_single_region(region_size, {});
-				verify_no_garbage(std::move(stream), {}, extra_data, reopen);
+				verify_no_garbage(std::move(stream), {}, extra_data, reopen, async);
 			});
 		ret += rc::check("verify if iterators concurrent to append work do not return garbage ",
 				 [&](pmemstream_empty &&stream, const std::vector<std::string> &data,
-				     const std::vector<std::string> &extra_data, bool reopen) {
+				     const std::vector<std::string> &extra_data, bool reopen, bool async) {
 					 stream.helpers.initialize_single_region(region_size, data);
-					 verify_no_garbage(std::move(stream), data, extra_data, reopen);
+					 verify_no_garbage(std::move(stream), data, extra_data, reopen, async);
 				 });
 	});
 }
