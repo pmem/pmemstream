@@ -131,36 +131,6 @@ static int pmemstream_mark_regions_for_recovery(struct pmemstream *stream)
 	return 0;
 }
 
-static int pmemstream_initialize_async_ops_locks(struct pmemstream *stream)
-{
-	// XXX: aligned alloc?
-	stream->async_ops_locks = malloc(PMEMSTREAM_MAX_CONCURRENCY * sizeof(*stream->async_ops_locks));
-	if (!stream->async_ops_locks) {
-		return -1;
-	}
-
-	for (size_t locks_initialized = 0; locks_initialized < PMEMSTREAM_MAX_CONCURRENCY; locks_initialized++) {
-		int ret = pthread_mutex_init(&stream->async_ops_locks[locks_initialized], NULL);
-		if (ret) {
-			free(stream->async_ops_locks);
-			for (size_t i = 0; i < locks_initialized; i++) {
-				pthread_mutex_destroy(&stream->async_ops_locks[i]);
-			}
-			return ret;
-		}
-	}
-
-	return 0;
-}
-
-static void pmemstream_destroy_async_ops_locks(struct pmemstream *stream)
-{
-	for (size_t i = 0; i < PMEMSTREAM_MAX_CONCURRENCY; i++) {
-		pthread_mutex_destroy(&stream->async_ops_locks[i]);
-	}
-	free(stream->async_ops_locks);
-}
-
 static int pmemstream_initialize_async_ops(struct pmemstream *stream)
 {
 	// XXX: aligned alloc?
@@ -171,6 +141,7 @@ static int pmemstream_initialize_async_ops(struct pmemstream *stream)
 
 	for (size_t i = 0; i < PMEMSTREAM_MAX_CONCURRENCY; i++) {
 		FUTURE_INIT_COMPLETE(&stream->async_ops[i].future);
+		stream->async_ops[i].timestamp = PMEMSTREAM_INVALID_TIMESTAMP;
 	}
 
 	return 0;
@@ -209,6 +180,7 @@ int pmemstream_from_map(struct pmemstream **stream, size_t block_size, struct pm
 	}
 
 	s->committed_timestamp = s->header->persisted_timestamp;
+	s->processing_timestamp = s->header->persisted_timestamp;
 	s->next_timestamp = s->header->persisted_timestamp + 1;
 
 	allocator_runtime_initialize(&s->data, &s->header->region_allocator_header);
@@ -223,19 +195,9 @@ int pmemstream_from_map(struct pmemstream **stream, size_t block_size, struct pm
 		goto err_region_runtimes;
 	}
 
-	ret = pmemstream_initialize_async_ops_locks(s);
-	if (ret) {
-		goto err_async_ops_locks;
-	}
-
 	ret = pmemstream_initialize_async_ops(s);
 	if (ret) {
 		goto err_async_ops;
-	}
-
-	ret = pthread_mutex_init(&s->commit_lock, NULL);
-	if (ret) {
-		goto err_commit_lock;
 	}
 
 	s->data_mover_sync = data_mover_sync_new();
@@ -254,12 +216,8 @@ int pmemstream_from_map(struct pmemstream **stream, size_t block_size, struct pm
 err_sem_init:
 	data_mover_sync_delete(s->data_mover_sync);
 err_data_mover:
-	pthread_mutex_destroy(&s->commit_lock);
-err_commit_lock:
 	free(s->async_ops);
 err_async_ops:
-	pmemstream_destroy_async_ops_locks(s);
-err_async_ops_locks:
 	region_runtimes_map_destroy(s->region_runtimes_map);
 err_region_runtimes:
 	free(s);
@@ -274,9 +232,7 @@ void pmemstream_delete(struct pmemstream **stream)
 	struct pmemstream *s = *stream;
 
 	region_runtimes_map_destroy(s->region_runtimes_map);
-	pmemstream_destroy_async_ops_locks(s);
 	free(s->async_ops);
-	pthread_mutex_destroy(&s->commit_lock);
 	data_mover_sync_delete(s->data_mover_sync);
 	sem_destroy(&s->async_ops_semaphore);
 
@@ -451,13 +407,6 @@ struct async_operation *pmemstream_async_operation(struct pmemstream *stream, ui
 	return &stream->async_ops[ops_index];
 }
 
-pthread_mutex_t *pmemstream_async_lock(struct pmemstream *stream, uint64_t timestamp)
-{
-	// XXX: require MAX_CONCURRENCY to be power of two and use bit ops
-	uint64_t ops_index = timestamp % PMEMSTREAM_MAX_CONCURRENCY;
-	return &stream->async_ops_locks[ops_index];
-}
-
 static uint64_t pmemstream_acquire_timestamp(struct pmemstream *stream)
 {
 	while (sem_trywait(&stream->async_ops_semaphore) != 0) {
@@ -468,13 +417,16 @@ static uint64_t pmemstream_acquire_timestamp(struct pmemstream *stream)
 	}
 
 	uint64_t timestamp = __atomic_fetch_add(&stream->next_timestamp, 1, __ATOMIC_RELAXED);
-	pthread_mutex_lock(pmemstream_async_lock(stream, timestamp));
+	assert(__atomic_load_n(&pmemstream_async_operation(stream, timestamp)->timestamp, __ATOMIC_RELAXED) ==
+	       PMEMSTREAM_INVALID_TIMESTAMP);
 	return timestamp;
 }
 
 static void pmemstream_publish_timestamp(struct pmemstream *stream, uint64_t timestamp)
 {
-	pthread_mutex_unlock(pmemstream_async_lock(stream, timestamp));
+	assert(__atomic_load_n(&pmemstream_async_operation(stream, timestamp)->timestamp, __ATOMIC_RELAXED) ==
+	       PMEMSTREAM_INVALID_TIMESTAMP);
+	__atomic_store_n(&pmemstream_async_operation(stream, timestamp)->timestamp, timestamp, __ATOMIC_RELEASE);
 }
 
 int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region region,
@@ -589,8 +541,6 @@ static int pmemstream_async_publish_generic(struct pmemstream *stream, struct pm
 	size_t entry_total_size_span_aligned = pmemstream_entry_total_size_aligned(size);
 
 	async_op->future = *future;
-	async_op->region = region;
-	async_op->region_runtime = region_runtime;
 	async_op->entry = entry;
 	async_op->size = entry_total_size_span_aligned;
 
@@ -603,7 +553,7 @@ static int pmemstream_async_publish_generic(struct pmemstream *stream, struct pm
 	struct span_empty span_empty = {.span_base = span_base_create(0, SPAN_EMPTY)};
 	span_base_atomic_store((struct span_base *)(destination + entry_total_size_span_aligned), span_empty.span_base);
 
-	/* Store metadata. */
+	/* Store this entry metadata. */
 	struct span_entry span_entry = {.span_base = span_base_create(size, SPAN_ENTRY), .timestamp = timestamp};
 	span_entry_atomic_store((struct span_entry *)destination, span_entry);
 
@@ -656,6 +606,75 @@ int pmemstream_async_append(struct pmemstream *stream, struct vdm *vdm, struct p
 	return 0;
 }
 
+static bool pmemstream_acquire_processing_timestamp(struct pmemstream_async_wait_data *data)
+{
+	assert(data->last_timestamp == PMEMSTREAM_INVALID_TIMESTAMP);
+
+	uint64_t processing_timestamp = __atomic_load_n(&data->stream->processing_timestamp, __ATOMIC_ACQUIRE);
+
+	/* Some other consumer owns this part of the queue, need to wait for it to finish. */
+	if (data->timestamp <= processing_timestamp)
+		return false;
+
+	const bool weak = false;
+	bool success = __atomic_compare_exchange_n(&data->stream->processing_timestamp, &processing_timestamp,
+						   data->timestamp, weak, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
+	if (!success)
+		return false;
+
+	data->first_timestamp = processing_timestamp;
+	data->processing_timestamp = processing_timestamp;
+	data->last_timestamp = data->timestamp;
+
+	return true;
+}
+
+static bool pmemstream_process_async_ops(struct pmemstream_async_wait_data *data)
+{
+	assert(data->processing_timestamp < data->timestamp);
+
+	struct async_operation *async_op = pmemstream_async_operation(data->stream, data->processing_timestamp + 1);
+
+	if (__atomic_load_n(&async_op->timestamp, __ATOMIC_ACQUIRE) == data->processing_timestamp + 1 &&
+	    future_poll(FUTURE_AS_RUNNABLE(&async_op->future), NULL) == FUTURE_STATE_COMPLETE) {
+		/* XXX: we can combine multiple persist into one. */
+		const uint8_t *destination =
+			(const uint8_t *)pmemstream_offset_to_ptr(&data->stream->data, async_op->entry.offset);
+		data->stream->data.persist(destination, async_op->size + sizeof(struct span_entry));
+
+		++data->processing_timestamp;
+
+		return true;
+	}
+
+	return false;
+}
+
+static void pmemstream_increase_commited_timestamp(struct pmemstream_async_wait_data *data)
+{
+	assert(__atomic_load_n(&data->stream->committed_timestamp, __ATOMIC_RELAXED) == data->first_timestamp);
+
+	uint64_t num_committed_timestamps = data->processing_timestamp - data->first_timestamp;
+
+#ifndef NDEBUG
+	for (uint64_t i = 0; i < num_committed_timestamps; i++) {
+		struct async_operation *async_op =
+			pmemstream_async_operation(data->stream, data->first_timestamp + i + 1);
+		__atomic_store_n(&async_op->timestamp, PMEMSTREAM_INVALID_TIMESTAMP, __ATOMIC_RELEASE);
+	}
+#endif
+
+	__atomic_fetch_add(&data->stream->committed_timestamp, num_committed_timestamps, __ATOMIC_RELEASE);
+
+	for (uint64_t i = 0; i < num_committed_timestamps; i++) {
+		sem_post(&data->stream->async_ops_semaphore);
+	}
+
+	data->first_timestamp += num_committed_timestamps;
+
+	assert(__atomic_load_n(&data->stream->committed_timestamp, __ATOMIC_RELAXED) >= data->processing_timestamp);
+}
+
 static enum future_state pmemstream_async_wait_committed_impl(struct future_context *ctx,
 							      struct future_notifier *notifier)
 {
@@ -673,38 +692,24 @@ static enum future_state pmemstream_async_wait_committed_impl(struct future_cont
 	if (data->timestamp <= committed_timestamp)
 		return FUTURE_STATE_COMPLETE;
 
-	assert(data->timestamp < __atomic_load_n(&data->stream->next_timestamp, __ATOMIC_RELAXED));
-
-	if (pthread_mutex_trylock(&data->stream->commit_lock) != 0) {
-		return FUTURE_STATE_RUNNING;
-	}
-
-	bool future_complete = false;
-	if (committed_timestamp == __atomic_load_n(&data->stream->committed_timestamp, __ATOMIC_RELAXED)) {
-		if (pthread_mutex_trylock(pmemstream_async_lock(data->stream, committed_timestamp + 1)) != 0) {
-			pthread_mutex_unlock(&data->stream->commit_lock);
+	if (data->last_timestamp == PMEMSTREAM_INVALID_TIMESTAMP) {
+		if (!pmemstream_acquire_processing_timestamp(data)) {
 			return FUTURE_STATE_RUNNING;
 		}
-
-		struct async_operation *async_op = pmemstream_async_operation(data->stream, committed_timestamp + 1);
-		if (future_poll(FUTURE_AS_RUNNABLE(&async_op->future), NULL) == FUTURE_STATE_COMPLETE) {
-			/* XXX: we can combine multiple persist into one. */
-			const uint8_t *destination =
-				(const uint8_t *)pmemstream_offset_to_ptr(&data->stream->data, async_op->entry.offset);
-			data->stream->data.persist(destination, async_op->size + sizeof(struct span_entry));
-
-			__atomic_fetch_add(&data->stream->committed_timestamp, 1, __ATOMIC_RELEASE);
-			future_complete = data->timestamp <= committed_timestamp + 1;
-
-			sem_post(&data->stream->async_ops_semaphore);
-		}
-
-		pthread_mutex_unlock(pmemstream_async_lock(data->stream, committed_timestamp + 1));
 	}
 
-	pthread_mutex_unlock(&data->stream->commit_lock);
+	assert(data->last_timestamp != PMEMSTREAM_INVALID_TIMESTAMP);
+	if (data->processing_timestamp < data->timestamp) {
+		if (!pmemstream_process_async_ops(data)) {
+			return FUTURE_STATE_RUNNING;
+		}
+	}
 
-	return future_complete ? FUTURE_STATE_COMPLETE : FUTURE_STATE_RUNNING;
+	if (committed_timestamp == data->first_timestamp) {
+		pmemstream_increase_commited_timestamp(data);
+	}
+
+	return FUTURE_STATE_RUNNING;
 }
 
 static enum future_state pmemstream_async_wait_persisted_impl(struct future_context *ctx,
@@ -724,7 +729,13 @@ static enum future_state pmemstream_async_wait_persisted_impl(struct future_cont
 		return FUTURE_STATE_COMPLETE;
 
 	struct pmemstream_async_wait_fut future = pmemstream_async_wait_committed(data->stream, data->timestamp);
-	if (future_poll(FUTURE_AS_RUNNABLE(&future), NULL) == FUTURE_STATE_RUNNING) {
+
+	/* Resume from previous state. */
+	future.data = *data;
+	bool completed = future_poll(FUTURE_AS_RUNNABLE(&future), NULL) == FUTURE_STATE_COMPLETE;
+	*data = future.data;
+
+	if (!completed) {
 		return FUTURE_STATE_RUNNING;
 	}
 
@@ -744,7 +755,9 @@ struct pmemstream_async_wait_fut pmemstream_async_wait_committed(struct pmemstre
 	struct pmemstream_async_wait_fut future;
 	future.data.stream = stream;
 	future.data.timestamp = timestamp;
-	future.data.region_runtime = NULL;
+	future.data.first_timestamp = PMEMSTREAM_INVALID_TIMESTAMP;
+	future.data.last_timestamp = PMEMSTREAM_INVALID_TIMESTAMP;
+	future.data.processing_timestamp = PMEMSTREAM_INVALID_TIMESTAMP;
 	future.output.error_code = 0;
 	FUTURE_INIT(&future, pmemstream_async_wait_committed_impl);
 
@@ -756,7 +769,9 @@ struct pmemstream_async_wait_fut pmemstream_async_wait_persisted(struct pmemstre
 	struct pmemstream_async_wait_fut future;
 	future.data.stream = stream;
 	future.data.timestamp = timestamp;
-	future.data.region_runtime = NULL;
+	future.data.first_timestamp = PMEMSTREAM_INVALID_TIMESTAMP;
+	future.data.last_timestamp = PMEMSTREAM_INVALID_TIMESTAMP;
+	future.data.processing_timestamp = PMEMSTREAM_INVALID_TIMESTAMP;
 	future.output.error_code = 0;
 	FUTURE_INIT(&future, pmemstream_async_wait_persisted_impl);
 
