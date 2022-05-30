@@ -117,6 +117,7 @@ struct syncthreads_barrier {
 	}
 
 	syncthreads_barrier(const syncthreads_barrier &) = delete;
+	syncthreads_barrier &operator=(const syncthreads_barrier &) = delete;
 	syncthreads_barrier(syncthreads_barrier &&) = default;
 
 	void operator()()

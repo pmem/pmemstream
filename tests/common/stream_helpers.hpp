@@ -198,7 +198,7 @@ struct stream {
 /* Implements additional functions, useful for testing. */
 struct pmemstream_helpers_type {
 	pmemstream_helpers_type(pmem::stream &stream, bool call_region_runtime_initialize)
-	    : stream(stream), call_region_runtime_initialize(call_region_runtime_initialize)
+	    : stream(stream), region_runtime(), call_region_runtime_initialize(call_region_runtime_initialize)
 	{
 	}
 
@@ -474,6 +474,8 @@ struct pmemstream_test_base {
 	}
 
 	pmemstream_test_base(const pmemstream_test_base &) = delete;
+	pmemstream_test_base &operator=(const pmemstream_test_base &) = delete;
+
 	pmemstream_test_base(pmemstream_test_base &&rhs)
 	    : sut(std::move(rhs.sut)),
 	      file(rhs.file),

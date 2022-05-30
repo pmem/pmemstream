@@ -70,6 +70,7 @@ void test_get_last_entry(char *path)
 	}
 
 	const struct entry_data *last_entry_data = pmemstream_entry_data(env.stream, last_entry);
+	UT_ASSERTne(last_entry_data, NULL);
 	UT_ASSERTeq(last_entry_data->data, entries[entries_count - 1].data);
 
 	pmemstream_entry_iterator_delete(&eiter);
