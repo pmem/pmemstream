@@ -101,10 +101,10 @@ int main(int argc, char *argv[])
 	// memcpy(reserved_data, &my_entry, sizeof(data_entry));
 
 	/* or using placement new: */
-	data_entry *emplaced_data = new (reserved_data) data_entry(my_entry);
+	new (reserved_data) data_entry(my_entry);
 
 	/* And we have to publish, what we've written down. */
-	ret = pmemstream_publish(stream, region, nullptr, emplaced_data, sizeof(data_entry), reserved_entry);
+	ret = pmemstream_publish(stream, region, nullptr, reserved_entry, sizeof(data_entry));
 	if (ret != 0) {
 		fprintf(stderr, "pmemstream_publish failed\n");
 		return ret;
