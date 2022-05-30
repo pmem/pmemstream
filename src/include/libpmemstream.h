@@ -37,6 +37,10 @@ struct pmemstream_async_wait_data {
 	struct pmemstream *stream;
 	struct pmemstream_region_runtime *region_runtime;
 	uint64_t timestamp;
+
+	uint64_t first_timestamp;
+	uint64_t processing_timestamp;
+	uint64_t last_timestamp;
 };
 
 struct pmemstream_async_wait_output {

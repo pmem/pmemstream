@@ -54,11 +54,9 @@ struct async_operation {
 	struct vdm_operation_future future;
 
 	/* Description of append operation. */
-	struct pmemstream_region region;
+	uint64_t timestamp;
 	struct pmemstream_entry entry;
-	size_t size;
-
-	struct pmemstream_region_runtime *region_runtime;
+	uint64_t size;
 };
 
 struct pmemstream {
@@ -80,14 +78,11 @@ struct pmemstream {
 	/* This timestamp is used to generate timestamps for append. It is always increased monotonically. */
 	alignas(CACHELINE_SIZE) uint64_t next_timestamp;
 
-	/* Protects slots in async_ops array. */
-	pthread_mutex_t *async_ops_locks;
+	/* This timestamp is used to synchronize commits. */
+	alignas(CACHELINE_SIZE) uint64_t processing_timestamp;
 
 	/* Stores in-progress operations, indexed by timestamp mod array size. */
 	struct async_operation *async_ops;
-
-	/* Protects increasing committed timestamp. */
-	pthread_mutex_t commit_lock;
 
 	/* Used to perform synchronous memcpy. */
 	struct data_mover_sync *data_mover_sync;
