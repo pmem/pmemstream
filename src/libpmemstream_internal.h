@@ -12,12 +12,10 @@
 
 #include "iterator.h"
 #include "libpmemstream.h"
-#include "mpmc_queue.h"
 #include "pmemstream_runtime.h"
 #include "region.h"
 #include "region_allocator/allocator_base.h"
 #include "span.h"
-#include "thread_id.h"
 
 #ifdef __cplusplus
 extern "C" {
