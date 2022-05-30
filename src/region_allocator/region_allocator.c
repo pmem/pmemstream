@@ -34,7 +34,7 @@ static void perform_free_list_head_to_allocated_list_tail_move(const struct pmem
 	struct span_base *span = (struct span_base *)span_offset_to_span_ptr(runtime, region_free);
 	assert(span_get_type(span) == SPAN_REGION);
 
-	((struct span_region *)span)->max_valid_timestamp = PMEMSTREAM_INVALID_TIMESTAMP;
+	((struct span_region *)span)->max_valid_timestamp = UINT64_MAX;
 	runtime->persist(&((struct span_region *)span)->max_valid_timestamp, sizeof(uint64_t));
 	runtime->memset(((struct span_region *)span)->data, 0, sizeof(struct span_entry), PMEM2_F_MEM_NONTEMPORAL);
 
