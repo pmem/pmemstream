@@ -10,12 +10,9 @@ add_check_whitespace(src
 	${CMAKE_CURRENT_SOURCE_DIR}/*/*.[chp])
 
 set(SOURCES critnib/critnib.c
-			id_manager.c
 			iterator.c
-			mpmc_queue.c
 			region.c
 			span.c
-			thread_id.c
 			libpmemstream.c
 			region_allocator/region_allocator.c)
 
