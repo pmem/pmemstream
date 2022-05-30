@@ -112,11 +112,14 @@ struct stream {
 		return {ret, new_entry};
 	}
 
-	pmemstream_async_append_fut async_append(struct vdm *vdm, struct pmemstream_region region,
-						 const std::string_view &data,
-						 pmemstream_region_runtime *region_runtime = nullptr)
+	std::tuple<int, struct pmemstream_entry> async_append(struct vdm *vdm, struct pmemstream_region region,
+							      const std::string_view &data,
+							      pmemstream_region_runtime *region_runtime = nullptr)
 	{
-		return pmemstream_async_append(c_stream.get(), vdm, region, region_runtime, data.data(), data.size());
+		struct pmemstream_entry entry;
+		auto ret = pmemstream_async_append(c_stream.get(), vdm, region, region_runtime, data.data(),
+						   data.size(), &entry);
+		return {ret, entry};
 	}
 
 	std::tuple<int, struct pmemstream_entry, void *> reserve(struct pmemstream_region region, size_t size,
@@ -129,17 +132,18 @@ struct stream {
 		return {ret, reserved_entry, reserved_data};
 	}
 
-	int publish(struct pmemstream_region region, const void *data, size_t size,
-		    struct pmemstream_entry reserved_entry, pmemstream_region_runtime *region_runtime = nullptr)
+	int publish(struct pmemstream_region region, const void *, size_t size, struct pmemstream_entry reserved_entry,
+		    pmemstream_region_runtime *region_runtime = nullptr)
 	{
-		return pmemstream_publish(c_stream.get(), region, region_runtime, data, size, reserved_entry);
+		// XXX: remove data, size from API
+		return pmemstream_publish(c_stream.get(), region, region_runtime, reserved_entry, size);
 	}
 
-	pmemstream_async_publish_fut async_publish(struct pmemstream_region region, const void *data, size_t size,
-						   struct pmemstream_entry reserved_entry,
-						   pmemstream_region_runtime *region_runtime = nullptr)
+	auto async_publish(struct pmemstream_region region, const void *, size_t size,
+			   struct pmemstream_entry reserved_entry, pmemstream_region_runtime *region_runtime = nullptr)
 	{
-		return pmemstream_async_publish(c_stream.get(), region, region_runtime, data, size, reserved_entry);
+		// XXX: remove data, size from API
+		return pmemstream_async_publish(c_stream.get(), region, region_runtime, reserved_entry, size);
 	}
 
 	std::tuple<int, struct pmemstream_region> region_allocate(size_t size)
@@ -152,6 +156,11 @@ struct stream {
 	size_t region_size(pmemstream_region region)
 	{
 		return pmemstream_region_size(c_stream.get(), region);
+	}
+
+	auto entry_timestamp(pmemstream_entry entry)
+	{
+		return pmemstream_entry_timestamp(c_stream.get(), entry);
 	}
 
 	auto entry_iterator(pmemstream_region region)
@@ -189,6 +198,26 @@ struct stream {
 		return std::string_view(ptr, pmemstream_entry_length(c_stream.get(), entry));
 	}
 
+	auto committed_timestamp()
+	{
+		return pmemstream_committed_timestamp(c_stream.get());
+	}
+
+	auto persisted_timestamp()
+	{
+		return pmemstream_persisted_timestamp(c_stream.get());
+	}
+
+	auto async_wait_persisted(uint64_t timestamp)
+	{
+		return pmemstream_async_wait_persisted(c_stream.get(), timestamp);
+	}
+
+	auto async_wait_committed(uint64_t timestamp)
+	{
+		return pmemstream_async_wait_committed(c_stream.get(), timestamp);
+	}
+
  private:
 	std::unique_ptr<struct pmemstream, std::function<void(struct pmemstream *)>> c_stream;
 }; /* struct stream */
@@ -224,25 +253,20 @@ struct pmemstream_helpers_type {
 
 		struct vdm *thread_mover = data_mover_threads_get_vdm(dmt_ptr.get());
 
-		auto futures = std::vector<struct pmemstream_async_append_fut>();
+		struct pmemstream_entry entry;
 		for (size_t i = 0; i < data.size(); ++i) {
-			auto fut = stream.async_append(thread_mover, region, data[i], region_runtime[region.offset]);
-			UT_ASSERTeq(fut.output.error_code, 0);
-			futures.push_back(fut);
+			auto [ret, new_entry] =
+				stream.async_append(thread_mover, region, data[i], region_runtime[region.offset]);
+			UT_ASSERTeq(ret, 0);
+			entry = new_entry;
 		}
 
-		/* poll all async appends */
-		auto completed_futures = std::vector<bool>(data.size());
-		size_t completed = 0;
-		do {
-			for (size_t i = 0; i < data.size(); ++i) {
-				if (!completed_futures[i] &&
-				    future_poll(FUTURE_AS_RUNNABLE(&futures[i]), NULL) == FUTURE_STATE_COMPLETE) {
-					completed_futures[i] = true;
-					completed++;
-				}
-			}
-		} while (completed < data.size());
+		/* poll until persisted */
+		if (data.size()) {
+			auto future = stream.async_wait_persisted(stream.entry_timestamp(entry));
+			while (future_poll(FUTURE_AS_RUNNABLE(&future), NULL) != FUTURE_STATE_COMPLETE)
+				;
+		}
 	}
 
 	struct pmemstream_region initialize_single_region(size_t region_size, const std::vector<std::string> &data)
@@ -386,7 +410,7 @@ struct pmemstream_helpers_type {
 		return last_entry;
 	}
 
-	std::vector<std::string> get_elements_in_region(struct pmemstream_region region)
+	std::vector<std::string> get_elements_in_region(struct pmemstream_region region, bool persisted = true)
 	{
 		std::vector<std::string> result;
 
@@ -395,6 +419,11 @@ struct pmemstream_helpers_type {
 		struct pmemstream_region r;
 		while (pmemstream_entry_iterator_next(eiter.get(), &r, &entry) == 0) {
 			UT_ASSERTeq(r.offset, region.offset);
+			UT_ASSERT(stream.entry_timestamp(entry) <= stream.committed_timestamp());
+
+			if (persisted && stream.entry_timestamp(entry) > stream.persisted_timestamp())
+				break;
+
 			result.emplace_back(stream.get_entry(entry));
 		}
 
@@ -443,10 +472,10 @@ struct pmemstream_helpers_type {
 
 	/* XXX: extend to allow more than one extra_data vector */
 	void verify(pmemstream_region region, const std::vector<std::string> &data,
-		    const std::vector<std::string> &extra_data)
+		    const std::vector<std::string> &extra_data, bool persisted = true)
 	{
 		/* Verify if stream now holds data + extra_data */
-		auto all_elements = get_elements_in_region(region);
+		auto all_elements = get_elements_in_region(region, persisted);
 		auto extra_data_start = all_elements.begin() + static_cast<int>(data.size());
 
 		UT_ASSERTeq(all_elements.size(), data.size() + extra_data.size());

@@ -40,66 +40,14 @@ std::ostream &operator<<(std::ostream &os, const payload &data)
 	return os;
 }
 
-/* Class which holds user data and timestamp. */
-struct timestamped_entry {
-
-	timestamped_entry(size_t timestamp, payload d) : timestamp(timestamp), data(d)
-	{
-	}
-
-	bool is_older(timestamped_entry *other)
-	{
-		return (timestamp < other->timestamp);
-	}
-
-	static constexpr size_t invalid_timestamp = std::numeric_limits<size_t>::max();
-
-	size_t timestamp;
-	payload data;
-};
-
-std::ostream &operator<<(std::ostream &os, const timestamped_entry &entry)
-{
-	os << "entry timestamp " << entry.timestamp << " with data (" << entry.data << ")";
-	return os;
-}
-
-/* Wrapper class for pmemstream_append, which guarantee that appends from
- * multiple threads occur in order of monotonically increasing timestamps. */
-struct append_manager {
-	append_manager(pmemstream *stream) : stream(stream)
-	{
-	}
-
-	append_manager(const append_manager &) = delete;
-	append_manager &operator=(const append_manager &) = delete;
-
-	void append(struct pmemstream_region region, payload &data)
-	{
-		/* Acquire lock to simulate atomicity of append with timestamp. */
-		std::lock_guard<std::mutex> guard(timestamp_mutex);
-		auto to_append = timestamped_entry(timestamp, data);
-		timestamp++;
-
-		int ret = pmemstream_append(stream, region, NULL, &to_append, sizeof(to_append), NULL);
-		if (ret != 0) {
-			std::runtime_error("pmemstream_append failed\n");
-		}
-	}
-
- private:
-	pmemstream *stream;
-	std::mutex timestamp_mutex;
-	size_t timestamp = 0;
-};
-
-/* pmemstream entry iterator wrapper, which helps to manage entries from
+/* pmememstream entry iterator wrapper, which helps to manage entries from
  * different regions in global order. */
 class entry_iterator {
  public:
-	entry_iterator(pmemstream *stream, pmemstream_region &region)
-	    : stream(stream), region(region), end(timestamped_entry::invalid_timestamp, payload())
+	entry_iterator(pmemstream *stream, pmemstream_region &region) : stream(stream), region(region)
 	{
+		entry.offset = UINT64_MAX;
+
 		struct pmemstream_entry_iterator *new_entry_iterator;
 		if (pmemstream_entry_iterator_new(&new_entry_iterator, stream, region) != 0) {
 			std::runtime_error("Cannot create entry iterators");
@@ -112,30 +60,30 @@ class entry_iterator {
 
 	void operator++()
 	{
-		pmemstream_entry entry;
-		if (pmemstream_entry_iterator_next(it.get(), &region, &entry) == 0) {
-			last_entry = (timestamped_entry *)pmemstream_entry_data(stream, entry);
-		} else {
-			last_entry = &end;
-		}
+		pmemstream_entry_iterator_next(it.get(), &region, &entry);
 	}
 
 	bool operator<(entry_iterator &other)
 	{
-		return (last_entry->is_older(other.last_entry));
+		if (entry.offset == UINT64_MAX)
+			return false;
+
+		if (other.entry.offset == UINT64_MAX)
+			return true;
+
+		return pmemstream_entry_timestamp(stream, entry) < pmemstream_entry_timestamp(stream, other.entry);
 	}
 
-	timestamped_entry get_data()
+	payload get_data()
 	{
-		return *last_entry;
+		return *reinterpret_cast<const payload *>(pmemstream_entry_data(stream, entry));
 	}
 
  private:
 	pmemstream *stream;
 	pmemstream_region region;
 	std::shared_ptr<pmemstream_entry_iterator> it;
-	timestamped_entry *last_entry;
-	timestamped_entry end;
+	pmemstream_entry entry;
 };
 
 std::vector<entry_iterator> get_entry_iterators(pmemstream *stream, std::vector<pmemstream_region> regions)
@@ -165,13 +113,12 @@ int main(int argc, char *argv[])
 	initialize_stream(path, &map, &stream);
 
 	auto regions = create_multiple_regions(&stream, concurrency, EXAMPLE_REGION_SIZE);
-	append_manager timestamped_appender(stream);
 
 	/* Concurrently append to many regions with global ordering */
 	parallel_exec(concurrency, [&](size_t thread_id) {
 		for (size_t i = 0; i < samples_per_thread; i++) {
-			payload entry_identifier(thread_id, i);
-			timestamped_appender.append(regions[thread_id], entry_identifier);
+			payload entry(thread_id, i);
+			pmemstream_append(stream, regions[thread_id], NULL, &entry, sizeof(entry), NULL);
 		}
 	});
 
@@ -180,7 +127,7 @@ int main(int argc, char *argv[])
 
 	for (size_t i = 0; i < concurrency * samples_per_thread; i++) {
 		auto oldest_data = std::min_element(entry_iterators.begin(), entry_iterators.end());
-		timestamped_entry entry = oldest_data->get_data();
+		payload entry = oldest_data->get_data();
 		std::cout << entry << std::endl;
 		++(*oldest_data);
 	}
