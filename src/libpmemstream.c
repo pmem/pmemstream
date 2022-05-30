@@ -313,6 +313,16 @@ size_t pmemstream_entry_length(struct pmemstream *stream, struct pmemstream_entr
 	return span_get_size(&span_entry->span_base);
 }
 
+uint64_t pmemstream_entry_timestamp(struct pmemstream *stream, struct pmemstream_entry entry)
+{
+	int ret = pmemstream_validate_stream_and_offset(stream, entry.offset);
+	if (ret) {
+		return PMEMSTREAM_INVALID_TIMESTAMP;
+	}
+	struct span_entry *span_entry = (struct span_entry *)span_offset_to_span_ptr(&stream->data, entry.offset);
+	return span_entry->timestamp;
+}
+
 int pmemstream_region_runtime_initialize(struct pmemstream *stream, struct pmemstream_region region,
 					 struct pmemstream_region_runtime **region_runtime)
 {
