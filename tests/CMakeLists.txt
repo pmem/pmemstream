@@ -76,12 +76,6 @@ endif()
 # ----------------------------------------------------------------- #
 ## All tests
 # ----------------------------------------------------------------- #
-build_test_ext(NAME id_manager_multithreaded SRC_FILES unittest/id_manager_multithreaded.cpp ../src/id_manager.c ../src/critnib/critnib.c)
-add_test_generic(NAME id_manager_multithreaded TRACERS none memcheck drd helgrind)
-
-build_test_ext(NAME thread_id SRC_FILES unittest/thread_id.cpp ../src/id_manager.c ../src/thread_id.c ../src/critnib/critnib.c)
-add_test_generic(NAME thread_id TRACERS none memcheck drd helgrind)
-
 build_test(append_entry api_c/append_entry.c)
 add_test_generic(NAME append_entry TRACERS none memcheck pmemcheck drd helgrind)
 
@@ -116,15 +110,6 @@ if(TESTS_RAPIDCHECK)
 	build_test_rc(NAME create SRC_FILES unittest/create.cpp)
 	add_test_generic(NAME create TRACERS none)
 
-	build_test_rc(NAME id_manager SRC_FILES unittest/id_manager.cpp ../src/id_manager.c ../src/critnib/critnib.c)
-	add_test_generic(NAME id_manager TRACERS none memcheck)
-
-	build_test_rc(NAME mpmc_queue SRC_FILES unittest/mpmc_queue.cpp ../src/mpmc_queue.c)
-	add_test_generic(NAME mpmc_queue TRACERS none memcheck)
-
-	build_test_rc(NAME mpmc_queue_multithreaded SRC_FILES unittest/mpmc_queue_multithreaded.cpp ../src/mpmc_queue.c)
-	add_test_generic(NAME mpmc_queue_multithreaded TRACERS none)
-
 	build_test_rc(NAME multi_region SRC_FILES unittest/multi_region.cpp)
 	add_test_generic(NAME multi_region TRACERS none memcheck pmemcheck)
 
@@ -134,7 +119,7 @@ if(TESTS_RAPIDCHECK)
 	build_test_rc(NAME publish_append_async SRC_FILES unittest/publish_append_async.cpp LIBS miniasync)
 	add_test_generic(NAME publish_append_async TRACERS none)
 
-	build_test_rc(NAME region_runtime_initialize SRC_FILES unittest/region_runtime_initialize.cpp ../src/region.c ../src/critnib/critnib.c ../src/iterator.c ../src/mpmc_queue.c)
+	build_test_rc(NAME region_runtime_initialize SRC_FILES unittest/region_runtime_initialize.cpp ../src/region.c ../src/critnib/critnib.c ../src/iterator.c)
 	add_test_generic(NAME region_runtime_initialize TRACERS none memcheck)
 
 	build_test_rc(NAME reserve_publish SRC_FILES unittest/reserve_publish.cpp)
