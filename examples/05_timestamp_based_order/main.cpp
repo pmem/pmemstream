@@ -40,65 +40,11 @@ std::ostream &operator<<(std::ostream &os, const payload &data)
 	return os;
 }
 
-/* Class which holds user data and timestamp. */
-struct timestamped_entry {
-
-	timestamped_entry(size_t timestamp, payload d) : timestamp(timestamp), data(d)
-	{
-	}
-
-	bool is_older(timestamped_entry *other)
-	{
-		return (timestamp < other->timestamp);
-	}
-
-	static constexpr size_t invalid_timestamp = std::numeric_limits<size_t>::max();
-
-	size_t timestamp;
-	payload data;
-};
-
-std::ostream &operator<<(std::ostream &os, const timestamped_entry &entry)
-{
-	os << "entry timestamp " << entry.timestamp << " with data (" << entry.data << ")";
-	return os;
-}
-
-/* Wrapper class for pmemstream_append, which guarantee that appends from
- * multiple threads occur in order of monotonically increasing timestamps. */
-struct append_manager {
-	append_manager(pmemstream *stream) : stream(stream)
-	{
-	}
-
-	append_manager(const append_manager &) = delete;
-	append_manager &operator=(const append_manager &) = delete;
-
-	void append(struct pmemstream_region region, payload &data)
-	{
-		/* Acquire lock to simulate atomicity of append with timestamp. */
-		std::lock_guard<std::mutex> guard(timestamp_mutex);
-		auto to_append = timestamped_entry(timestamp, data);
-		timestamp++;
-
-		int ret = pmemstream_append(stream, region, NULL, &to_append, sizeof(to_append), NULL);
-		if (ret != 0) {
-			std::runtime_error("pmemstream_append failed\n");
-		}
-	}
-
- private:
-	pmemstream *stream;
-	std::mutex timestamp_mutex;
-	size_t timestamp = 0;
-};
-
-/* pmemstream entry iterator wrapper, which helps to manage entries from
+/* pmememstream entry iterator wrapper, which helps to manage entries from
  * different regions in global order. */
 class entry_iterator {
  public:
-	entry_iterator(pmemstream *stream, pmemstream_region &region)
-	    : stream(stream), end(timestamped_entry::invalid_timestamp, payload())
+	entry_iterator(pmemstream *stream, pmemstream_region &region) : stream(stream)
 	{
 		struct pmemstream_entry_iterator *new_entry_iterator;
 		if (pmemstream_entry_iterator_new(&new_entry_iterator, stream, region) != 0) {
@@ -111,38 +57,46 @@ class entry_iterator {
 		if (pmemstream_entry_iterator_is_valid(it.get()) != 0) {
 			throw std::runtime_error("No entries to iterate");
 		}
-		last_entry = get_entry_data();
 	}
 
 	void operator++()
 	{
 		pmemstream_entry_iterator_next(it.get());
-		if (pmemstream_entry_iterator_is_valid(it.get()) == 0) {
-			last_entry = get_entry_data();
-		} else {
-			last_entry = &end;
-		}
 	}
 
 	bool operator<(entry_iterator &other)
 	{
-		return (last_entry->is_older(other.last_entry));
+		if (pmemstream_entry_iterator_is_valid(it.get()) != 0)
+			return false;
+
+		if (pmemstream_entry_iterator_is_valid(other.it.get()) != 0)
+			return true;
+
+		return get_timestamp() < other.get_timestamp();
 	}
 
-	timestamped_entry get_data()
+	payload get_data()
 	{
-		return *last_entry;
+		if (pmemstream_entry_iterator_is_valid(it.get()) != 0) {
+			throw std::runtime_error("Invalid iterator");
+		}
+		return *reinterpret_cast<const payload *>(
+			pmemstream_entry_data(stream, pmemstream_entry_iterator_get(it.get())));
+	}
+
+	uint64_t get_timestamp()
+	{
+		if (pmemstream_entry_iterator_is_valid(it.get()) != 0) {
+			throw std::runtime_error("Invalid iterator");
+		}
+
+		auto this_entry = pmemstream_entry_iterator_get(it.get());
+		return pmemstream_entry_timestamp(stream, this_entry);
 	}
 
  private:
-	timestamped_entry *get_entry_data()
-	{
-		return (timestamped_entry *)pmemstream_entry_data(stream, pmemstream_entry_iterator_get(it.get()));
-	}
 	pmemstream *stream;
 	std::shared_ptr<pmemstream_entry_iterator> it;
-	timestamped_entry *last_entry;
-	timestamped_entry end;
 };
 
 std::vector<entry_iterator> get_entry_iterators(pmemstream *stream, std::vector<pmemstream_region> regions)
@@ -163,7 +117,7 @@ int main(int argc, char *argv[])
 
 	std::string path(argv[1]);
 
-	constexpr size_t concurrency = 1;
+	constexpr size_t concurrency = 4;
 	constexpr size_t samples_per_thread = 10;
 
 	/* Initialize stream with multiple regions */
@@ -172,13 +126,12 @@ int main(int argc, char *argv[])
 	initialize_stream(path, &map, &stream);
 
 	auto regions = create_multiple_regions(&stream, concurrency, EXAMPLE_REGION_SIZE);
-	append_manager timestamped_appender(stream);
 
 	/* Concurrently append to many regions with global ordering */
 	parallel_exec(concurrency, [&](size_t thread_id) {
 		for (size_t i = 0; i < samples_per_thread; i++) {
-			payload entry_identifier(thread_id, i);
-			timestamped_appender.append(regions[thread_id], entry_identifier);
+			payload entry(thread_id, i);
+			pmemstream_append(stream, regions[thread_id], NULL, &entry, sizeof(entry), NULL);
 		}
 	});
 
@@ -187,8 +140,8 @@ int main(int argc, char *argv[])
 
 	for (size_t i = 0; i < concurrency * samples_per_thread; i++) {
 		auto oldest_data = std::min_element(entry_iterators.begin(), entry_iterators.end());
-		timestamped_entry entry = oldest_data->get_data();
-		std::cout << entry << std::endl;
+		payload entry = oldest_data->get_data();
+		std::cout << entry << " with timestamp: " << oldest_data->get_timestamp() << std::endl;
 		++(*oldest_data);
 	}
 
