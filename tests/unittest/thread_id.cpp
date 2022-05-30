@@ -79,9 +79,9 @@ int main()
 			/* Description:
 			 * 1. Create 'concurrency' threads and call thread_id_get in each of them.
 			 * 2. After all threads have called thread_id_get, save reference to one of them
-			 *    (arbitrary choosen one) and let this one thread finish, keep remaining threads
+			 *    (arbitrary chosen one) and let this one thread finish, keep remaining threads
 			 *    alive.
-			 * 3. Wait for the arbitrary choosen thread to finish and in different thread, call
+			 * 3. Wait for the arbitrary chosen thread to finish and in different thread, call
 			 *    thread_id_get. This should return the exact same id as was returned inside the
 			 *    thread which just finished.
 			 * 4. Stop all other threads.

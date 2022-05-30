@@ -29,7 +29,7 @@ void parallel_exec(size_t threads_number, Function f)
 				try {
 					f(id);
 				} catch (std::exception &e) {
-					fprintf(stderr, "Error: %s occured in thread %ld\n", e.what(), id);
+					fprintf(stderr, "Error: %s occurred in thread %ld\n", e.what(), id);
 					exit(id);
 				}
 			},

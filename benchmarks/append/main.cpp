@@ -275,7 +275,7 @@ int main(int argc, char *argv[])
 		workload = std::make_unique<pmemstream_workload>(cfg);
 	}
 
-	/* XXX: Add initialization phase whith separate measurement */
+	/* XXX: Add initialization phase with separate measurement */
 	std::vector<std::chrono::nanoseconds::rep> results;
 	try {
 		results = benchmark::measure<std::chrono::nanoseconds>(cfg.iterations, workload.get(), cfg.concurrency);

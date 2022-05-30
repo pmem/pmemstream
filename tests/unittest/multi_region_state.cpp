@@ -158,7 +158,7 @@ int main(int argc, char *argv[])
 
 		/* it tests proper order of allocated/freed regions */
 		ret += rc::check(
-			"Adding and removing multiple regions should be iterable and accesible",
+			"Adding and removing multiple regions should be iterable and accessible",
 			[](pmemstream_empty &&stream) {
 				struct regions_model model;
 
@@ -171,7 +171,7 @@ int main(int argc, char *argv[])
 
 		/* checks if appends on multiple regions work as expected */
 		ret += rc::check(
-			"verify if sequence of append and reopen commands leads to consitent state on multiple regions",
+			"verify if sequence of append and reopen commands leads to a consistent state on multiple regions",
 			[](pmemstream_with_multi_empty_regions &&stream) {
 				pmemstream_model model;
 
