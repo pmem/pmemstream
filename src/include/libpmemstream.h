@@ -194,6 +194,8 @@ int pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iterator, s
 
 void pmemstream_entry_iterator_delete(struct pmemstream_entry_iterator **iterator);
 
+uint64_t pmemstream_entry_timestamp(struct pmemstream *stream, struct pmemstream_entry entry);
+
 #ifdef __cplusplus
 } /* end extern "C" */
 #endif
