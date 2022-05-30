@@ -149,6 +149,8 @@ const void *pmemstream_entry_data(struct pmemstream *stream, struct pmemstream_e
 /* Returns the size of the entry. Assumes that 'entry' points to a valid entry. */
 size_t pmemstream_entry_length(struct pmemstream *stream, struct pmemstream_entry entry);
 
+uint64_t pmemstream_entry_timestamp(struct pmemstream *stream, struct pmemstream_entry entry);
+
 /* Creates new region iterator
  *
  * Default state is undefined: every new iterator should be moved to first element in the stream.
