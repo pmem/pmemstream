@@ -401,6 +401,22 @@ struct pmemstream_helpers_type {
 		return result;
 	}
 
+	std::vector<uint64_t> get_timestamps_in_region(struct pmemstream_region region)
+	{
+		std::vector<uint64_t> result;
+
+		auto eiter = stream.entry_iterator(region);
+		struct pmemstream_entry entry;
+		struct pmemstream_region r;
+		while (pmemstream_entry_iterator_next(eiter.get(), &r, &entry) == 0) {
+			UT_ASSERTeq(r.offset, region.offset);
+			result.emplace_back(pmemstream_entry_timestamp(stream.c_ptr(), entry));
+			// result.emplace_back(stream.get_entry(entry));
+		}
+
+		return result;
+	}
+
 	size_t count_regions()
 	{
 		auto riter = stream.region_iterator();
