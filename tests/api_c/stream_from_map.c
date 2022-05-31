@@ -17,9 +17,8 @@ void test_stream_from_map(char *path, size_t file_size, size_t blk_size)
 	UT_ASSERTeq(pmemstream_from_map(&s, blk_size, map), 0);
 	UT_ASSERTne(s, NULL);
 
-	/* fresh stream should start with timestamps equal to "1" */
-	UT_ASSERTeq(pmemstream_committed_timestamp(s), PMEMSTREAM_FIRST_TIMESTAMP);
-	UT_ASSERTeq(pmemstream_persisted_timestamp(s), PMEMSTREAM_FIRST_TIMESTAMP);
+	UT_ASSERTeq(pmemstream_committed_timestamp(s), PMEMSTREAM_INVALID_TIMESTAMP);
+	UT_ASSERTeq(pmemstream_persisted_timestamp(s), PMEMSTREAM_INVALID_TIMESTAMP);
 
 	pmemstream_delete(&s);
 	pmem2_map_delete(&map);
