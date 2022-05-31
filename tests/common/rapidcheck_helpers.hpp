@@ -76,6 +76,11 @@ struct ranged {
 		}
 		value = val;
 	}
+
+	operator T() const
+	{
+		return value;
+	}
 };
 
 /* Generators for custom structures. */
