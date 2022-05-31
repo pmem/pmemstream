@@ -37,8 +37,8 @@ int main(int argc, char *argv[])
 				if (reopen)
 					stream.reopen();
 
-				std::vector<std::vector<std::string>> threads_data(concurrency.value);
-				parallel_exec(concurrency.value, [&](size_t tid) {
+				std::vector<std::vector<std::string>> threads_data(concurrency);
+				parallel_exec(concurrency, [&](size_t tid) {
 					threads_data[tid] = stream.helpers.get_elements_in_region(region);
 				});
 
