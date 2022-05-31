@@ -40,7 +40,7 @@ std::vector<uint64_t> generate_inconsistent_span(span_type stype)
 	garbage[0] = size | static_cast<uint64_t>(stype);
 	if (stype == SPAN_ENTRY) {
 		/* Always wrong timestamp. */
-		garbage[1] = std::numeric_limits<uint64_t>::max();
+		garbage[1] = PMEMSTREAM_INVALID_TIMESTAMP;
 	}
 
 	return garbage;
@@ -113,8 +113,10 @@ int main(int argc, char *argv[])
 					 auto region = stream.helpers.initialize_single_region(TEST_DEFAULT_REGION_SIZE,
 											       data);
 
-					 auto span = generate_consistent_entry_span(
-						 stream.helpers.get_elements_in_region(region).size());
+					 /* Timestamps starts from "1" */
+					 uint64_t proper_next_timestamp =
+						 stream.helpers.get_elements_in_region(region).size() + 1;
+					 auto span = generate_consistent_entry_span(proper_next_timestamp);
 					 write_custom_span_at_tail(stream, region, span);
 
 					 stream.reopen();

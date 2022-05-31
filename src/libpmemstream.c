@@ -387,7 +387,7 @@ int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region regio
 static uint64_t pmemstream_acquire_timestamp(struct pmemstream *stream)
 {
 	uint64_t tid = thread_id_get(stream->thread_id);
-	return mpmc_queue_acquire(stream->timestamp_queue, tid, 1);
+	return mpmc_queue_acquire(stream->timestamp_queue, tid, 1) + 1;
 }
 
 static void pmemstream_produce_timestamp(struct pmemstream *stream, uint64_t timestamp /*XXX*/)
@@ -441,7 +441,8 @@ int pmemstream_publish(struct pmemstream *stream, struct pmemstream_region regio
 
 	pmemstream_produce_timestamp(stream, timestamp);
 
-	while (pmemstream_sync_timestamps(stream) <= timestamp) {
+	/* wait until current timestamp is committed (synced_timestamp >= current timestamp) */
+	while (pmemstream_sync_timestamps(stream) < timestamp) {
 		/* XXX: for async version, this loop should be implemented as a future_poll, for sync version we might
 		 * want to add blocking consume */
 	}
