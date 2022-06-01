@@ -224,6 +224,42 @@ struct stream {
 
 } // namespace pmem
 
+template <typename FutureT, typename MoverT>
+struct future_wrapper {
+	future_wrapper(FutureT &&future, MoverT &&mover)
+	    : future(std::make_unique<FutureT>(std::move(future))), mover(std::move(mover))
+	{
+	}
+
+	future_wrapper(MoverT &&mover) : future(std::make_unique<FutureT>()), mover(std::move(mover))
+	{
+		FUTURE_INIT_COMPLETE(future.get());
+	}
+
+	future_wrapper(future_wrapper &&) = default;
+	future_wrapper &operator=(future_wrapper &&) = default;
+
+	future_wrapper(const future_wrapper &) = delete;
+	future_wrapper &operator=(const future_wrapper &) = delete;
+
+	auto poll()
+	{
+		return future_poll(FUTURE_AS_RUNNABLE(future.get()), NULL);
+	}
+
+	~future_wrapper()
+	{
+		if (!future)
+			return;
+
+		while (poll() != FUTURE_STATE_COMPLETE)
+			;
+	}
+
+	std::unique_ptr<FutureT> future;
+	MoverT mover;
+};
+
 /* Implements additional functions, useful for testing. */
 struct pmemstream_helpers_type {
 	pmemstream_helpers_type(pmem::stream &stream, bool call_region_runtime_initialize)
@@ -244,12 +280,13 @@ struct pmemstream_helpers_type {
 		}
 	}
 
-	void async_append(struct pmemstream_region region, const std::vector<std::string> &data)
+	using thread_data_mover_type = std::unique_ptr<struct data_mover_threads, decltype(&data_mover_threads_delete)>;
+	future_wrapper<pmemstream_async_wait_fut, thread_data_mover_type>
+	async_append(struct pmemstream_region region, const std::vector<std::string> &data)
 	{
 		struct data_mover_threads *dmt = data_mover_threads_default();
 		UT_ASSERTne(dmt, NULL);
-		auto dmt_ptr = std::unique_ptr<struct data_mover_threads, decltype(&data_mover_threads_delete)>(
-			dmt, &data_mover_threads_delete);
+		auto dmt_ptr = thread_data_mover_type(dmt, &data_mover_threads_delete);
 
 		struct vdm *thread_mover = data_mover_threads_get_vdm(dmt_ptr.get());
 
@@ -264,8 +301,10 @@ struct pmemstream_helpers_type {
 		/* poll until persisted */
 		if (data.size()) {
 			auto future = stream.async_wait_persisted(stream.entry_timestamp(entry));
-			while (future_poll(FUTURE_AS_RUNNABLE(&future), NULL) != FUTURE_STATE_COMPLETE)
-				;
+			return future_wrapper<pmemstream_async_wait_fut, thread_data_mover_type>(std::move(future),
+												 std::move(dmt_ptr));
+		} else {
+			return future_wrapper<pmemstream_async_wait_fut, thread_data_mover_type>(std::move(dmt_ptr));
 		}
 	}
 

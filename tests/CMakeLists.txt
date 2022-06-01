@@ -101,6 +101,9 @@ if(TESTS_RAPIDCHECK)
 	build_test_rc(NAME append_oom SRC_FILES unittest/append_oom.cpp)
 	add_test_generic(NAME append_oom TRACERS none)
 
+	build_test_rc(NAME concurrent_async_wait SRC_FILES unittest/concurrent_async_wait.cpp LIBS miniasync)
+	add_test_generic(NAME concurrent_async_wait TRACERS none)
+
 	build_test_rc(NAME concurrent_iterate SRC_FILES unittest/concurrent_iterate.cpp)
 	add_test_generic(NAME concurrent_iterate TRACERS none)
 
