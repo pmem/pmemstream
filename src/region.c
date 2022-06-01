@@ -43,20 +43,6 @@ struct pmemstream_region_runtime {
 	 */
 	uint64_t append_offset;
 
-	/*
-	 * All entries which start at offset < committed_offset can be treated as committed and safely read
-	 * from multiple threads.
-	 *
-	 * XXX: committed offset is not reliable in case of concurrent appends to the same region. The reason is
-	 * that it is updated in pmemstream_publish/pmemstream_sync, potentially in different order than append_offset.
-	 *
-	 * To fix this, we might use mechanism similar to timestamp tracking. Alternatively we can batch (transparently
-	 * or via a transaction) appends and then, increase committed_offset on batch commit.
-	 *
-	 * XXX: add test for this: async_append entries of different sizes and call future_poll in different order.
-	 */
-	uint64_t committed_offset;
-
 	/* Protects region initialization step. */
 	pthread_mutex_t region_lock;
 };
@@ -122,7 +108,6 @@ static int region_runtimes_map_create_or_fail(struct region_runtimes_map *map, s
 	runtime->region = region;
 	runtime->state = REGION_RUNTIME_STATE_READ_READY;
 	runtime->append_offset = PMEMSTREAM_INVALID_OFFSET;
-	runtime->committed_offset = PMEMSTREAM_INVALID_OFFSET;
 
 	int ret = pthread_mutex_init(&runtime->region_lock, NULL);
 	if (ret) {
@@ -187,12 +172,6 @@ uint64_t region_runtime_get_append_offset_acquire(const struct pmemstream_region
 	return __atomic_load_n(&region_runtime->append_offset, __ATOMIC_ACQUIRE);
 }
 
-static uint64_t region_runtime_get_committed_offset_acquire(const struct pmemstream_region_runtime *region_runtime)
-{
-	assert(region_runtime_get_state_acquire(region_runtime) == REGION_RUNTIME_STATE_WRITE_READY);
-	return __atomic_load_n(&region_runtime->committed_offset, __ATOMIC_ACQUIRE);
-}
-
 void region_runtimes_map_remove(struct region_runtimes_map *map, struct pmemstream_region region)
 {
 	struct pmemstream_region_runtime *runtime = critnib_remove(map->container, region.offset);
@@ -205,12 +184,6 @@ void region_runtime_increase_append_offset(struct pmemstream_region_runtime *reg
 	__atomic_fetch_add(&region_runtime->append_offset, diff, __ATOMIC_RELAXED);
 }
 
-void region_runtime_increase_committed_offset(struct pmemstream_region_runtime *region_runtime, uint64_t diff)
-{
-	assert(region_runtime_get_state_acquire(region_runtime) == REGION_RUNTIME_STATE_WRITE_READY);
-	__atomic_fetch_add(&region_runtime->committed_offset, diff, __ATOMIC_RELEASE);
-}
-
 static void region_runtime_initialize_for_write_no_lock(struct pmemstream_region_runtime *region_runtime,
 							uint64_t tail_offset)
 {
@@ -220,14 +193,13 @@ static void region_runtime_initialize_for_write_no_lock(struct pmemstream_region
 	assert(tail_offset != PMEMSTREAM_INVALID_OFFSET);
 
 	region_runtime->append_offset = tail_offset;
-	region_runtime->committed_offset = tail_offset;
 
 	uint8_t *next_entry_dst = (uint8_t *)pmemstream_offset_to_ptr(region_runtime->data, tail_offset);
 	region_runtime->data->memset(next_entry_dst, 0, sizeof(struct span_entry), 0);
 
 	struct span_region *span_region =
 		(struct span_region *)span_offset_to_span_ptr(region_runtime->data, region_runtime->region.offset);
-	span_region->max_valid_timestamp = PMEMSTREAM_INVALID_TIMESTAMP;
+	span_region->max_valid_timestamp = UINT64_MAX;
 	region_runtime->data->persist(&span_region->max_valid_timestamp, sizeof(span_region->max_valid_timestamp));
 
 	__atomic_store_n(&region_runtime->state, REGION_RUNTIME_STATE_WRITE_READY, __ATOMIC_RELEASE);
@@ -317,29 +289,25 @@ static bool check_entry_consistency(struct pmemstream_entry_iterator *iterator)
 		return false;
 	}
 
-	/* XXX: reading this span metadata is potentially dangerous. It might happen so that
-	 * before calling this function region_runtime is in READ_READY state but some other thread
-	 * changes it to WRITE_READY while span metadata is read. We might fix this using Optimistic Locking.
-	 */
-	const struct span_base *span_base = span_offset_to_span_ptr(&iterator->stream->data, iterator->offset);
-	if (span_get_type(span_base) != SPAN_ENTRY) {
-		return false;
-	}
-
-	const struct span_entry *span_entry = (const struct span_entry *)span_base;
-
 	/* XXX: max timestamp should be passed to iterator */
 	uint64_t committed_timestamp = pmemstream_committed_timestamp(iterator->stream);
 	uint64_t max_valid_timestamp = __atomic_load_n(&span_region->max_valid_timestamp, __ATOMIC_ACQUIRE);
-
-	if (committed_timestamp < max_valid_timestamp || max_valid_timestamp == PMEMSTREAM_INVALID_TIMESTAMP)
+	if (committed_timestamp < max_valid_timestamp)
 		max_valid_timestamp = committed_timestamp;
 
-	if (span_entry->timestamp == PMEMSTREAM_INVALID_TIMESTAMP) {
+	const struct span_entry *span_entry_ptr =
+		(const struct span_entry *)span_offset_to_span_ptr(&iterator->stream->data, iterator->offset);
+	struct span_entry span_entry = span_entry_atomic_load(span_entry_ptr);
+
+	if (span_get_type(&span_entry.span_base) != SPAN_ENTRY) {
 		return false;
 	}
 
-	if (span_entry->timestamp <= max_valid_timestamp) {
+	if (span_entry.timestamp == PMEMSTREAM_INVALID_TIMESTAMP) {
+		return false;
+	}
+
+	if (span_entry.timestamp <= max_valid_timestamp) {
 		return true;
 	}
 
@@ -348,23 +316,9 @@ static bool check_entry_consistency(struct pmemstream_entry_iterator *iterator)
 
 bool check_entry_and_maybe_recover_region(struct pmemstream_entry_iterator *iterator)
 {
-	if (region_runtime_get_state_acquire(iterator->region_runtime) == REGION_RUNTIME_STATE_READ_READY) {
-		bool valid_entry = check_entry_consistency(iterator);
-		if (!valid_entry && iterator->perform_recovery) {
-			region_runtime_initialize_for_write_locked(iterator->region_runtime, iterator->offset);
-		}
-		return valid_entry;
+	bool valid_entry = check_entry_consistency(iterator);
+	if (!valid_entry && iterator->perform_recovery) {
+		region_runtime_initialize_for_write_locked(iterator->region_runtime, iterator->offset);
 	}
-
-	/* Make sure that we didn't go beyond committed entries. */
-	uint64_t committed_offset = region_runtime_get_committed_offset_acquire(iterator->region_runtime);
-	if (iterator->offset >= committed_offset) {
-		return false;
-	}
-
-	/* Region is already recovered, and we did not encounter end of the data yet.
-	 * Span must be a valid entry. */
-	assert(check_entry_consistency(iterator));
-
-	return true;
+	return valid_entry;
 }

@@ -378,8 +378,8 @@ int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region regio
 	 * This must be done here, because all other operations (data copy and pmemstream_publish can be called
 	 * in arbitrary order which could result in override actual entry metadata).
 	 */
-	stream->data.memset(destination + entry_total_size_span_aligned, 0, sizeof(struct span_entry),
-			    PMEM2_F_MEM_NOFLUSH);
+	struct span_empty span_empty = {.span_base = span_base_create(0, SPAN_EMPTY)};
+	span_base_atomic_store((struct span_base *)(destination + entry_total_size_span_aligned), span_empty.span_base);
 
 	return ret;
 }
@@ -434,7 +434,7 @@ int pmemstream_publish(struct pmemstream *stream, struct pmemstream_region regio
 
 	/* Store metadata. */
 	struct span_entry span_entry = {.span_base = span_base_create(size, SPAN_ENTRY), .timestamp = timestamp};
-	stream->data.memcpy(destination, &span_entry, sizeof(span_entry), PMEM2_F_MEM_NOFLUSH);
+	span_entry_atomic_store((struct span_entry *)destination, span_entry);
 
 	/* Persist data, metadata and next entry metadata (either valid metadata or zeroed by reserve). */
 	stream->data.persist(destination, span_get_total_size(&span_entry.span_base) + sizeof(span_entry));
@@ -446,8 +446,6 @@ int pmemstream_publish(struct pmemstream *stream, struct pmemstream_region regio
 		/* XXX: for async version, this loop should be implemented as a future_poll, for sync version we might
 		 * want to add blocking consume */
 	}
-
-	region_runtime_increase_committed_offset(region_runtime, span_get_total_size(&span_entry.span_base));
 
 	return 0;
 }
