@@ -224,10 +224,50 @@ struct stream {
 
 } // namespace pmem
 
+template <typename FutureT>
+struct future_wrapper {
+	future_wrapper(FutureT &&future) : future(std::make_unique<FutureT>(std::move(future)))
+	{
+	}
+
+	future_wrapper() : future(std::make_unique<FutureT>())
+	{
+		FUTURE_INIT_COMPLETE(future.get());
+	}
+
+	future_wrapper(future_wrapper &&) = default;
+	future_wrapper &operator=(future_wrapper &&) = default;
+
+	future_wrapper(const future_wrapper &) = delete;
+	future_wrapper &operator=(const future_wrapper &) = delete;
+
+	auto poll()
+	{
+		return future_poll(FUTURE_AS_RUNNABLE(future.get()), NULL);
+	}
+
+	~future_wrapper()
+	{
+		if (!future)
+			return;
+
+		/* poll until persisted */
+		while (poll() != FUTURE_STATE_COMPLETE)
+			;
+	}
+
+	std::unique_ptr<FutureT> future;
+};
+
 /* Implements additional functions, useful for testing. */
 struct pmemstream_helpers_type {
+	using thread_data_mover_type = std::unique_ptr<struct data_mover_threads, decltype(&data_mover_threads_delete)>;
+
 	pmemstream_helpers_type(pmem::stream &stream, bool call_region_runtime_initialize)
-	    : stream(stream), region_runtime(), call_region_runtime_initialize(call_region_runtime_initialize)
+	    : stream(stream),
+	      region_runtime(),
+	      call_region_runtime_initialize(call_region_runtime_initialize),
+	      thread_mover_handle(thread_data_mover_type(data_mover_threads_default(), &data_mover_threads_delete))
 	{
 	}
 
@@ -244,14 +284,10 @@ struct pmemstream_helpers_type {
 		}
 	}
 
-	void async_append(struct pmemstream_region region, const std::vector<std::string> &data)
+	future_wrapper<pmemstream_async_wait_fut> async_append(struct pmemstream_region region,
+							       const std::vector<std::string> &data)
 	{
-		struct data_mover_threads *dmt = data_mover_threads_default();
-		UT_ASSERTne(dmt, NULL);
-		auto dmt_ptr = std::unique_ptr<struct data_mover_threads, decltype(&data_mover_threads_delete)>(
-			dmt, &data_mover_threads_delete);
-
-		struct vdm *thread_mover = data_mover_threads_get_vdm(dmt_ptr.get());
+		struct vdm *thread_mover = data_mover_threads_get_vdm(thread_mover_handle.get());
 
 		struct pmemstream_entry entry;
 		for (size_t i = 0; i < data.size(); ++i) {
@@ -261,11 +297,11 @@ struct pmemstream_helpers_type {
 			entry = new_entry;
 		}
 
-		/* poll until persisted */
 		if (data.size()) {
 			auto future = stream.async_wait_persisted(stream.entry_timestamp(entry));
-			while (future_poll(FUTURE_AS_RUNNABLE(&future), NULL) != FUTURE_STATE_COMPLETE)
-				;
+			return future_wrapper<pmemstream_async_wait_fut>(std::move(future));
+		} else {
+			return future_wrapper<pmemstream_async_wait_fut>();
 		}
 	}
 
@@ -486,6 +522,7 @@ struct pmemstream_helpers_type {
 	pmem::stream &stream;
 	std::map<uint64_t, pmemstream_region_runtime *> region_runtime;
 	bool call_region_runtime_initialize = false;
+	thread_data_mover_type thread_mover_handle;
 }; /* struct pmemstream_helpers_type */
 
 struct pmemstream_test_base {
