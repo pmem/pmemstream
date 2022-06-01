@@ -71,6 +71,11 @@ size_t span_get_total_size(const struct span_base *span);
 
 enum span_type span_get_type(const struct span_base *span);
 
+void span_base_atomic_store(struct span_base *dst, struct span_base base);
+
+void span_entry_atomic_store(struct span_entry *dst, struct span_entry entry);
+struct span_entry span_entry_atomic_load(const struct span_entry *entry);
+
 #ifdef __cplusplus
 } /* end extern "C" */
 #endif
