@@ -98,37 +98,41 @@ build_test(timestamp_api api_c/timestamp.c)
 add_test_generic(NAME timestamp_api TRACERS none memcheck pmemcheck drd helgrind)
 
 if(TESTS_RAPIDCHECK)
-	build_test_rc(NAME append SRC_FILES unittest/append.cpp)
+	build_test_rc(NAME append SRC_FILES unittest/append.cpp LIBS miniasync)
 	add_test_generic(NAME append TRACERS none memcheck pmemcheck)
 
-	build_test_rc(NAME append_oom SRC_FILES unittest/append_oom.cpp)
+	build_test_rc(NAME append_oom SRC_FILES unittest/append_oom.cpp LIBS miniasync)
 	add_test_generic(NAME append_oom TRACERS none)
 
-	build_test_rc(NAME concurrent_iterate SRC_FILES unittest/concurrent_iterate.cpp)
+	build_test_rc(NAME concurrent_async_wait SRC_FILES unittest/concurrent_async_wait.cpp LIBS miniasync)
+	# XXX: enable drd and helgrind
+	add_test_generic(NAME concurrent_async_wait TRACERS none memcheck pmemcheck)
+
+	build_test_rc(NAME concurrent_iterate SRC_FILES unittest/concurrent_iterate.cpp LIBS miniasync)
 	add_test_generic(NAME concurrent_iterate TRACERS none)
 
 	build_test_rc(NAME concurrent_iterate_with_append SRC_FILES unittest/concurrent_iterate_with_append.cpp LIBS miniasync)
 	add_test_generic(NAME concurrent_iterate_with_append TRACERS none)
 
-	build_test_rc(NAME create SRC_FILES unittest/create.cpp)
+	build_test_rc(NAME create SRC_FILES unittest/create.cpp LIBS miniasync)
 	add_test_generic(NAME create TRACERS none)
 
-	build_test_rc(NAME multi_region SRC_FILES unittest/multi_region.cpp)
+	build_test_rc(NAME multi_region SRC_FILES unittest/multi_region.cpp LIBS miniasync)
 	add_test_generic(NAME multi_region TRACERS none memcheck pmemcheck)
 
-	build_test_rc(NAME multi_region_state SRC_FILES unittest/multi_region_state.cpp)
+	build_test_rc(NAME multi_region_state SRC_FILES unittest/multi_region_state.cpp LIBS miniasync)
 	add_test_generic(NAME multi_region_state TRACERS none)
 
 	build_test_rc(NAME publish_append_async SRC_FILES unittest/publish_append_async.cpp LIBS miniasync)
 	add_test_generic(NAME publish_append_async TRACERS none)
 
-	build_test_rc(NAME region_runtime_initialize SRC_FILES unittest/region_runtime_initialize.cpp ../src/region.c ../src/critnib/critnib.c ../src/iterator.c)
+	build_test_rc(NAME region_runtime_initialize SRC_FILES unittest/region_runtime_initialize.cpp ../src/region.c ../src/critnib/critnib.c ../src/iterator.c LIBS miniasync)
 	add_test_generic(NAME region_runtime_initialize TRACERS none memcheck)
 
-	build_test_rc(NAME reserve_publish SRC_FILES unittest/reserve_publish.cpp)
+	build_test_rc(NAME reserve_publish SRC_FILES unittest/reserve_publish.cpp LIBS miniasync)
 	add_test_generic(NAME reserve_publish TRACERS none memcheck)
 
-	build_test_rc(NAME reserve_publish_integrity SRC_FILES integrity/reserve_publish.cpp)
+	build_test_rc(NAME reserve_publish_integrity SRC_FILES integrity/reserve_publish.cpp LIBS miniasync)
 	add_test_generic(NAME reserve_publish_integrity TRACERS none pmemcheck)
 
 	build_test_rc(NAME singly_linked_list SRC_FILES unittest/singly_linked_list.cpp)
@@ -140,24 +144,24 @@ if(TESTS_RAPIDCHECK)
 	build_test_rc(NAME util_common SRC_FILES unittest/util_common.cpp)
 	add_test_generic(NAME util_common TRACERS none)
 
-	build_test_rc(NAME iterate_all SRC_FILES layout/iterate_all.cpp ../src/span.c)
+	build_test_rc(NAME iterate_all SRC_FILES layout/iterate_all.cpp ../src/span.c LIBS miniasync)
 	add_test_generic(NAME iterate_all TRACERS none)
 
-	build_test_rc(NAME iterate_validation SRC_FILES layout/iterate_validation.cpp ../src/span.c)
+	build_test_rc(NAME iterate_validation SRC_FILES layout/iterate_validation.cpp ../src/span.c LIBS miniasync)
 	add_test_generic(NAME iterate_validation TRACERS none memcheck pmemcheck)
 endif()
 
 if(TESTS_PMREORDER)
-	build_test(singly_linked_list_pmreorder integrity/singly_linked_list_pmreorder.cpp)
+	build_test_ext(NAME singly_linked_list_pmreorder SRC_FILES integrity/singly_linked_list_pmreorder.cpp LIBS miniasync)
 	add_test_generic(NAME singly_linked_list_pmreorder SCRIPT integrity/default_create_fill_check.cmake TRACERS none)
 	add_test_generic(NAME singly_linked_list_pmreorder CASE negative SCRIPT integrity/default_create_fill_check_negative.cmake TRACERS none)
 
-	build_test(multi_region_pmreorder integrity/multi_region_pmreorder.cpp)
+	build_test_ext(NAME multi_region_pmreorder SRC_FILES integrity/multi_region_pmreorder.cpp LIBS miniasync)
 	add_test_generic(NAME multi_region_pmreorder SCRIPT integrity/default_create_fill_check.cmake TRACERS none)
 endif()
 
 if(GDB AND DEBUG_BUILD)
-	build_test(append_break integrity/append_break.cpp)
+	build_test_ext(NAME append_break SRC_FILES integrity/append_break.cpp LIBS miniasync)
 	add_test_generic(NAME append_break SCRIPT integrity/append_break.cmake TRACERS none)
 endif()
 
