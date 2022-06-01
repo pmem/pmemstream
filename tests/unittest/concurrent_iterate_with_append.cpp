@@ -11,9 +11,9 @@
 #include "thread_helpers.hpp"
 #include "unittest.hpp"
 
-static constexpr size_t concurrency = 4;
+static constexpr size_t max_concurrency = 4;
 static constexpr size_t max_size = 1024; /* Max number of elements in stream and max size of single entry. */
-static constexpr size_t stream_size = max_size * max_size * concurrency * 10 /* 10x-margin */;
+static constexpr size_t stream_size = max_size * max_size * max_concurrency * 10 /* 10x-margin */;
 static constexpr size_t region_size = stream_size - STREAM_METADATA_SIZE;
 
 namespace
@@ -40,7 +40,7 @@ void concurrent_iterate_verify(pmemstream_test_base &stream, pmemstream_region r
 }
 
 void verify_no_garbage(pmemstream_test_base &&stream, const std::vector<std::string> &data,
-		       const std::vector<std::string> &extra_data, bool reopen)
+		       const std::vector<std::string> &extra_data, bool reopen, size_t concurrency)
 {
 	auto region = stream.helpers.get_first_region();
 
@@ -74,22 +74,25 @@ int main(int argc, char *argv[])
 	return run_test(test_config, [&] {
 		return_check ret;
 
-		/* Disable shrinking and set max_size of entries. */
+		/* Set max_size of entries. */
 		/* XXX: can we do this via rapidcheck API? */
-		std::string rapidcheck_config = "noshrink=1 max_size=" + std::to_string(max_size);
+		std::string rapidcheck_config = "max_size=" + std::to_string(max_size);
 		env_setter setter("RC_PARAMS", rapidcheck_config, false);
 
 		ret += rc::check(
 			"verify if iterators concurrent to append work do not return garbage (no preinitialization)",
-			[&](pmemstream_empty &&stream, const std::vector<std::string> &extra_data, bool reopen) {
+			[&](pmemstream_empty &&stream, const std::vector<std::string> &extra_data, bool reopen,
+			    ranged<size_t, 1, max_concurrency> concurrency) {
 				stream.helpers.initialize_single_region(region_size, {});
-				verify_no_garbage(std::move(stream), {}, extra_data, reopen);
+				verify_no_garbage(std::move(stream), {}, extra_data, reopen, concurrency);
 			});
+
 		ret += rc::check("verify if iterators concurrent to append work do not return garbage ",
 				 [&](pmemstream_empty &&stream, const std::vector<std::string> &data,
-				     const std::vector<std::string> &extra_data, bool reopen) {
+				     const std::vector<std::string> &extra_data, bool reopen,
+				     ranged<size_t, 1, max_concurrency> concurrency) {
 					 stream.helpers.initialize_single_region(region_size, data);
-					 verify_no_garbage(std::move(stream), data, extra_data, reopen);
+					 verify_no_garbage(std::move(stream), data, extra_data, reopen, concurrency);
 				 });
 	});
 }

@@ -10,7 +10,6 @@
 #include "thread_helpers.hpp"
 #include "unittest.hpp"
 
-static constexpr size_t min_concurrency = 1;
 static constexpr size_t max_concurrency = 12;
 
 int main(int argc, char *argv[])
@@ -29,7 +28,7 @@ int main(int argc, char *argv[])
 		ret += rc::check(
 			"verify if each concurrent iteration observes the same data",
 			[&](const std::vector<std::string> &data, bool reopen,
-			    ranged<size_t, min_concurrency, max_concurrency> concurrency) {
+			    ranged<size_t, 1, max_concurrency> concurrency) {
 				pmemstream_test_base stream(get_test_config().filename, get_test_config().block_size,
 							    get_test_config().stream_size);
 				auto region = stream.helpers.initialize_single_region(TEST_DEFAULT_REGION_SIZE, data);

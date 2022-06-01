@@ -62,7 +62,7 @@ struct rc_verify_command : public pmemstream_command {
 	}
 };
 
-/* Holds integer value between Min ans Max (inclusive) */
+/* Holds integer value between Min and Max (inclusive) */
 template <typename T, size_t Min, size_t Max>
 struct ranged {
 	static constexpr T min = Min;
