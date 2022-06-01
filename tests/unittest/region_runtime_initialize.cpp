@@ -28,9 +28,8 @@ int main(int argc, char *argv[])
 		return_check ret;
 
 		ret += rc::check(
-			"verify pmemstream_region_runtime_initialize return the same value for all threads", [&]() {
-				const auto concurrency = *rc::gen::inRange<std::size_t>(1, max_concurrency);
-
+			"verify pmemstream_region_runtime_initialize return the same value for all threads",
+			[&](ranged<size_t, 1, max_concurrency> concurrency) {
 				pmemstream_test_base stream(get_test_config().filename, get_test_config().block_size,
 							    get_test_config().stream_size);
 				auto region = stream.helpers.initialize_single_region(TEST_DEFAULT_REGION_SIZE, {});
@@ -50,11 +49,9 @@ int main(int argc, char *argv[])
 
 		ret += rc::check(
 			"verify that pmemstream is ready to be written to after region_runtime_initialize_for_write_locked",
-			[&](pmemstream_with_single_init_region &&stream) {
-				const auto concurrency = *rc::gen::inRange<std::size_t>(0, max_concurrency);
-
+			[&](pmemstream_with_single_init_region &&stream,
+			    ranged<size_t, 1, max_concurrency> concurrency) {
 				stream.reopen();
-
 				auto region = stream.helpers.get_first_region();
 
 				auto *c_stream = stream.sut.c_ptr();
