@@ -44,20 +44,12 @@ std::string span_to_str(const struct span_base *base)
 
 std::ostream &operator<<(std::ostream &os, const struct span_base *base)
 {
-	return (os << span_to_str(base));
-}
-
-static std::ostream &show_spans(std::ostream &os, const std::vector<span_runtime> &spans,
-				const std::string &prefix = "")
-{
-	for (auto &s : spans) {
-		os << prefix << "├── offset: " << s.offset << ", " << span_to_str(s.ptr) << std::endl;
-		show_spans(os, s.sub_spans, prefix + "|   ");
-	}
 	return os;
+	// return (os << span_to_str(base));
 }
 
 std::ostream &operator<<(std::ostream &os, const std::vector<span_runtime> &spans)
 {
-	return show_spans(os, spans);
+	return os;
+	// return show_spans(os, spans);
 }
