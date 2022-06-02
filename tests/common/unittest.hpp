@@ -112,7 +112,8 @@ static inline int run_test(std::function<void()> test)
 struct return_check {
 	~return_check()
 	{
-		UT_ASSERT(status);
+		if (!status)
+			abort();
 	}
 
 	return_check &operator+=(bool rhs)
