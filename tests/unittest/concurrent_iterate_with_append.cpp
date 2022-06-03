@@ -5,7 +5,6 @@
 
 #include <rapidcheck.h>
 
-#include "env_setter.hpp"
 #include "rapidcheck_helpers.hpp"
 #include "stream_helpers.hpp"
 #include "thread_helpers.hpp"
@@ -75,15 +74,12 @@ int main(int argc, char *argv[])
 	struct test_config_type test_config;
 	test_config.filename = std::string(argv[1]);
 	test_config.stream_size = stream_size;
+	/* Set max_size of entries (if this test is failing, consider setting also 'noshrink=1';
+	 * shrinking may not work due to non-deterministic nature of concurrent tests). */
+	test_config.rc_params["max_size"] = std::to_string(max_size);
 
 	return run_test(test_config, [&] {
 		return_check ret;
-
-		/* Set max_size of entries (if this test is failing, consider setting also 'noshrink=1';
-		 * shrinking may not work due to non-deterministic nature of concurrent tests). */
-		/* XXX: can we do this via rapidcheck API? */
-		std::string rapidcheck_config = "max_size=" + std::to_string(max_size);
-		env_setter setter("RC_PARAMS", rapidcheck_config, false);
 
 		ret += rc::check(
 			"verify if iterators concurrent to append work do not return garbage (no preinitialization)",
