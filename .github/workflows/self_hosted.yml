@@ -12,7 +12,7 @@ jobs:
       matrix:
         os: [[self-hosted, ubuntu]]
     env:
-      PMEMSTREAM_TEST_DIR: /mnt/pmem0
+      PMEMSTREAM_TEST_DIR: /mnt/pmem0/${{ github.job }}
       CHECK_CPP_STYLE: OFF
 
     steps:
@@ -23,3 +23,8 @@ jobs:
         - name: Build pmemstream and run basic tests
           run: |
             ./utils/docker/run-build.sh tests_gcc_debug_cpp17_no_valgrind
+
+        - name: Test dir cleanup
+          if: always()
+          run: rm -rf ${{ env.PMEMSTREAM_TEST_DIR }}
+
