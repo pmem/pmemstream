@@ -202,10 +202,6 @@ std::ostream &operator<<(std::ostream &os, const node &n)
 int main(int argc, char *argv[])
 {
 	return run_test([&] {
-		// XXX: we could lower the TCs number for valgrind tracers (using valgrind header's macros)
-		// std::string rapidcheck_config = "noshrink=1 max_success=10 max_size=10";
-		// env_setter setter("RC_PARAMS", rapidcheck_config, false);
-
 		return_check ret;
 		ret += rc::check("Random inserts and removes should not break a list", []() {
 			singly_linked_list_model model(ordering::unordered);

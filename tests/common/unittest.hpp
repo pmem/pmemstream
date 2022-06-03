@@ -18,6 +18,11 @@
 #include <type_traits>
 
 #include "env_setter.hpp"
+#include "valgrind_internal.h"
+
+/* Execute only this many runs of rc_check tests under valgrind. It must be bigger than one because
+ * the first run is usually executed with size == 0. */
+static constexpr size_t RAPIDCHECK_MAX_SUCCESS_ON_VALGRIND = 5;
 
 static inline void UT_EXCEPTION(std::exception &e)
 {
@@ -84,6 +89,10 @@ static const test_config_type &get_test_config()
 static inline int run_test(test_config_type config, std::function<void()> test)
 {
 	test_register_sighandlers();
+	set_valgrind_internals();
+
+	if (On_valgrind && config.rc_params.count("max_success") == 0)
+		config.rc_params["max_success"] = std::to_string(RAPIDCHECK_MAX_SUCCESS_ON_VALGRIND);
 
 	std::string rapidcheck_config;
 	for (auto &kv : config.rc_params)
