@@ -29,10 +29,6 @@ int main(int argc, char *argv[])
 	return run_test(test_config, [&] {
 		return_check ret;
 
-		/* XXX: lower the TCs number for memcheck */
-		// std::string rapidcheck_config = "noshrink=1 max_success=5 max_size=5";
-		// env_setter setter("RC_PARAMS", rapidcheck_config, false);
-
 		/* XXX: add stateful test(s) with mixed commands (even without model; just to randomize commands) */
 		ret += rc::check("verify if mixing regular appends with async appends works fine",
 				 [&](pmemstream_with_single_empty_region &&stream, const std::vector<std::string> &data,

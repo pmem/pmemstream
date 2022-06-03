@@ -106,16 +106,21 @@ function(execute_common expect_success output_file name)
 
 	if(${TRACER} STREQUAL pmemcheck)
 		set(TRACE valgrind --error-exitcode=99 --tool=pmemcheck)
+		set(ENV{PMEMSTREAM_TRACER_PMEMCHECK} 1)
 	elseif(${TRACER} STREQUAL memcheck)
 		set(TRACE valgrind --error-exitcode=99 --tool=memcheck --leak-check=full --max-threads=3000
 		   --suppressions=${SUPPRESSIONS_DIR}/ld.supp --suppressions=${SUPPRESSIONS_DIR}/memcheck-stdcpp.supp --suppressions=${SUPPRESSIONS_DIR}/memcheck-libunwind.supp
 		   --suppressions=${SUPPRESSIONS_DIR}/memcheck-ndctl.supp)
+		   set(ENV{PMEMSTREAM_TRACER_MEMCHECK} 1)
 	elseif(${TRACER} STREQUAL helgrind)
 		set(TRACE valgrind --error-exitcode=99 --tool=helgrind --max-threads=3000)
+		set(ENV{PMEMSTREAM_TRACER_HELGRIND} 1)
 	elseif(${TRACER} STREQUAL drd)
 		set(TRACE valgrind --error-exitcode=99 --tool=drd --max-threads=3000 --suppressions=${SUPPRESSIONS_DIR}/drd.supp)
+		set(ENV{PMEMSTREAM_TRACER_DRD} 1)
 	elseif(${TRACER} STREQUAL gdb)
 		set(TRACE gdb --batch --command=${GDB_BATCH_FILE} --args)
+		set(ENV{PMEMSTREAM_TRACER_GDB} 1)
 	elseif(${TRACER} MATCHES "none.*")
 		# nothing
 	else()

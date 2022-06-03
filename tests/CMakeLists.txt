@@ -49,6 +49,7 @@ if(LIBUNWIND_FOUND)
 	target_compile_definitions(test_backtrace PUBLIC USE_LIBUNWIND=1)
 endif()
 add_library(stream_span_helpers STATIC common/stream_span_helpers.cpp ../src/span.c)
+add_library(valgrind_internal STATIC common/valgrind_internal.c)
 
 # Set variable to know if debug tests can be run
 if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
