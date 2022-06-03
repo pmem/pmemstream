@@ -5,7 +5,6 @@
 #include <vector>
 
 #include "common/util.h"
-#include "env_setter.hpp"
 #include "rapidcheck_helpers.hpp"
 #include "stream_helpers.hpp"
 #include "thread_helpers.hpp"
@@ -30,12 +29,11 @@ int main(int argc, char *argv[])
 	struct test_config_type test_config;
 	test_config.stream_size = stream_size;
 	test_config.filename = std::string(argv[1]);
+	test_config.rc_params["noshrink"] = "1";
+	test_config.rc_params["max_size"] = std::to_string(max_size);
 
 	return run_test(test_config, [&] {
 		return_check ret;
-
-		std::string rapidcheck_config = "noshrink=1 max_size=" + std::to_string(max_size);
-		env_setter setter("RC_PARAMS", rapidcheck_config, false);
 
 		ret += rc::check(
 			"verify if calling async_wait_persisted from multiple threads does not lead to any deadlocks",

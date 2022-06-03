@@ -13,8 +13,11 @@
 #include <filesystem>
 #include <functional>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <type_traits>
+
+#include "env_setter.hpp"
 
 static inline void UT_EXCEPTION(std::exception &e)
 {
@@ -69,6 +72,7 @@ struct test_config_type {
 	size_t block_size = TEST_DEFAULT_BLOCK_SIZE;
 	/* all regions are required to have the same size */
 	size_t region_size = TEST_DEFAULT_REGION_MULTI_SIZE;
+	std::map<std::string, std::string> rc_params;
 };
 
 static const test_config_type &get_test_config()
@@ -80,9 +84,15 @@ static const test_config_type &get_test_config()
 static inline int run_test(test_config_type config, std::function<void()> test)
 {
 	test_register_sighandlers();
+
+	std::string rapidcheck_config;
+	for (auto &kv : config.rc_params)
+		rapidcheck_config += kv.first + "=" + kv.second + " ";
+
 	const_cast<test_config_type &>(get_test_config()) = config;
 
 	try {
+		env_setter setter("RC_PARAMS", rapidcheck_config, false);
 		test();
 	} catch (std::exception &e) {
 		UT_EXCEPTION(e);
