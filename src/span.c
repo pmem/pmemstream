@@ -65,8 +65,8 @@ void span_entry_atomic_store(struct span_entry *dst, struct span_entry entry)
 {
 	__atomic_thread_fence(__ATOMIC_RELEASE);
 
-	__atomic_store_n(&dst->span_base.size_and_type, entry.span_base.size_and_type, __ATOMIC_RELAXED);
 	__atomic_store_n(&dst->timestamp, entry.timestamp, __ATOMIC_RELAXED);
+	__atomic_store_n(&dst->span_base.size_and_type, entry.span_base.size_and_type, __ATOMIC_RELAXED);
 
 	__atomic_thread_fence(__ATOMIC_RELEASE);
 }
