@@ -98,23 +98,27 @@ struct append_manager {
 class entry_iterator {
  public:
 	entry_iterator(pmemstream *stream, pmemstream_region &region)
-	    : stream(stream), region(region), end(timestamped_entry::invalid_timestamp, payload())
+	    : stream(stream), end(timestamped_entry::invalid_timestamp, payload())
 	{
 		struct pmemstream_entry_iterator *new_entry_iterator;
 		if (pmemstream_entry_iterator_new(&new_entry_iterator, stream, region) != 0) {
-			std::runtime_error("Cannot create entry iterators");
+			throw std::runtime_error("Cannot create entry iterators");
 		}
 		it = std::shared_ptr<pmemstream_entry_iterator>(new_entry_iterator, [](pmemstream_entry_iterator *eit) {
 			pmemstream_entry_iterator_delete(&eit);
 		});
-		++*this;
+		pmemstream_entry_iterator_seek_first(it.get());
+		if (pmemstream_entry_iterator_is_valid(it.get()) != 0) {
+			throw std::runtime_error("No entries to iterate");
+		}
+		last_entry = get_entry_data();
 	}
 
 	void operator++()
 	{
-		pmemstream_entry entry;
-		if (pmemstream_entry_iterator_next(it.get(), &region, &entry) == 0) {
-			last_entry = (timestamped_entry *)pmemstream_entry_data(stream, entry);
+		pmemstream_entry_iterator_next(it.get());
+		if (pmemstream_entry_iterator_is_valid(it.get()) == 0) {
+			last_entry = get_entry_data();
 		} else {
 			last_entry = &end;
 		}
@@ -131,8 +135,11 @@ class entry_iterator {
 	}
 
  private:
+	timestamped_entry *get_entry_data()
+	{
+		return (timestamped_entry *)pmemstream_entry_data(stream, pmemstream_entry_iterator_get(it.get()));
+	}
 	pmemstream *stream;
-	pmemstream_region region;
 	std::shared_ptr<pmemstream_entry_iterator> it;
 	timestamped_entry *last_entry;
 	timestamped_entry end;
@@ -156,7 +163,7 @@ int main(int argc, char *argv[])
 
 	std::string path(argv[1]);
 
-	constexpr size_t concurrency = 3;
+	constexpr size_t concurrency = 1;
 	constexpr size_t samples_per_thread = 10;
 
 	/* Initialize stream with multiple regions */
