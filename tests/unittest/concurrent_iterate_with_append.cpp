@@ -5,7 +5,6 @@
 
 #include <rapidcheck.h>
 
-#include "env_setter.hpp"
 #include "rapidcheck_helpers.hpp"
 #include "stream_helpers.hpp"
 #include "thread_helpers.hpp"
@@ -39,6 +38,8 @@ void concurrent_iterate_verify(pmemstream_test_base &stream, pmemstream_region r
 			UT_ASSERTeq(timestamp, expected_timestamp);
 			expected_timestamp++;
 
+			UT_ASSERT(stream.sut.entry_timestamp(entry) <= stream.sut.committed_timestamp());
+
 			result.emplace_back(stream.sut.get_entry(entry));
 			pmemstream_entry_iterator_next(eiter.get());
 		}
@@ -57,7 +58,7 @@ void concurrent_iterate_verify(pmemstream_test_base &stream, pmemstream_region r
 }
 
 void verify_no_garbage(pmemstream_test_base &&stream, const std::vector<std::string> &data,
-		       const std::vector<std::string> &extra_data, bool reopen, size_t concurrency)
+		       const std::vector<std::string> &extra_data, bool reopen, size_t concurrency, bool async)
 {
 	auto region = stream.helpers.get_first_region();
 
@@ -67,7 +68,11 @@ void verify_no_garbage(pmemstream_test_base &&stream, const std::vector<std::str
 	parallel_exec(concurrency, [&](size_t tid) {
 		if (tid == 0) {
 			/* appender */
-			stream.helpers.append(region, extra_data);
+			if (async)
+				stream.helpers.async_append(region, extra_data);
+			else
+				stream.helpers.append(region, extra_data);
+
 			stream.helpers.verify(region, data, extra_data);
 		} else {
 			/* iterators */
@@ -87,32 +92,30 @@ int main(int argc, char *argv[])
 	struct test_config_type test_config;
 	test_config.filename = std::string(argv[1]);
 	test_config.stream_size = stream_size;
+	/* Set max_size of entries (if this test is failing, consider setting also 'noshrink=1';
+	 * shrinking may not work due to non-deterministic nature of concurrent tests). */
+	test_config.rc_params["max_size"] = std::to_string(max_size);
 
 	return run_test(test_config, [&] {
 		return_check ret;
 
-		/* Set max_size of entries (if this test is failing, consider setting also 'noshrink=1';
-		 * shrinking may not work due to non-deterministic nature of concurrent tests). */
-		/* XXX: can we do this via rapidcheck API? */
-		std::string rapidcheck_config = "max_size=" + std::to_string(max_size);
-		env_setter setter("RC_PARAMS", rapidcheck_config, false);
-
 		ret += rc::check(
 			"verify if iterators concurrent to append work do not return garbage (no preinitialization)",
 			[&](pmemstream_empty &&stream, const std::vector<std::string> &extra_data, bool reopen,
-			    ranged<size_t, 1, max_concurrency> concurrency) {
+			    ranged<size_t, 1, max_concurrency> concurrency, bool async) {
 				RC_PRE(extra_data.size() > 0);
 				stream.helpers.initialize_single_region(region_size, {});
-				verify_no_garbage(std::move(stream), {}, extra_data, reopen, concurrency);
+				verify_no_garbage(std::move(stream), {}, extra_data, reopen, concurrency, async);
 			});
 
 		ret += rc::check("verify if iterators concurrent to append work do not return garbage ",
 				 [&](pmemstream_empty &&stream, const std::vector<std::string> &data,
 				     const std::vector<std::string> &extra_data, bool reopen,
-				     ranged<size_t, 1, max_concurrency> concurrency) {
+				     ranged<size_t, 1, max_concurrency> concurrency, bool async) {
 					 RC_PRE(data.size() + extra_data.size() > 0);
 					 stream.helpers.initialize_single_region(region_size, data);
-					 verify_no_garbage(std::move(stream), data, extra_data, reopen, concurrency);
+					 verify_no_garbage(std::move(stream), data, extra_data, reopen, concurrency,
+							   async);
 				 });
 	});
 }

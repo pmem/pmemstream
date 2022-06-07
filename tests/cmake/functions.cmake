@@ -182,7 +182,7 @@ function(build_test name)
 	prepend(srcs ${TESTS_ROOT_DIR} ${srcs})
 
 	add_executable(${name} ${srcs})
-	target_link_libraries(${name} ${CMAKE_THREAD_LIBS_INIT} ${LIBPMEM2_LIBRARIES} pmemstream test_backtrace stream_span_helpers)
+	target_link_libraries(${name} ${CMAKE_THREAD_LIBS_INIT} ${LIBPMEM2_LIBRARIES} pmemstream test_backtrace stream_span_helpers valgrind_internal)
 	if(LIBUNWIND_FOUND)
 		target_link_libraries(${name} ${LIBUNWIND_LIBRARIES} ${CMAKE_DL_LIBS})
 	endif()

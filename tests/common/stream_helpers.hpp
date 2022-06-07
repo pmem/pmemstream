@@ -112,11 +112,14 @@ struct stream {
 		return {ret, new_entry};
 	}
 
-	pmemstream_async_append_fut async_append(struct vdm *vdm, struct pmemstream_region region,
-						 const std::string_view &data,
-						 pmemstream_region_runtime *region_runtime = nullptr)
+	std::tuple<int, struct pmemstream_entry> async_append(struct vdm *vdm, struct pmemstream_region region,
+							      const std::string_view &data,
+							      pmemstream_region_runtime *region_runtime = nullptr)
 	{
-		return pmemstream_async_append(c_stream.get(), vdm, region, region_runtime, data.data(), data.size());
+		struct pmemstream_entry entry;
+		auto ret = pmemstream_async_append(c_stream.get(), vdm, region, region_runtime, data.data(),
+						   data.size(), &entry);
+		return {ret, entry};
 	}
 
 	std::tuple<int, struct pmemstream_entry, void *> reserve(struct pmemstream_region region, size_t size,
@@ -129,17 +132,18 @@ struct stream {
 		return {ret, reserved_entry, reserved_data};
 	}
 
-	int publish(struct pmemstream_region region, const void *data, size_t size,
-		    struct pmemstream_entry reserved_entry, pmemstream_region_runtime *region_runtime = nullptr)
+	int publish(struct pmemstream_region region, const void *, size_t size, struct pmemstream_entry reserved_entry,
+		    pmemstream_region_runtime *region_runtime = nullptr)
 	{
-		return pmemstream_publish(c_stream.get(), region, region_runtime, data, size, reserved_entry);
+		// XXX: remove data from API
+		return pmemstream_publish(c_stream.get(), region, region_runtime, reserved_entry, size);
 	}
 
-	pmemstream_async_publish_fut async_publish(struct pmemstream_region region, const void *data, size_t size,
-						   struct pmemstream_entry reserved_entry,
-						   pmemstream_region_runtime *region_runtime = nullptr)
+	auto async_publish(struct pmemstream_region region, const void *, size_t size,
+			   struct pmemstream_entry reserved_entry, pmemstream_region_runtime *region_runtime = nullptr)
 	{
-		return pmemstream_async_publish(c_stream.get(), region, region_runtime, data, size, reserved_entry);
+		// XXX: remove data from API
+		return pmemstream_async_publish(c_stream.get(), region, region_runtime, reserved_entry, size);
 	}
 
 	std::tuple<int, struct pmemstream_region> region_allocate(size_t size)
@@ -152,6 +156,11 @@ struct stream {
 	size_t region_size(pmemstream_region region)
 	{
 		return pmemstream_region_size(c_stream.get(), region);
+	}
+
+	auto entry_timestamp(pmemstream_entry entry)
+	{
+		return pmemstream_entry_timestamp(c_stream.get(), entry);
 	}
 
 	auto entry_iterator(pmemstream_region region)
@@ -189,16 +198,76 @@ struct stream {
 		return std::string_view(ptr, pmemstream_entry_length(c_stream.get(), entry));
 	}
 
+	auto committed_timestamp()
+	{
+		return pmemstream_committed_timestamp(c_stream.get());
+	}
+
+	auto persisted_timestamp()
+	{
+		return pmemstream_persisted_timestamp(c_stream.get());
+	}
+
+	auto async_wait_persisted(uint64_t timestamp)
+	{
+		return pmemstream_async_wait_persisted(c_stream.get(), timestamp);
+	}
+
+	auto async_wait_committed(uint64_t timestamp)
+	{
+		return pmemstream_async_wait_committed(c_stream.get(), timestamp);
+	}
+
  private:
 	std::unique_ptr<struct pmemstream, std::function<void(struct pmemstream *)>> c_stream;
 }; /* struct stream */
 
 } // namespace pmem
 
+template <typename FutureT>
+struct future_wrapper {
+	future_wrapper(FutureT &&future) : future(std::make_unique<FutureT>(std::move(future)))
+	{
+	}
+
+	future_wrapper() : future(std::make_unique<FutureT>())
+	{
+		FUTURE_INIT_COMPLETE(future.get());
+	}
+
+	future_wrapper(future_wrapper &&) = default;
+	future_wrapper &operator=(future_wrapper &&) = default;
+
+	future_wrapper(const future_wrapper &) = delete;
+	future_wrapper &operator=(const future_wrapper &) = delete;
+
+	auto poll()
+	{
+		return future_poll(FUTURE_AS_RUNNABLE(future.get()), NULL);
+	}
+
+	~future_wrapper()
+	{
+		if (!future)
+			return;
+
+		/* poll until persisted */
+		while (poll() != FUTURE_STATE_COMPLETE)
+			;
+	}
+
+	std::unique_ptr<FutureT> future;
+};
+
 /* Implements additional functions, useful for testing. */
 struct pmemstream_helpers_type {
+	using thread_data_mover_type = std::unique_ptr<struct data_mover_threads, decltype(&data_mover_threads_delete)>;
+
 	pmemstream_helpers_type(pmem::stream &stream, bool call_region_runtime_initialize)
-	    : stream(stream), region_runtime(), call_region_runtime_initialize(call_region_runtime_initialize)
+	    : stream(stream),
+	      region_runtime(),
+	      call_region_runtime_initialize(call_region_runtime_initialize),
+	      thread_mover_handle(thread_data_mover_type(data_mover_threads_default(), &data_mover_threads_delete))
 	{
 	}
 
@@ -215,34 +284,25 @@ struct pmemstream_helpers_type {
 		}
 	}
 
-	void async_append(struct pmemstream_region region, const std::vector<std::string> &data)
+	future_wrapper<pmemstream_async_wait_fut> async_append(struct pmemstream_region region,
+							       const std::vector<std::string> &data)
 	{
-		struct data_mover_threads *dmt = data_mover_threads_default();
-		UT_ASSERTne(dmt, NULL);
-		auto dmt_ptr = std::unique_ptr<struct data_mover_threads, decltype(&data_mover_threads_delete)>(
-			dmt, &data_mover_threads_delete);
+		struct vdm *thread_mover = data_mover_threads_get_vdm(thread_mover_handle.get());
 
-		struct vdm *thread_mover = data_mover_threads_get_vdm(dmt_ptr.get());
-
-		auto futures = std::vector<struct pmemstream_async_append_fut>();
+		struct pmemstream_entry entry;
 		for (size_t i = 0; i < data.size(); ++i) {
-			auto fut = stream.async_append(thread_mover, region, data[i], region_runtime[region.offset]);
-			UT_ASSERTeq(fut.output.error_code, 0);
-			futures.push_back(fut);
+			auto [ret, new_entry] =
+				stream.async_append(thread_mover, region, data[i], region_runtime[region.offset]);
+			UT_ASSERTeq(ret, 0);
+			entry = new_entry;
 		}
 
-		/* poll all async appends */
-		auto completed_futures = std::vector<bool>(data.size());
-		size_t completed = 0;
-		do {
-			for (size_t i = 0; i < data.size(); ++i) {
-				if (!completed_futures[i] &&
-				    future_poll(FUTURE_AS_RUNNABLE(&futures[i]), NULL) == FUTURE_STATE_COMPLETE) {
-					completed_futures[i] = true;
-					completed++;
-				}
-			}
-		} while (completed < data.size());
+		if (data.size()) {
+			auto future = stream.async_wait_persisted(stream.entry_timestamp(entry));
+			return future_wrapper<pmemstream_async_wait_fut>(std::move(future));
+		} else {
+			return future_wrapper<pmemstream_async_wait_fut>();
+		}
 	}
 
 	struct pmemstream_region initialize_single_region(size_t region_size, const std::vector<std::string> &data)
@@ -385,7 +445,7 @@ struct pmemstream_helpers_type {
 		return last_entry;
 	}
 
-	std::vector<std::string> get_elements_in_region(struct pmemstream_region region)
+	std::vector<std::string> get_elements_in_region(struct pmemstream_region region, bool persisted_only = true)
 	{
 		std::vector<std::string> result;
 
@@ -394,7 +454,12 @@ struct pmemstream_helpers_type {
 		for (pmemstream_entry_iterator_seek_first(eiter.get());
 		     pmemstream_entry_iterator_is_valid(eiter.get()) == 0;
 		     pmemstream_entry_iterator_next(eiter.get())) {
-			result.emplace_back(stream.get_entry(pmemstream_entry_iterator_get(eiter.get())));
+			auto entry = pmemstream_entry_iterator_get(eiter.get());
+
+			if (persisted_only && stream.entry_timestamp(entry) > stream.persisted_timestamp())
+				break;
+
+			result.emplace_back(stream.get_entry(entry));
 		}
 
 		return result;
@@ -442,10 +507,10 @@ struct pmemstream_helpers_type {
 
 	/* XXX: extend to allow more than one extra_data vector */
 	void verify(pmemstream_region region, const std::vector<std::string> &data,
-		    const std::vector<std::string> &extra_data)
+		    const std::vector<std::string> &extra_data, bool persisted = true)
 	{
 		/* Verify if stream now holds data + extra_data */
-		auto all_elements = get_elements_in_region(region);
+		auto all_elements = get_elements_in_region(region, persisted);
 		auto extra_data_start = all_elements.begin() + static_cast<int>(data.size());
 
 		UT_ASSERTeq(all_elements.size(), data.size() + extra_data.size());
@@ -456,6 +521,7 @@ struct pmemstream_helpers_type {
 	pmem::stream &stream;
 	std::map<uint64_t, pmemstream_region_runtime *> region_runtime;
 	bool call_region_runtime_initialize = false;
+	thread_data_mover_type thread_mover_handle;
 }; /* struct pmemstream_helpers_type */
 
 struct pmemstream_test_base {

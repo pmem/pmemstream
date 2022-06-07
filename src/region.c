@@ -199,7 +199,7 @@ static void region_runtime_initialize_for_write_no_lock(struct pmemstream_region
 
 	struct span_region *span_region =
 		(struct span_region *)span_offset_to_span_ptr(region_runtime->data, region_runtime->region.offset);
-	span_region->max_valid_timestamp = PMEMSTREAM_INVALID_TIMESTAMP;
+	span_region->max_valid_timestamp = UINT64_MAX;
 	region_runtime->data->persist(&span_region->max_valid_timestamp, sizeof(span_region->max_valid_timestamp));
 
 	__atomic_store_n(&region_runtime->state, REGION_RUNTIME_STATE_WRITE_READY, __ATOMIC_RELEASE);
@@ -283,7 +283,8 @@ bool check_entry_consistency(const struct pmemstream_entry_iterator *iterator)
 	/* XXX: max timestamp should be passed to iterator */
 	uint64_t committed_timestamp = pmemstream_committed_timestamp(iterator->stream);
 	uint64_t max_valid_timestamp = __atomic_load_n(&span_region->max_valid_timestamp, __ATOMIC_RELAXED);
-	if (committed_timestamp < max_valid_timestamp || max_valid_timestamp == PMEMSTREAM_INVALID_TIMESTAMP)
+
+	if (committed_timestamp < max_valid_timestamp)
 		max_valid_timestamp = committed_timestamp;
 
 	const struct span_entry *span_entry_ptr =
