@@ -616,7 +616,7 @@ int pmemstream_async_publish(struct pmemstream *stream, struct pmemstream_region
 			     struct pmemstream_region_runtime *region_runtime, struct pmemstream_entry entry,
 			     size_t size)
 {
-	struct vdm_operation_future future;
+	struct vdm_operation_future future = {0};
 	FUTURE_INIT_COMPLETE(&future);
 
 	return pmemstream_async_publish_generic(stream, region, region_runtime, future, entry, size);
@@ -741,9 +741,10 @@ static enum future_state pmemstream_async_wait_persisted_impl(struct future_cont
 
 struct pmemstream_async_wait_fut pmemstream_async_wait_committed(struct pmemstream *stream, uint64_t timestamp)
 {
-	struct pmemstream_async_wait_fut future;
+	struct pmemstream_async_wait_fut future = {.output.error_code = 0};
 	future.data.stream = stream;
 	future.data.timestamp = timestamp;
+	future.data.region_runtime = NULL;
 	FUTURE_INIT(&future, pmemstream_async_wait_committed_impl);
 
 	return future;
@@ -751,9 +752,10 @@ struct pmemstream_async_wait_fut pmemstream_async_wait_committed(struct pmemstre
 
 struct pmemstream_async_wait_fut pmemstream_async_wait_persisted(struct pmemstream *stream, uint64_t timestamp)
 {
-	struct pmemstream_async_wait_fut future;
+	struct pmemstream_async_wait_fut future = {.output.error_code = 0};
 	future.data.stream = stream;
 	future.data.timestamp = timestamp;
+	future.data.region_runtime = NULL;
 	FUTURE_INIT(&future, pmemstream_async_wait_persisted_impl);
 
 	return future;
