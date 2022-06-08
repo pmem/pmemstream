@@ -58,7 +58,7 @@ int main(int argc, char *argv[])
 		}
 
 		/* Iterate over all elements in a region and save last entry value. */
-		uint64_t last_entry_data;
+		uint64_t last_entry_data = 0;
 		for (pmemstream_entry_iterator_seek_first(eiter); pmemstream_entry_iterator_is_valid(eiter) == 0;
 		     pmemstream_entry_iterator_next(eiter)) {
 			struct pmemstream_entry entry = pmemstream_entry_iterator_get(eiter);
