@@ -518,7 +518,7 @@ int pmemstream_append(struct pmemstream *stream, struct pmemstream_region region
 
 static int pmemstream_async_publish_generic(struct pmemstream *stream, struct pmemstream_region region,
 					    struct pmemstream_region_runtime *region_runtime,
-					    struct vdm_operation_future future, struct pmemstream_entry entry,
+					    struct vdm_operation_future *future, struct pmemstream_entry entry,
 					    size_t size)
 {
 	int ret = pmemstream_validate_stream_and_offset(stream, region.offset);
@@ -540,7 +540,7 @@ static int pmemstream_async_publish_generic(struct pmemstream *stream, struct pm
 	uint8_t *destination = (uint8_t *)span_offset_to_span_ptr(&stream->data, entry.offset);
 	size_t entry_total_size_span_aligned = pmemstream_entry_total_size_aligned(size);
 
-	async_op->future = future;
+	async_op->future = *future;
 	async_op->entry = entry;
 	async_op->size = entry_total_size_span_aligned;
 
@@ -569,7 +569,7 @@ int pmemstream_async_publish(struct pmemstream *stream, struct pmemstream_region
 	struct vdm_operation_future future;
 	FUTURE_INIT_COMPLETE(&future);
 
-	return pmemstream_async_publish_generic(stream, region, region_runtime, future, entry, size);
+	return pmemstream_async_publish_generic(stream, region, region_runtime, &future, entry, size);
 }
 
 // asynchronously appends data buffer to the end of the region
@@ -594,7 +594,7 @@ int pmemstream_async_append(struct pmemstream *stream, struct vdm *vdm, struct p
 	}
 
 	struct vdm_operation_future future = vdm_memcpy(vdm, reserved_dest, (void *)data, size, 0);
-	ret = pmemstream_async_publish_generic(stream, region, region_runtime, future, reserved_entry, size);
+	ret = pmemstream_async_publish_generic(stream, region, region_runtime, &future, reserved_entry, size);
 	if (ret) {
 		return ret;
 	}
