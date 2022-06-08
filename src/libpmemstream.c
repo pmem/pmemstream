@@ -744,6 +744,8 @@ struct pmemstream_async_wait_fut pmemstream_async_wait_committed(struct pmemstre
 	struct pmemstream_async_wait_fut future;
 	future.data.stream = stream;
 	future.data.timestamp = timestamp;
+	future.data.region_runtime = NULL;
+	future.output.error_code = 0;
 	FUTURE_INIT(&future, pmemstream_async_wait_committed_impl);
 
 	return future;
@@ -754,6 +756,8 @@ struct pmemstream_async_wait_fut pmemstream_async_wait_persisted(struct pmemstre
 	struct pmemstream_async_wait_fut future;
 	future.data.stream = stream;
 	future.data.timestamp = timestamp;
+	future.data.region_runtime = NULL;
+	future.output.error_code = 0;
 	FUTURE_INIT(&future, pmemstream_async_wait_persisted_impl);
 
 	return future;
