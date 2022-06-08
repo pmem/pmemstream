@@ -12,8 +12,8 @@
 
 #include "libpmemstream_internal.h"
 
-static constexpr size_t min_write_concurrency = 1;
-static constexpr size_t max_write_concurrency = 12;
+/* XXX: set bigger value for regular tests, "4" is here because of valgrind's timeouts */
+static constexpr size_t max_write_concurrency = 4;
 static constexpr size_t max_size = 1024; /* Max number of elements in stream and max size of single entry. */
 static constexpr size_t region_size =
 	ALIGN_UP(max_write_concurrency * max_size * max_size * 10, 4096ULL); /* 10x-margin */
@@ -39,7 +39,7 @@ int main(int argc, char *argv[])
 			"verify if calling async_wait_persisted from multiple threads does not lead to any deadlocks",
 			[&](pmemstream_empty &&stream, const std::vector<std::string> &data,
 			    const std::vector<std::string> &extra_data, bool reopen,
-			    ranged<size_t, min_write_concurrency, max_write_concurrency> concurrency) {
+			    ranged<size_t, 1, max_write_concurrency> concurrency) {
 				auto region = stream.helpers.initialize_single_region(region_size, data);
 
 				if (reopen)
