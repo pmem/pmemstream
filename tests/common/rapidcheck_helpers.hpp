@@ -137,6 +137,29 @@ struct Arbitrary<pmemstream_with_multi_empty_regions> {
 };
 
 template <>
+struct Arbitrary<pmemstream_with_multi_non_empty_regions> {
+	static Gen<pmemstream_with_multi_non_empty_regions> arbitrary()
+	{
+		using RegionT = std::vector<std::string>;
+		using StreamT = std::vector<RegionT>;
+
+		const auto region_generator = gen::container<RegionT>(gen::arbitrary<std::string>());
+
+		const auto non_empty_region_generator =
+			gen::suchThat<RegionT>(region_generator, [](RegionT data) { return data.size() > 0; });
+
+		const auto stream_generator = gen::container<StreamT>(non_empty_region_generator);
+
+		const auto constrained_stream_generator = gen::suchThat<StreamT>(stream_generator, [](StreamT data) {
+			return (data.size() > 0) && (data.size() <= TEST_DEFAULT_REGION_MULTI_MAX_COUNT);
+		});
+
+		return gen::noShrink(gen::construct<pmemstream_with_multi_non_empty_regions>(
+			gen::arbitrary<pmemstream_test_base>(), constrained_stream_generator));
+	}
+};
+
+template <>
 struct Arbitrary<pmemstream_with_single_init_region> {
 	static Gen<pmemstream_with_single_init_region> arbitrary()
 	{

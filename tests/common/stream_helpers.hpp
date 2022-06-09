@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "stream_span_helpers.hpp"
+#include "thread_helpers.hpp"
 #include "unittest.hpp"
 
 static inline bool operator==(const struct pmemstream_region lhs, const struct pmemstream_region rhs)
@@ -634,6 +635,17 @@ struct pmemstream_with_multi_empty_regions : public pmemstream_test_base {
 struct pmemstream_empty : public pmemstream_test_base {
 	pmemstream_empty(pmemstream_test_base &&base) : pmemstream_test_base(std::move(base))
 	{
+	}
+};
+
+struct pmemstream_with_multi_non_empty_regions : public pmemstream_test_base {
+	pmemstream_with_multi_non_empty_regions(pmemstream_test_base &&base,
+						const std::vector<std::vector<std::string>> &data)
+	    : pmemstream_test_base(std::move(base))
+	{
+		for (const auto &d : data) {
+			helpers.initialize_single_region(TEST_DEFAULT_REGION_SIZE, d);
+		}
 	}
 };
 
