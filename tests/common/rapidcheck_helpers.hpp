@@ -97,6 +97,10 @@ struct ranged {
 namespace rc
 {
 
+/* For some reason it's not defined in rapidcheck API
+ * XXX: Handle elements count in  test config */
+constexpr size_t DEFAULT_ELEMENT_COUNT = 100;
+
 /* XXX: add shrinking support for pmemstream? */
 template <>
 struct Arbitrary<pmemstream_test_base> {
@@ -136,6 +140,32 @@ struct Arbitrary<pmemstream_with_multi_empty_regions> {
 	}
 };
 
+/* XXX: Pass max data size to generator */
+template <>
+struct Arbitrary<pmemstream_with_multi_non_empty_regions> {
+	static Gen<pmemstream_with_multi_non_empty_regions> arbitrary()
+	{
+		using RegionT = std::vector<std::string>;
+		using StreamT = std::vector<RegionT>;
+
+		const auto region_generator = gen::container<RegionT>(gen::nonEmpty(gen::arbitrary<std::string>()));
+
+		const auto non_empty_region_generator =
+			gen::suchThat<RegionT>(region_generator, [](const RegionT &data) { return data.size() > 0; });
+
+		const auto stream_generator = gen::container<StreamT>(non_empty_region_generator);
+		/* XXX: Configure number of regions via testconfig */
+		const auto constrained_stream_generator =
+			gen::suchThat<StreamT>(stream_generator, [](const StreamT &data) {
+				return (data.size() > 0) && (data.size() <= TEST_DEFAULT_REGION_MULTI_MAX_COUNT);
+			});
+
+		return gen::noShrink(gen::construct<pmemstream_with_multi_non_empty_regions>(
+			gen::arbitrary<pmemstream_test_base>(), constrained_stream_generator));
+	}
+};
+
+/* XXX: Pass max data size to generator */
 template <>
 struct Arbitrary<pmemstream_with_single_init_region> {
 	static Gen<pmemstream_with_single_init_region> arbitrary()
