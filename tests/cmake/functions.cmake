@@ -200,11 +200,11 @@ endfunction()
 # XXX: SRC_DIR is wrong, because we add tests with srcs like "api_c/testname.c"
 #	   and we get actually parent dir (e.g. "../tests" instead of "../tests/api_c").
 #	   We could solve this with per-dir CMake files (i.a. add CMake in api_c dir)
-function(add_testcase name tracer testcase cmake_script)
+function(add_testcase executable name tracer testcase cmake_script)
 	add_test(NAME ${name}_${testcase}_${tracer}
 			COMMAND ${CMAKE_COMMAND}
 			${GLOBAL_TEST_ARGS}
-			-DEXECUTABLE=$<TARGET_FILE:${name}>
+			-DEXECUTABLE=$<TARGET_FILE:${executable}>
 			-DTEST_NAME=${name}_${testcase}_${tracer}
 			-DTESTCASE=${testcase}
 			-DTRACER=${tracer}
@@ -246,7 +246,7 @@ endfunction()
 
 # Adds testcase if all checks passes, e.g., tracer is found, executable (target) is built, etc.
 #	It skips otherwise and prints message if needed.
-function(add_test_common name tracer testcase cmake_script)
+function(add_test_common executable name tracer testcase cmake_script)
 	if(${tracer} STREQUAL "")
 	    set(tracer none)
 	endif()
@@ -283,18 +283,18 @@ function(add_test_common name tracer testcase cmake_script)
 	endif()
 
 	# check if test was built
-	if (NOT TARGET ${name})
-		message(WARNING "${name} not built. Skipping.")
+	if (NOT TARGET ${executable})
+		message(WARNING "${executable} not built. Skipping.")
 		return()
 	endif()
 
-	add_testcase(${name} ${tracer} ${testcase} ${cmake_script} ${ARGN})
+	add_testcase(${executable} ${name} ${tracer} ${testcase} ${cmake_script} ${ARGN})
 endfunction()
 
 # Adds testcase with optional SCRIPT and CASE parameters.
 #	If not set, use default test script and set TEST_CASE to 0.
 function(add_test_generic)
-	set(oneValueArgs NAME CASE SCRIPT)
+	set(oneValueArgs EXECUTABLE NAME CASE SCRIPT)
 	set(multiValueArgs TRACERS)
 	cmake_parse_arguments(TEST "" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
@@ -314,7 +314,11 @@ function(add_test_generic)
 		set(cmake_script ${TESTS_ROOT_DIR}/${TEST_SCRIPT})
 	endif()
 
+	if("${TEST_EXECUTABLE}" STREQUAL "")
+		set(TEST_EXECUTABLE ${TEST_NAME})
+	endif()
+
 	foreach(tracer ${TEST_TRACERS})
-		add_test_common(${TEST_NAME} ${tracer} ${TEST_CASE} ${cmake_script})
+		add_test_common(${TEST_EXECUTABLE} ${TEST_NAME} ${tracer} ${TEST_CASE} ${cmake_script})
 	endforeach()
 endfunction()
