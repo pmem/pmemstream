@@ -57,7 +57,7 @@ static void test(char mode)
 
 int main(int argc, char *argv[])
 {
-	if (argc != 3 || strchr("abi", argv[1][0]) == nullptr) {
+	if (argc != 3 || strchr("abiy", argv[1][0]) == nullptr) {
 		std::cout << "Usage: " << argv[0] << " <a|b|i> file-path" << std::endl;
 		return -1;
 	}
