@@ -5,15 +5,20 @@
 
 #include <rapidcheck.h>
 
+#include "common/util.h"
 #include "rapidcheck_helpers.hpp"
 #include "stream_helpers.hpp"
 #include "thread_helpers.hpp"
 #include "unittest.hpp"
 
-static constexpr size_t max_concurrency = 4;
+static constexpr size_t min_write_concurrency = 1;
+static constexpr size_t max_write_concurrency = 4;
+static constexpr size_t read_concurrency = max_write_concurrency * 2;
 static constexpr size_t max_size = 1024; /* Max number of elements in stream and max size of single entry. */
-static constexpr size_t stream_size = max_size * max_size * max_concurrency * 10 /* 10x-margin */;
-static constexpr size_t region_size = stream_size - STREAM_METADATA_SIZE;
+static constexpr size_t region_size = max_size * max_size * 10; /* 10x-margin */
+static constexpr size_t stream_size =
+	ALIGN_UP(region_size + REGION_METADATA_SIZE, TEST_DEFAULT_BLOCK_SIZE) * max_write_concurrency +
+	STREAM_METADATA_SIZE;
 
 namespace
 {
@@ -27,17 +32,10 @@ void concurrent_iterate_verify(pmemstream_test_base &stream, pmemstream_region r
 	while (pmemstream_entry_iterator_is_valid(eiter.get()) != 0)
 		pmemstream_entry_iterator_seek_first(eiter.get());
 
-	uint64_t expected_timestamp = 1;
-
 	/* Loop until all entries are found. */
 	while (result.size() < data.size() + extra_data.size()) {
 		if (pmemstream_entry_iterator_is_valid(eiter.get()) == 0) {
 			struct pmemstream_entry entry = pmemstream_entry_iterator_get(eiter.get());
-
-			uint64_t timestamp = pmemstream_entry_timestamp(stream.sut.c_ptr(), entry);
-			UT_ASSERTeq(timestamp, expected_timestamp);
-			expected_timestamp++;
-
 			UT_ASSERT(stream.sut.entry_timestamp(entry) <= stream.sut.committed_timestamp());
 
 			result.emplace_back(stream.sut.get_entry(entry));
@@ -58,25 +56,36 @@ void concurrent_iterate_verify(pmemstream_test_base &stream, pmemstream_region r
 }
 
 void verify_no_garbage(pmemstream_test_base &&stream, const std::vector<std::string> &data,
-		       const std::vector<std::string> &extra_data, bool reopen, size_t concurrency, bool async)
+		       const std::vector<std::string> &extra_data, bool reopen, size_t async_concurrent_appends,
+		       size_t sync_concurrent_appends)
 {
-	auto region = stream.helpers.get_first_region();
+	auto total_write_concurrency = async_concurrent_appends + sync_concurrent_appends;
+	RC_PRE(total_write_concurrency <= max_write_concurrency);
+	RC_PRE(total_write_concurrency >= min_write_concurrency);
+
+	std::vector<pmemstream_region> regions;
+	// XXX: always initialize for concurrent appends (region_runtime map in helpers is not thread safe)
+	stream.call_initialize_region_runtime = true;
+	stream.call_initialize_region_runtime_after_reopen = true;
+	stream.helpers.call_region_runtime_initialize = true;
+	for (size_t i = 0; i < total_write_concurrency; i++) {
+		regions.push_back(stream.helpers.initialize_single_region(region_size, data));
+	}
 
 	if (reopen)
 		stream.reopen();
 
-	parallel_exec(concurrency, [&](size_t tid) {
-		if (tid == 0) {
-			/* appender */
-			if (async)
-				stream.helpers.async_append(region, extra_data);
-			else
-				stream.helpers.append(region, extra_data);
-
-			stream.helpers.verify(region, data, extra_data);
+	parallel_exec(read_concurrency + total_write_concurrency, [&](size_t tid) {
+		if (tid < async_concurrent_appends) {
+			/* async appender */
+			stream.helpers.async_append(regions[tid], extra_data);
+		} else if (tid < total_write_concurrency) {
+			/* sync appender */
+			stream.helpers.append(regions[tid], extra_data);
 		} else {
 			/* iterators */
-			concurrent_iterate_verify(stream, region, data, extra_data);
+			auto read_id = tid - total_write_concurrency;
+			concurrent_iterate_verify(stream, regions[read_id % regions.size()], data, extra_data);
 		}
 	});
 }
@@ -102,20 +111,21 @@ int main(int argc, char *argv[])
 		ret += rc::check(
 			"verify if iterators concurrent to append work do not return garbage (no preinitialization)",
 			[&](pmemstream_empty &&stream, const std::vector<std::string> &extra_data, bool reopen,
-			    ranged<size_t, 1, max_concurrency> concurrency, bool async) {
+			    ranged<size_t, 0, max_write_concurrency> async_concurrent_appends,
+			    ranged<size_t, 0, max_write_concurrency> sync_concurrent_appends) {
 				RC_PRE(extra_data.size() > 0);
-				stream.helpers.initialize_single_region(region_size, {});
-				verify_no_garbage(std::move(stream), {}, extra_data, reopen, concurrency, async);
+				verify_no_garbage(std::move(stream), {}, extra_data, reopen, async_concurrent_appends,
+						  sync_concurrent_appends);
 			});
 
 		ret += rc::check("verify if iterators concurrent to append work do not return garbage ",
 				 [&](pmemstream_empty &&stream, const std::vector<std::string> &data,
 				     const std::vector<std::string> &extra_data, bool reopen,
-				     ranged<size_t, 1, max_concurrency> concurrency, bool async) {
+				     ranged<size_t, 0, max_write_concurrency> async_concurrent_appends,
+				     ranged<size_t, 0, max_write_concurrency> sync_concurrent_appends) {
 					 RC_PRE(data.size() + extra_data.size() > 0);
-					 stream.helpers.initialize_single_region(region_size, data);
-					 verify_no_garbage(std::move(stream), data, extra_data, reopen, concurrency,
-							   async);
+					 verify_no_garbage(std::move(stream), data, extra_data, reopen,
+							   async_concurrent_appends, sync_concurrent_appends);
 				 });
 	});
 }
