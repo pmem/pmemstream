@@ -35,8 +35,16 @@ struct pmemstream_entry {
 
 struct pmemstream_async_wait_data {
 	struct pmemstream *stream;
-	struct pmemstream_region_runtime *region_runtime;
+
+	/* Timestamp to wait on. */
 	uint64_t timestamp;
+
+	/* first_timestamp and last_timestamp define a range of timestamp which this
+	 * future will try to commit. processing_timestamp is timestamp which will be
+	 * processed by next call to future_poll. */
+	uint64_t first_timestamp;
+	uint64_t processing_timestamp;
+	uint64_t last_timestamp;
 };
 
 struct pmemstream_async_wait_output {
@@ -132,11 +140,18 @@ int pmemstream_async_append(struct pmemstream *stream, struct vdm *vdm, struct p
 uint64_t pmemstream_committed_timestamp(struct pmemstream *stream);
 uint64_t pmemstream_persisted_timestamp(struct pmemstream *stream);
 
+/* Returns future for committing/persisting all entries up to specified timestamp.
+ * Future must be polled until completion.
+ *
+ * Data which is committed but not yet persisted will be visible for iterators but might not be reachable after
+ * application restart.
+ *
+ * XXX: possible extra variants:
+ * - pmemstream_wait_commited/persisted (blocking)
+ * - pmemstream_process_commited/persisted (process as many commited/persisted ops as possible without blocking)
+ */
 struct pmemstream_async_wait_fut pmemstream_async_wait_committed(struct pmemstream *stream, uint64_t timestamp);
 struct pmemstream_async_wait_fut pmemstream_async_wait_persisted(struct pmemstream *stream, uint64_t timestamp);
-// XXX - possible extra variants:
-// - pmemstream_wait_commited/persisted (blocking)
-// - pmemstream_process_commited/persisted (process as many commited/persisted ops as possible without blocking)
 
 /* Returns pointer to the data of the entry. Assumes that 'entry' points to a valid entry. */
 const void *pmemstream_entry_data(struct pmemstream *stream, struct pmemstream_entry entry);
