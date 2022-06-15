@@ -7,6 +7,8 @@
 #include "../src/span.h"
 #include "stream_helpers.hpp"
 
+/* get all span's within given offset range;
+ * offsets' params are optional - by default scan the whole stream */
 std::vector<span_runtime> span_runtimes_from_stream(const pmem::stream &stream, size_t offset, size_t end_offset)
 {
 	std::vector<span_runtime> spans;
