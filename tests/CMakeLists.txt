@@ -191,8 +191,9 @@ if(BUILD_EXAMPLES)
 				example-03_reserve_publish
 				example-04_basic_async
 				example-05_timestamp_based_order)
+	add_dependencies(example-02_visual_iterator example-01_basic_iterate)
 	add_test_generic(NAME example-01_basic_iterate TRACERS none)
-	add_test_generic(NAME example-02_visual_iterator TRACERS none)
+	add_test_generic(NAME example-02_visual_iterator SCRIPT unittest/run_on_existing.cmake TRACERS none)
 	add_test_generic(NAME example-03_reserve_publish TRACERS none)
 	add_test_generic(NAME example-04_basic_async TRACERS none)
 	add_test_generic(NAME example-05_timestamp_based_order TRACERS none)
