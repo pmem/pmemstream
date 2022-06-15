@@ -163,7 +163,13 @@ endif()
 
 if(GDB AND DEBUG_BUILD)
 	build_test_ext(NAME append_break SRC_FILES integrity/append_break.cpp LIBS miniasync)
-	add_test_generic(NAME append_break SCRIPT integrity/append_break.cmake TRACERS none)
+	foreach(TESTCASE RANGE 2)
+		add_test_generic(NAME append_break SCRIPT integrity/append_break.cmake CASE ${TESTCASE} TRACERS none)
+	endforeach()
+
+	# test case 0 does not contain a broken entry (in the understanding of this test script)
+	add_test_generic(EXECUTABLE append_break NAME append_break_lazy SCRIPT integrity/append_break_lazy.cmake CASE 1 TRACERS none)
+	add_test_generic(EXECUTABLE append_break NAME append_break_lazy SCRIPT integrity/append_break_lazy.cmake CASE 2 TRACERS none)
 endif()
 
 check_test_dependecies(NAME symbols_dependencies DEPENDENCIES bash awk grep objdump)
