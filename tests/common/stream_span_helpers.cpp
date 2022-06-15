@@ -39,9 +39,16 @@ std::string span_to_str(const struct span_base *base)
 {
 	std::map<uint64_t, const std::string> span_type_names = {{SPAN_ENTRY, std::string("entry")},
 								 {SPAN_REGION, std::string("region")},
-								 {SPAN_EMPTY, std::string("empty")}};
+								 {SPAN_EMPTY, std::string("empty")},
+								 {SPAN_UNKNOWN, std::string("unknown")}};
 
-	return "type: " + span_type_names[span_get_type(base)] + ", data size: " + std::to_string(span_get_size(base));
+	span_type type = span_get_type(base);
+	std::string span_str = "type: " + span_type_names[type] + ", data size: " + std::to_string(span_get_size(base));
+	if (type == SPAN_ENTRY) {
+		auto entry = (const struct span_entry *)base;
+		span_str += ", timestamp: " + std::to_string(entry->timestamp);
+	}
+	return span_str;
 }
 
 std::ostream &operator<<(std::ostream &os, const struct span_base *base)
