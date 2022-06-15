@@ -30,9 +30,6 @@ function workspace_cleanup() {
 }
 
 function upload_codecov() {
-	# validate codecov.yaml file
-	cat ${WORKDIR}/codecov.yml | curl --data-binary @- https://codecov.io/validate
-
 	printf "\n$(tput setaf 1)$(tput setab 7)COVERAGE ${FUNCNAME[0]} START$(tput sgr 0)\n"
 
 	# check if code was compiled with clang
