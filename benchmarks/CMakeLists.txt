@@ -8,7 +8,7 @@
 
 add_custom_target(benchmarks)
 
-include_directories(${PMEMSTREAM_INCLUDE_DIRS} ${PMEMSTREAM_ROOT_DIR}/tests/common .)
+include_directories(${PMEMSTREAM_INCLUDE_DIRS} ${PMEMSTREAM_ROOT_DIR}/tests/common ${PMEMSTREAM_ROOT_DIR}/src ${PMEMSTREAM_ROOT_DIR}/benchmarks .)
 link_directories(${PMEMSTREAM_LIBRARY_DIRS})
 pkg_check_modules(LIBPMEMLOG REQUIRED libpmemlog)
 
