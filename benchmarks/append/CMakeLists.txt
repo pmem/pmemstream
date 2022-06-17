@@ -11,7 +11,7 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBPMEMSTREAM REQUIRED libpmemstream)
 pkg_check_modules(LIBPMEMLOG REQUIRED libpmemlog)
 
-include_directories(${LIBPMEMSTREAM_INCLUDE_DIRS} ../../tests/common . ..)
+include_directories(${LIBPMEMSTREAM_INCLUDE_DIRS} ${PMEMSTREAM_ROOT_DIR}/tests/common . ..)
 link_directories(${LIBPMEMSTREAM_LIBRARY_DIRS})
 
 add_executable(benchmark-append main.cpp)
