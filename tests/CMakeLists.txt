@@ -143,7 +143,7 @@ if(TESTS_RAPIDCHECK)
 	add_test_generic(NAME singly_linked_list_state TRACERS none memcheck)
 
 	build_test_rc(NAME timestamp SRC_FILES unittest/timestamp.cpp LIBS miniasync)
-	add_test_generic(NAME timestamp TRACERS none)
+	add_test_generic(NAME timestamp TRACERS none memcheck pmemcheck)
 
 	build_test_rc(NAME util_common SRC_FILES unittest/util_common.cpp)
 	add_test_generic(NAME util_common TRACERS none)
