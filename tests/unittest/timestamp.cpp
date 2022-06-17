@@ -9,6 +9,7 @@
 #include "rapidcheck_helpers.hpp"
 #include "span.h"
 #include "stream_helpers.hpp"
+#include "thread_helpers.hpp"
 #include "unittest.h"
 
 #include <iostream>
@@ -43,84 +44,6 @@ std::ostream &operator<<(std::ostream &os, const payload &data)
 	return os;
 }
 
-/* pmememstream entry iterator wrapper, which helps to manage entries from
- * different regions in global order. */
-class entry_iterator {
- public:
-	entry_iterator(pmemstream *stream, pmemstream_region &region) : stream(stream)
-	{
-		struct pmemstream_entry_iterator *new_entry_iterator;
-		if (pmemstream_entry_iterator_new(&new_entry_iterator, stream, region) != 0) {
-			throw std::runtime_error("Cannot create entry iterators");
-		}
-		it = std::shared_ptr<pmemstream_entry_iterator>(new_entry_iterator, [](pmemstream_entry_iterator *eit) {
-			pmemstream_entry_iterator_delete(&eit);
-		});
-		pmemstream_entry_iterator_seek_first(it.get());
-		if (pmemstream_entry_iterator_is_valid(it.get()) != 0) {
-			throw std::runtime_error("No entries to iterate");
-		}
-	}
-
-	void operator++()
-	{
-		pmemstream_entry_iterator_next(it.get());
-	}
-
-	bool operator<(entry_iterator &other)
-	{
-		if (pmemstream_entry_iterator_is_valid(it.get()) != 0)
-			return false;
-
-		if (pmemstream_entry_iterator_is_valid(other.it.get()) != 0)
-			return true;
-
-		return get_timestamp() < other.get_timestamp();
-	}
-
-	payload get_data()
-	{
-		if (pmemstream_entry_iterator_is_valid(it.get()) != 0) {
-			throw std::runtime_error("Invalid iterator");
-		}
-		return *reinterpret_cast<const payload *>(
-			pmemstream_entry_data(stream, pmemstream_entry_iterator_get(it.get())));
-	}
-
-	uint64_t get_timestamp()
-	{
-		if (pmemstream_entry_iterator_is_valid(it.get()) != 0) {
-			throw std::runtime_error("Invalid iterator");
-		}
-
-		auto this_entry = pmemstream_entry_iterator_get(it.get());
-		return pmemstream_entry_timestamp(stream, this_entry);
-	}
-
-	bool is_valid()
-	{
-		return pmemstream_entry_iterator_is_valid(it.get()) == 0;
-	}
-
-	pmemstream_entry_iterator *raw_iterator()
-	{
-		return it.get();
-	}
-
- private:
-	pmemstream *stream;
-	std::shared_ptr<pmemstream_entry_iterator> it;
-};
-
-std::vector<entry_iterator> get_entry_iterators(pmemstream *stream, std::vector<pmemstream_region> regions)
-{
-	std::vector<entry_iterator> entry_iterators;
-	for (auto &region : regions) {
-		entry_iterators.emplace_back(entry_iterator(stream, region));
-	}
-	return entry_iterators;
-}
-
 int main(int argc, char *argv[])
 {
 	if (argc != 2) {
@@ -142,49 +65,90 @@ int main(int argc, char *argv[])
 		// environment after asynchronous append" case 3
 		ret += rc::check(
 			"verify increasing timestamp values in each region after synchronous append",
-			[&](pmemstream_test_base &&stream) {
+			[&](pmemstream_with_multi_empty_regions &&stream) {
 				size_t no_elements = *rc::gen::inRange<size_t>(1, 15);
-				size_t no_regions = *rc::gen::inRange<size_t>(1, TEST_DEFAULT_REGION_MULTI_MAX_COUNT);
+				size_t no_regions = stream.helpers.count_regions();
 
-				std::vector<pmemstream_region> regions =
-					stream.helpers.allocate_regions(no_regions, TEST_DEFAULT_REGION_MULTI_SIZE);
+				auto regions = stream.helpers.get_regions();
 
-				/* Asynchronous append to many regions with global ordering */
+				/* Multithreaded append to many regions with global ordering */
 				parallel_exec(no_regions, [&](size_t thread_id) {
 					for (size_t i = 0; i < no_elements; i++) {
 						payload entry(thread_id, i);
-						pmemstream_append(stream.sut.c_ptr(), regions[thread_id], NULL, &entry,
-								  sizeof(entry), NULL);
+						auto ret = pmemstream_append(stream.sut.c_ptr(), regions[thread_id],
+									     NULL, &entry, sizeof(entry), NULL);
+						UT_ASSERTeq(ret, 0);
 					}
 				});
 
-				// In region monotonicity check
-				std::vector<entry_iterator> entry_iterators =
-					get_entry_iterators(stream.sut.c_ptr(), regions);
-				uint64_t prev_timestamp = PMEMSTREAM_INVALID_TIMESTAMP;
-				size_t entry_counter = 0;
-				for (auto e_iterator : entry_iterators) {
-					while (e_iterator.is_valid()) {
-						uint64_t curr_timestamp = e_iterator.get_timestamp();
-						UT_ASSERT(prev_timestamp < curr_timestamp);
-						prev_timestamp = curr_timestamp;
-						++e_iterator;
-						++entry_counter;
-					}
-					prev_timestamp = PMEMSTREAM_INVALID_TIMESTAMP;
+				// Single region ordering validation
+				for (auto &region : regions) {
+					std::vector<pmemstream_region> region_container;
+					region_container.push_back(region);
+					UT_ASSERTeq(stream.helpers.validate_timestamps(region_container, true), true);
 				}
-				UT_ASSERTeq(entry_counter, no_elements * no_regions);
+			});
+
+		ret += rc::check(
+			"verify globally increasing timestamp values in multi region environment after synchronous append",
+			[&](pmemstream_with_multi_empty_regions &&stream) {
+				size_t no_elements = *rc::gen::inRange<size_t>(1, 15);
+				size_t no_regions = stream.helpers.count_regions();
+
+				auto regions = stream.helpers.get_regions();
+
+				/* Multithreaded append to many regions with global ordering */
+				parallel_exec(no_regions, [&](size_t thread_id) {
+					for (size_t i = 0; i < no_elements; i++) {
+						payload entry(thread_id, i);
+						auto ret = pmemstream_append(stream.sut.c_ptr(), regions[thread_id],
+									     NULL, &entry, sizeof(entry), NULL);
+						UT_ASSERTeq(ret, 0);
+					}
+				});
 
 				// Global ordering validation
-				entry_iterators = get_entry_iterators(stream.sut.c_ptr(), regions);
-				uint64_t expected_timestamp = PMEMSTREAM_FIRST_TIMESTAMP;
-				for (size_t i = 0; i < no_elements * no_regions; i++) {
-					auto oldest_data =
-						std::min_element(entry_iterators.begin(), entry_iterators.end());
-					payload entry = oldest_data->get_data();
-					UT_ASSERTeq(expected_timestamp++, oldest_data->get_timestamp());
-					++(*oldest_data);
+				UT_ASSERTeq(stream.helpers.validate_timestamps(regions, false), true);
+			});
+
+		ret += rc::check(
+			"verify globally increasing timestamp values in multi region environment after synchronous append to respawned region",
+			[&](pmemstream_with_multi_empty_regions &&stream) {
+				size_t no_elements = *rc::gen::inRange<size_t>(1, 15);
+				size_t no_regions = stream.helpers.count_regions();
+
+				auto regions = stream.helpers.get_regions();
+
+				/* Multithreaded append to many regions with global ordering */
+				parallel_exec(no_regions, [&](size_t thread_id) {
+					for (size_t i = 0; i < no_elements; i++) {
+						payload entry(thread_id, i);
+						auto ret = pmemstream_append(stream.sut.c_ptr(), regions[thread_id],
+									     NULL, &entry, sizeof(entry), NULL);
+						UT_ASSERTeq(ret, 0);
+					}
+				});
+
+				size_t pos = *rc::gen::inRange<size_t>(0, no_regions);
+				auto region_to_remove = regions[pos];
+				auto region_size = stream.sut.region_size(region_to_remove);
+				UT_ASSERTeq(stream.helpers.remove_region(region_to_remove.offset), 0);
+				regions.erase(regions.begin() + (int)pos);
+
+				// Global ordering validation
+				UT_ASSERTeq(stream.helpers.validate_timestamps(regions, true), true);
+
+				auto respawned_regions = stream.helpers.allocate_regions(1, region_size);
+				UT_ASSERTeq(respawned_regions.size(), 1);
+				regions.push_back(respawned_regions[0]);
+
+				for (size_t i = 0; i < no_elements; i++) {
+					payload entry(pos, i);
+					auto ret = pmemstream_append(stream.sut.c_ptr(), respawned_regions[0], NULL,
+								     &entry, sizeof(entry), NULL);
+					UT_ASSERTeq(ret, 0);
 				}
+				UT_ASSERTeq(stream.helpers.validate_timestamps(regions, true), true);
 			});
 	});
 }
