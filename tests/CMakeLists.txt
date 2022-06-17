@@ -131,10 +131,10 @@ if(TESTS_RAPIDCHECK)
 	add_test_generic(NAME region_runtime_initialize TRACERS none memcheck)
 
 	build_test_rc(NAME reserve_publish SRC_FILES unittest/reserve_publish.cpp LIBS miniasync)
-	add_test_generic(NAME reserve_publish TRACERS none memcheck)
+	add_test_generic(NAME reserve_publish TRACERS none memcheck pmemcheck)
 
 	build_test_rc(NAME reserve_publish_integrity SRC_FILES integrity/reserve_publish.cpp LIBS miniasync)
-	add_test_generic(NAME reserve_publish_integrity TRACERS none pmemcheck)
+	add_test_generic(NAME reserve_publish_integrity TRACERS none memcheck)
 
 	build_test_rc(NAME singly_linked_list SRC_FILES unittest/singly_linked_list.cpp)
 	add_test_generic(NAME singly_linked_list TRACERS none memcheck)
