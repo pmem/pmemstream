@@ -116,7 +116,7 @@ static void test(std::string mode)
 		UT_ASSERTeq(init_data.size() + 1, persisted_timestamp);
 
 		/* check if we have for sure a duplicated timestamp */
-		auto regions = span_runtimes_from_stream(s.sut, 0, UINT64_MAX);
+		auto regions = span_runtimes_from_stream(s.sut);
 
 		/* in the 1. region there should be 4 entry spans (incl. broken one) + potentially 1 empty span */
 		UT_ASSERT(regions[0].sub_spans.size() >= 4);
@@ -153,7 +153,7 @@ static void test(std::string mode)
 
 		/* check if new entries (in both regions) have proper timestamps and each of these
 		 * entries are now followed by an empty span */
-		regions = span_runtimes_from_stream(s.sut, 0, UINT64_MAX);
+		regions = span_runtimes_from_stream(s.sut);
 
 		/* 1. region: 4 entry spans + 1 empty span (+ possible trash) */
 		UT_ASSERT(regions[0].sub_spans.size() >= 5);

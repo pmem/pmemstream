@@ -141,6 +141,8 @@ To enable automatic images pushing to GitHub Container Registry, following varia
 
 # Debugging
 
+## GDB
+
 Test framework supports debugging under gdb.
 
 * For remote debugging set `GDBSERVER` environment variable. Its content will be passed to gdbserver
@@ -151,4 +153,18 @@ Example usage with a single test:
 GDBSERVER=localhost:4444 ctest -R vector_comp_operators_0_none --output-on-failure
 ```
 
-* For local debugging in graphical environment using cgdb, set `CGDB` environment variable to `gnome-terminal` or `konsole` accordingly to your setup.
+* For local debugging in graphical environment using cgdb, set `CGDB` environment variable to
+`gnome-terminal` or `konsole` accordingly to your setup.
+
+## Tests helpers
+
+When something unexpected appears in the pmemstream, e.g., entries' count does not match expectation or
+a trash spans are encountered - it is possible to easily print the content of stream's file.
+There's available a tests helper class - `stream_span_helpers.hpp` which provides a quick way
+to gather information of all spans (entries, regions, empty spaces) recognized within the stream.
+It's simply possible to print this content by running C++ code like this (from a gdb or example code):
+
+```cpp
+auto spans = span_runtimes_from_stream(stream);
+std::cout << spans << std::endl;
+```

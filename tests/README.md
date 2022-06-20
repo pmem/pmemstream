@@ -7,10 +7,11 @@ hand C tests are checking usage in C applications, which are default for C API.
 Directories contains:
 - **abi** - tests for ABI,
 - **api_c** - plain tests for C API,
+- **benchmarks** - test files for executing benchmarks,
 - **cmake** - CMake and ctest helpers, including suppressions' files and CMake executions scripts,
 - **common** - shared functions and libraries for all tests,
-- **layout** - tests which require knowledge about stream layout.
 - **integrity** - data integrity tests (using e.g. gdb or pmreorder),
+- **layout** - tests which require knowledge about stream layout,
 - **unittest** - unit tests for various (e.g. internal) functionalities.
 
 # Tests execution
@@ -35,3 +36,9 @@ ctest --output-on-failure
 
 There are other parameters to use in `ctest` command. To see the full list read
 [ctest(1) manpage](https://cmake.org/cmake/help/latest/manual/ctest.1.html).
+
+# Debugging
+
+Testing is strongly connected with debugging issues encountered in pmemstream.
+If you need an assistance with it, there are some useful hints, gathered in our
+short ["Debugging" sub-section of CONTRIBUTING.md](../CONTRIBUTING.md#Debugging).

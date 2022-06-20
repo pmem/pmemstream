@@ -598,7 +598,7 @@ static inline std::ostream &operator<<(std::ostream &os, const pmemstream_test_b
 	os << "call_initialize_region_runtime: " << stream.call_initialize_region_runtime << std::endl;
 	os << "call_initialize_region_runtime_after_reopen: " << stream.call_initialize_region_runtime_after_reopen
 	   << std::endl;
-	os << span_runtimes_from_stream(stream.sut, 0, UINT64_MAX);
+	os << span_runtimes_from_stream(stream.sut);
 	return os;
 }
 

@@ -39,7 +39,7 @@ int main(int argc, char *argv[])
 				RC_PRE(data.size() > 0);
 				stream.helpers.append(stream.helpers.get_first_region(), data);
 
-				auto span_view = span_runtimes_from_stream(stream.sut, 0, UINT64_MAX);
+				auto span_view = span_runtimes_from_stream(stream.sut);
 				UT_ASSERTeq(span_get_type(span_view[0].ptr), SPAN_REGION);
 				auto &region = span_view[0];
 				auto &entries = region.sub_spans;
