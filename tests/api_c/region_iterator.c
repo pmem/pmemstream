@@ -8,7 +8,7 @@
 
 /**
  * region_iterator - unit test for pmemstream_region_iterator_new,
- *					pmemstrem_region_iterator_next, pmemstream_region_iterator_delete
+ *					pmemstream_region_iterator_next, pmemstream_region_iterator_delete
  */
 
 void valid_input_test(char *path)

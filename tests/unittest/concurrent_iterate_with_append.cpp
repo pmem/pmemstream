@@ -109,7 +109,7 @@ int main(int argc, char *argv[])
 		return_check ret;
 
 		ret += rc::check(
-			"verify if iterators concurrent to append work do not return garbage (no preinitialization)",
+			"verify if iterators concurrent to append work do not return garbage (no pre-initialization)",
 			[&](pmemstream_empty &&stream, const std::vector<std::string> &extra_data, bool reopen,
 			    ranged<size_t, 0, max_write_concurrency> async_concurrent_appends,
 			    ranged<size_t, 0, max_write_concurrency> sync_concurrent_appends) {
