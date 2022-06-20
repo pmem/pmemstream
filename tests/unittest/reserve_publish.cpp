@@ -120,6 +120,23 @@ int main(int argc, char *argv[])
 				UT_ASSERTeq(a_timestamp, rp_timestamp);
 			});
 
-		/* XXX: add case with appending to sep. regions, not instances */
+		test_config.region_size = TEST_DEFAULT_REGION_MULTI_SIZE;
+		ret += rc::check(
+			"reserve+publish by hand will behave the same as regular append in 2 separate regions",
+			[&](pmemstream_empty &&stream, const std::vector<std::string> &data) {
+				/* regular append of 'data' */
+				auto r1 = stream.helpers.initialize_single_region(TEST_DEFAULT_REGION_MULTI_SIZE, {});
+				stream.helpers.append(r1, data);
+				auto [a_data, a_timestamp] = verify_appended_data(stream, r1, data);
+
+				/* publish-reserve by hand of the same 'data' (in a different region) */
+				auto r2 = stream.helpers.initialize_single_region(TEST_DEFAULT_REGION_MULTI_SIZE, {});
+				stream.helpers.reserve_and_publish(r2, data);
+				auto [rp_data, rp_timestamp] = verify_appended_data(stream, r2, data);
+
+				UT_ASSERT(std::equal(a_data.begin(), a_data.end(), rp_data.begin(), rp_data.end()));
+				UT_ASSERTeq(a_timestamp, data.size());
+				UT_ASSERTeq(a_timestamp * 2, rp_timestamp);
+			});
 	});
 }
