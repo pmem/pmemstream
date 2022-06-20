@@ -30,6 +30,7 @@ int main(int argc, char *argv[])
 		return_check ret;
 
 		/* XXX: add stateful test(s) with mixed commands (even without model; just to randomize commands) */
+		/* XXX: add async publish tests */
 		ret += rc::check("verify if mixing regular appends with async appends works fine",
 				 [&](pmemstream_with_single_empty_region &&stream, const std::vector<std::string> &data,
 				     const std::vector<std::string> &extra_data, const bool async_first) {
@@ -44,8 +45,6 @@ int main(int argc, char *argv[])
 					 }
 
 					 stream.helpers.verify(region, data, extra_data);
-
-					 UT_ASSERTeq(stream.sut.region_free(region), 0);
 				 });
 
 		ret += rc::check("verify if mixing regular reserve+publish with async appends works fine",
@@ -62,8 +61,6 @@ int main(int argc, char *argv[])
 					 }
 
 					 stream.helpers.verify(region, data, extra_data);
-
-					 UT_ASSERTeq(stream.sut.region_free(region), 0);
 				 });
 	});
 }

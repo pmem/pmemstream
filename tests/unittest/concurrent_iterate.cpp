@@ -42,7 +42,6 @@ int main(int argc, char *argv[])
 				});
 
 				UT_ASSERT(all_of(threads_data, predicates::equal(data)));
-				UT_ASSERTeq(stream.sut.region_free(region), 0);
 			});
 	});
 }

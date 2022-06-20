@@ -55,7 +55,9 @@ void null_stream_test(char *path)
 	UT_ASSERTeq(ret, -1);
 	UT_ASSERTeq(rtm, NULL);
 
-	pmemstream_region_free(env.stream, region);
+	ret = pmemstream_region_free(NULL, region);
+	UT_ASSERTeq(ret, -1);
+
 	pmemstream_test_teardown(env);
 }
 

@@ -3,7 +3,7 @@
 
 /*
  * reserve_publish.cpp -- pmemstream_reserve and pmemstream_publish integrity test.
- *			It checks if we reserve-publish approach properly writes data on pmem.
+ *			It checks specific cases of reserve-publish approach for writing data on pmem.
  */
 
 #include <cstring>
@@ -28,13 +28,25 @@ int main(int argc, char *argv[])
 	return run_test(test_config, [&] {
 		return_check ret;
 
-		ret += rc::check("verify if mixing reserve+publish with append works fine",
+		/* this test leads to a "persistent" leak - do not try this at home! ;-) */
+		ret += rc::check("verify if not calling publish does not result in data being visible",
 				 [&](pmemstream_with_single_empty_region &&stream, const std::vector<std::string> &data,
-				     const std::vector<std::string> &extra_data) {
-					 auto region = stream.helpers.get_first_region();
+				     const std::string &extra_entry) {
+					 pmemstream_region region = stream.helpers.get_first_region();
 					 stream.helpers.append(region, data);
-					 stream.helpers.reserve_and_publish(region, extra_data);
-					 stream.helpers.verify(region, data, extra_data);
+
+					 auto [ret, reserved_entry, reserved_data] =
+						 stream.sut.reserve(region, extra_entry.size());
+					 UT_ASSERTeq(ret, 0);
+
+					 std::memcpy(reinterpret_cast<char *>(reserved_data), extra_entry.data(),
+						     extra_entry.size());
+
+					 stream.helpers.verify(region, data, {});
+
+					 stream.reopen();
+
+					 stream.helpers.verify(region, data, {});
 				 });
 	});
 }
