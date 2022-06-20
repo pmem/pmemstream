@@ -171,6 +171,9 @@ int main(int argc, char *argv[])
 
 						 auto region =
 							 stream.helpers.initialize_single_region(region_size, {entry});
+						 RC_PRE(entry.size() + sizeof(span_entry) <
+							stream.sut.region_usable_size(region));
+
 						 stream.helpers.verify(region, {entry}, {});
 
 						 UT_ASSERTeq(stream.helpers.count_regions(), 1);
@@ -185,24 +188,24 @@ int main(int argc, char *argv[])
 					 }
 				 });
 
-		ret += rc::check(
-			"verify if we can repopulate stream with the same data after region reallocate",
-			[&](const std::vector<std::string> &data) {
-				{
-					auto [region_size, block_size] =
-						generate_region_size_and_block_size(get_test_config().stream_size);
-					pmemstream_test_base stream(get_test_config().filename, block_size,
-								    get_test_config().stream_size);
-					auto region = stream.helpers.initialize_single_region(region_size, data);
+		ret += rc::check("verify if we can repopulate stream with the same data after region reallocate",
+				 [&](const std::vector<std::string> &data) {
+					 {
+						 pmemstream_test_base stream(get_test_config().filename,
+									     get_test_config().block_size,
+									     get_test_config().stream_size);
+						 auto region = stream.helpers.initialize_single_region(
+							 get_test_config().region_size, data);
 
-					UT_ASSERTeq(stream.helpers.count_regions(), 1);
-					stream.sut.region_free(region);
-					UT_ASSERTeq(stream.helpers.count_regions(), 0);
+						 UT_ASSERTeq(stream.helpers.count_regions(), 1);
+						 stream.sut.region_free(region);
+						 UT_ASSERTeq(stream.helpers.count_regions(), 0);
 
-					auto new_region = stream.helpers.initialize_single_region(region_size, data);
-					UT_ASSERTeq(region.offset, new_region.offset);
-					stream.helpers.verify(new_region, data, {});
-				}
-			});
+						 auto new_region = stream.helpers.initialize_single_region(
+							 get_test_config().region_size, data);
+						 UT_ASSERTeq(region.offset, new_region.offset);
+						 stream.helpers.verify(new_region, data, {});
+					 }
+				 });
 	});
 }
