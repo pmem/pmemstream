@@ -37,7 +37,6 @@ void valid_input_test(char *path)
 
 	UT_ASSERTeq(pmemstream_entry_length(env.stream, entry), sizeof(data));
 
-	pmemstream_region_free(env.stream, region);
 	pmemstream_test_teardown(env);
 }
 
@@ -62,7 +61,6 @@ void null_stream_test(char *path)
 
 	UT_ASSERTeq(pmemstream_entry_length(NULL, entry), 0);
 
-	pmemstream_region_free(env.stream, region);
 	pmemstream_test_teardown(env);
 }
 
@@ -98,7 +96,6 @@ void null_region_runtime_test(char *path)
 	ret = pmemstream_append(env.stream, region, NULL, &data, 0, entry);
 	UT_ASSERTeq(ret, 0);
 
-	pmemstream_region_free(env.stream, region);
 	pmemstream_test_teardown(env);
 }
 
@@ -121,7 +118,6 @@ void non_null_region_runtime_test(char *path)
 	ret = pmemstream_append(env.stream, region, region_runtime, &data, 0, entry);
 	UT_ASSERTeq(ret, 0);
 
-	pmemstream_region_free(env.stream, region);
 	pmemstream_test_teardown(env);
 }
 
@@ -140,7 +136,6 @@ void null_data_test(char *path)
 	UT_ASSERTeq(ret, 0);
 	UT_ASSERTeq(entry, NULL);
 
-	pmemstream_region_free(env.stream, region);
 	pmemstream_test_teardown(env);
 }
 
@@ -160,7 +155,6 @@ void null_entry_test(char *path)
 	UT_ASSERTeq(ret, 0);
 	UT_ASSERTeq(entry, NULL);
 
-	pmemstream_region_free(env.stream, region);
 	pmemstream_test_teardown(env);
 }
 

@@ -47,7 +47,6 @@ void valid_input_test(char *path)
 	pmemstream_entry_iterator_delete(&eiter);
 	UT_ASSERTeq(eiter, NULL);
 
-	pmemstream_region_free(env.stream, region);
 	pmemstream_test_teardown(env);
 }
 
@@ -86,7 +85,6 @@ void test_get_last_entry(char *path)
 
 	pmemstream_entry_iterator_delete(&eiter);
 	UT_ASSERTeq(eiter, NULL);
-	pmemstream_region_free(env.stream, region);
 
 	pmemstream_test_teardown(env);
 	free(entries);
@@ -116,7 +114,6 @@ void null_iterator_test(char *path)
 	struct pmemstream_entry entry = pmemstream_entry_iterator_get(NULL);
 	UT_ASSERTeq(entry.offset, PMEMSTREAM_INVALID_OFFSET);
 
-	pmemstream_region_free(env.stream, region);
 	pmemstream_test_teardown(env);
 }
 
@@ -139,7 +136,6 @@ void invalid_region_test(char *path)
 	UT_ASSERTeq(invalid_region.offset, invalid_offset);
 
 	pmemstream_entry_iterator_delete(&eiter);
-	pmemstream_region_free(env.stream, region);
 	pmemstream_test_teardown(env);
 }
 
@@ -157,7 +153,6 @@ void null_stream_test(char *path)
 	UT_ASSERTeq(ret, -1);
 	UT_ASSERTeq(eiter, NULL);
 
-	pmemstream_region_free(env.stream, region);
 	pmemstream_test_teardown(env);
 }
 
@@ -184,7 +179,6 @@ void null_entry_iterator_test(char *path)
 	ret = pmemstream_entry_iterator_new(NULL, env.stream, region);
 	UT_ASSERTeq(ret, -1);
 
-	pmemstream_region_free(env.stream, region);
 	pmemstream_test_teardown(env);
 }
 

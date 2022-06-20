@@ -84,7 +84,6 @@ void check_timestamp_and_order(char *path)
 		UT_ASSERTeq(timestamp, persisted_timestamp);
 	}
 
-	pmemstream_region_free(env.stream, region);
 	pmemstream_test_teardown(env);
 }
 

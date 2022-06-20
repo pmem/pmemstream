@@ -78,8 +78,6 @@ int main(int argc, char *argv[])
 					 }
 
 					 stream.helpers.verify(region, data, all_extra_data);
-
-					 UT_ASSERTeq(stream.sut.region_free(region), 0);
 				 });
 
 		ret += rc::check(

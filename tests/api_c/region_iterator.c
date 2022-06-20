@@ -35,7 +35,6 @@ void valid_input_test(char *path)
 	pmemstream_region_iterator_delete(&riter);
 	UT_ASSERTeq(riter, NULL);
 
-	pmemstream_region_free(env.stream, region);
 	pmemstream_test_teardown(env);
 }
 
@@ -73,7 +72,6 @@ void valid_recovery_test(char *path)
 	pmemstream_region_iterator_delete(&riter);
 	UT_ASSERTeq(riter, NULL);
 
-	pmemstream_region_free(env.stream, region);
 	pmemstream_test_teardown(env);
 }
 */
@@ -100,7 +98,6 @@ void null_iterator_test(char *path)
 
 	pmemstream_region_iterator_seek_first(NULL);
 
-	pmemstream_region_free(env.stream, region);
 	pmemstream_test_teardown(env);
 }
 
