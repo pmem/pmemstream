@@ -13,6 +13,44 @@
 
 #include <string.h>
 
+void null_stream_test(char *path)
+{
+	pmemstream_test_env env = pmemstream_test_make_default(path);
+
+	uint64_t data = 128;
+	struct pmemstream_entry entry;
+
+	struct pmemstream_region region;
+	int ret = pmemstream_region_allocate(env.stream, TEST_DEFAULT_REGION_SIZE, &region);
+	UT_ASSERTeq(ret, 0);
+
+	ret = pmemstream_append(NULL, region, NULL, &data, sizeof(data), &entry);
+	UT_ASSERTeq(ret, -1);
+
+	uint64_t timestamp = pmemstream_entry_timestamp(NULL, entry);
+	UT_ASSERTeq(timestamp, PMEMSTREAM_INVALID_TIMESTAMP);
+
+	timestamp = pmemstream_committed_timestamp(NULL);
+	UT_ASSERTeq(timestamp, PMEMSTREAM_INVALID_TIMESTAMP);
+
+	timestamp = pmemstream_persisted_timestamp(NULL);
+	UT_ASSERTeq(timestamp, PMEMSTREAM_INVALID_TIMESTAMP);
+
+	pmemstream_test_teardown(env);
+}
+
+void invalid_entry_test(char *path)
+{
+	pmemstream_test_env env = pmemstream_test_make_default(path);
+
+	struct pmemstream_entry invalid_entry = {.offset = UINT64_MAX};
+
+	uint64_t timestamp = pmemstream_entry_timestamp(env.stream, invalid_entry);
+	UT_ASSERTeq(timestamp, PMEMSTREAM_INVALID_TIMESTAMP);
+
+	pmemstream_test_teardown(env);
+}
+
 void check_timestamp_and_order(char *path)
 {
 	pmemstream_test_env env = pmemstream_test_make_default(path);
@@ -58,6 +96,9 @@ int main(int argc, char *argv[])
 	char *path = argv[1];
 
 	START();
+
+	null_stream_test(path);
+	invalid_entry_test(path);
 	check_timestamp_and_order(path);
 
 	return 0;

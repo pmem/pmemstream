@@ -240,6 +240,10 @@ void pmemstream_delete(struct pmemstream **stream)
 // XXX: add more tests using these 2 timestamp functions
 uint64_t pmemstream_persisted_timestamp(struct pmemstream *stream)
 {
+	if (!stream) {
+		return PMEMSTREAM_INVALID_TIMESTAMP;
+	}
+
 	/* Make sure that persisted_timestamp is actually persisted before returning. */
 	uint64_t timestamp = __atomic_load_n(&stream->header->persisted_timestamp, __ATOMIC_ACQUIRE);
 	stream->data.persist(&stream->header->persisted_timestamp, sizeof(uint64_t));
@@ -248,6 +252,10 @@ uint64_t pmemstream_persisted_timestamp(struct pmemstream *stream)
 
 uint64_t pmemstream_committed_timestamp(struct pmemstream *stream)
 {
+	if (!stream) {
+		return PMEMSTREAM_INVALID_TIMESTAMP;
+	}
+
 	return __atomic_load_n(&stream->committed_timestamp, __ATOMIC_ACQUIRE);
 }
 
