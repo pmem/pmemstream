@@ -300,7 +300,7 @@ endfunction()
 # Optional function arguments are passed as consecutive arguments to
 # the command.
 function(pmreorder_execute expect_success engine conf_file name)
-	check_target(${name})
+	#	check_target(${name})
 
 	if(NOT (${TRACER} STREQUAL none))
 		message(FATAL_ERROR "Pmreorder test must be run without any tracer.")
