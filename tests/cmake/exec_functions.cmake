@@ -296,12 +296,10 @@ endfunction()
 # First argument is expected result.
 # Second argument is engine type.
 # Third argument is path to configure file.
-# Fourth argument is path to the checker program.
+# Fourth argument is command of the checker program.
 # Optional function arguments are passed as consecutive arguments to
 # the command.
 function(pmreorder_execute expect_success engine conf_file name)
-	check_target(${name})
-
 	if(NOT (${TRACER} STREQUAL none))
 		message(FATAL_ERROR "Pmreorder test must be run without any tracer.")
 	endif()
@@ -309,6 +307,9 @@ function(pmreorder_execute expect_success engine conf_file name)
 	set(ENV{PMEMOBJ_CONF} "copy_on_write.at_open=1")
 
 	string(REPLACE "\"" "\\\"" ESCAPED_ARGN "${ARGN}")
+
+	file(STRINGS ${BIN_DIR}/${TEST_NAME}.storelog STORELOG_CONTENT)
+	message(STATUS "STORELOG:\n ${STORELOG_CONTENT}\n")
 
 	set(cmd pmreorder -l ${BIN_DIR}/${TEST_NAME}.storelog
 					-o ${BIN_DIR}/${TEST_NAME}.pmreorder

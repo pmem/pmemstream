@@ -163,9 +163,14 @@ if(TESTS_PMREORDER)
 	build_test_ext(NAME singly_linked_list_pmreorder SRC_FILES integrity/singly_linked_list_pmreorder.cpp LIBS miniasync)
 	add_test_generic(NAME singly_linked_list_pmreorder SCRIPT integrity/default_create_fill_check.cmake TRACERS none)
 	add_test_generic(NAME singly_linked_list_pmreorder CASE negative SCRIPT integrity/default_create_fill_check_negative.cmake TRACERS none)
+	add_test_generic(NAME singly_linked_list_pmreorder CASE crash_during_recovery SCRIPT integrity/crash_during_recovery.cmake TRACERS none)
 
 	build_test_ext(NAME multi_region_pmreorder SRC_FILES integrity/multi_region_pmreorder.cpp LIBS miniasync)
 	add_test_generic(NAME multi_region_pmreorder SCRIPT integrity/default_create_fill_check.cmake TRACERS none)
+
+	build_test_ext(NAME append_pmreorder SRC_FILES integrity/append_pmreorder.cpp LIBS miniasync)
+	add_test_generic(NAME append_pmreorder SCRIPT integrity/default_create_fill_check.cmake TRACERS none)
+	add_test_generic(NAME append_pmreorder CASE crash_during_recovery SCRIPT integrity/crash_during_recovery.cmake TRACERS none)
 endif()
 
 if(GDB AND DEBUG_BUILD)
