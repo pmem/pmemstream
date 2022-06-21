@@ -14,6 +14,7 @@ jobs:
     env:
       PMEMSTREAM_TEST_DIR: /mnt/pmem0/${{ github.job }}
       CHECK_CPP_STYLE: OFF
+      WORKDIR: ${{ github.workspace }}
 
     steps:
 
