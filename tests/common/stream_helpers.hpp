@@ -637,4 +637,15 @@ struct pmemstream_empty : public pmemstream_test_base {
 	}
 };
 
+struct pmemstream_with_multi_non_empty_regions : public pmemstream_test_base {
+	pmemstream_with_multi_non_empty_regions(pmemstream_test_base &&base,
+						const std::vector<std::vector<std::string>> &data)
+	    : pmemstream_test_base(std::move(base))
+	{
+		for (const auto &d : data) {
+			helpers.initialize_single_region(TEST_DEFAULT_REGION_MULTI_SIZE, d);
+		}
+	}
+};
+
 #endif /* LIBPMEMSTREAM_STREAM_HELPERS_HPP */
