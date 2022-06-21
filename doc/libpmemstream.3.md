@@ -4,21 +4,20 @@ layout: "library"
 slider_enable: true
 description: ""
 disclaimer: "The contents of this web site and the associated <a href=\"https://github.com/pmem\">GitHub repositories</a> are BSD-licensed open source."
-aliases: ["libpmemstream.7.html"]
+aliases: ["libpmemstream.3.html"]
 title: libpmemstream
-section: 7
+section: 3
 secondary_title: pmemstream
 ---
 
 [comment]: <> (SPDX-License-Identifier: BSD-3-Clause)
-[comment]: <> (Copyright 2021-2022, Intel Corporation)
+[comment]: <> (Copyright 2022, Intel Corporation)
 
-[comment]: <> (libpmemstream.7 -- man page for libpmemstream API)
+[comment]: <> (libpmemstream.3 -- man page for libpmemstream API)
 
 [NAME](#name)\
 [SYNOPSIS](#synopsis)\
 [DESCRIPTION](#description)\
-[EXAMPLES](#examples)\
 [SEE ALSO](#see-also)
 
 
@@ -29,19 +28,13 @@ secondary_title: pmemstream
 # SYNOPSIS #
 
 ```c
-#include <libpmemstream.h>
-cc ... -lpmemstream
+...
 ```
 
 # DESCRIPTION #
 
 <TBD>
-General description
-
-# EXAMPLES #
-
-See [examples dir on our GitHub](https://github.com/pmem/pmemstream/tree/master/examples)
-for libpmemstream API usage.
+Functions' descriptions
 
 # SEE ALSO #
 
