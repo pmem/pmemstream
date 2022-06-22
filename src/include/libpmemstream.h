@@ -53,29 +53,27 @@ struct pmemstream_async_wait_output {
 
 FUTURE(pmemstream_async_wait_fut, struct pmemstream_async_wait_data, struct pmemstream_async_wait_output);
 
-// manages lifecycle of the stream. Can be based on top of a raw pmem2_map
-// or a pmemset (TBD).
-// block_size defines alignment of regions - must be a power of 2 and multiple of CACHELINE size.
+/* Creates new pmemstream instace from pmem2_map.
+ * block_size defines alignment of regions - must be a power of 2 and multiple of CACHELINE size.
+ */
 int pmemstream_from_map(struct pmemstream **stream, size_t block_size, struct pmem2_map *map);
 void pmemstream_delete(struct pmemstream **stream);
 
-/* Gets the last committed/persisted timestamp in pmemstream */
-uint64_t pmemstream_committed_timestamp(struct pmemstream *stream);
-uint64_t pmemstream_persisted_timestamp(struct pmemstream *stream);
-
-// stream owns the region object - the user gets a reference, but it's not
-// necessary to hold on to it and explicitly delete it.
-// Only fixed-sized regions are supported for now (pmemstream_region_allocate must always be called with the
-// same size).
+/* Allocates new region with specified size. Actual size might be bigger due to alignment requirements.
+ *
+ * Only fixed-sized regions are supported for now (pmemstream_region_allocate must always be called with the
+ * same size).
+ */
 int pmemstream_region_allocate(struct pmemstream *stream, size_t size, struct pmemstream_region *region);
 
+/* Frees previously allocated region. */
 int pmemstream_region_free(struct pmemstream *stream, struct pmemstream_region region);
 
 /* Returns region's size. It may be bigger from the size given to 'pmemstream_region_allocate'
  * due to an alignment (always up, never down). */
 size_t pmemstream_region_size(struct pmemstream *stream, struct pmemstream_region region);
 
-/* Returns current region's usable size. It equals to: region end offset - region's append offset. */
+/* Returns current region's usable (free) size. It equals to: region end offset - region's append offset. */
 size_t pmemstream_region_usable_size(struct pmemstream *stream, struct pmemstream_region region);
 
 /* Returns pointer to pmemstream_region_runtime. The runtime is managed by libpmemstream - user does not
@@ -127,17 +125,33 @@ int pmemstream_append(struct pmemstream *stream, struct pmemstream_region region
 		      struct pmemstream_region_runtime *region_runtime, const void *data, size_t size,
 		      struct pmemstream_entry *new_entry);
 
-/* asynchronous publish, using libminiasync */
+/* Asynchronous publish. Entry is marked as ready for commit.
+ *
+ * There is no guarantee whether data is visible by iterators or persisted after this call.
+ * To commit (and make the data visible to iterators) or persist the data use: pmemstream_async_wait_committed or
+ * pmemstream_async_wait_persisted.
+ */
 int pmemstream_async_publish(struct pmemstream *stream, struct pmemstream_region region,
 			     struct pmemstream_region_runtime *region_runtime, struct pmemstream_entry entry,
 			     size_t size);
 
-/* asynchronous append, using libminiasync */
+/* Asynchronous append. Appends data to the region and marks it as ready for commit.
+ *
+ * There is no guarantee whether data is visible by iterators or persisted after this call.
+ * To commit (and make the data visible to iterators) or persist the data use: pmemstream_async_wait_committed or
+ * pmemstream_async_wait_persisted.
+ */
 int pmemstream_async_append(struct pmemstream *stream, struct vdm *vdm, struct pmemstream_region region,
 			    struct pmemstream_region_runtime *region_runtime, const void *data, size_t size,
 			    struct pmemstream_entry *new_entry);
 
+/* Return committed timestamp. All entries with timestamps less than or equal to that timestamp can be treated as
+ * committed. */
 uint64_t pmemstream_committed_timestamp(struct pmemstream *stream);
+
+/* Return persisted timestamp. All entries with timestamps less than or equal to that timestamp can be treated as
+ * persisted. It is guaranteed to be less than or equal to committed timestamp.
+ */
 uint64_t pmemstream_persisted_timestamp(struct pmemstream *stream);
 
 /* Returns future for committing/persisting all entries up to specified timestamp.
@@ -155,9 +169,6 @@ struct pmemstream_async_wait_fut pmemstream_async_wait_persisted(struct pmemstre
 
 /* Returns pointer to the data of the entry. Assumes that 'entry' points to a valid entry. */
 const void *pmemstream_entry_data(struct pmemstream *stream, struct pmemstream_entry entry);
-
-// XXX: store timestamp also in pmemstream_entry?
-uint64_t pmemstream_entry_timestamp(struct pmemstream *stream, struct pmemstream_entry entry);
 
 /* Returns the size of the entry. Assumes that 'entry' points to a valid entry. */
 size_t pmemstream_entry_length(struct pmemstream *stream, struct pmemstream_entry entry);
@@ -205,6 +216,8 @@ void pmemstream_region_iterator_delete(struct pmemstream_region_iterator **itera
  * Default state is undefined: every new iterator should be moved to first element in the stream.
  * Returns -1 if there is an error.
  * See also: `pmemstream_entry_iterator_seek_first`
+ *
+ * Entry iterator will iterate over all commited (but not necessarily persisted) entries.
  */
 int pmemstream_entry_iterator_new(struct pmemstream_entry_iterator **iterator, struct pmemstream *stream,
 				  struct pmemstream_region region);
