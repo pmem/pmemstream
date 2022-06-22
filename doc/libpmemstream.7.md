@@ -35,13 +35,57 @@ cc ... -lpmemstream
 
 # DESCRIPTION #
 
-<TBD>
-General description
+Libpmemstream implements a pmem-optimized log data structure and provides stream-like access
+to data. It presents a contiguous logical address space, divided into regions, with log entries
+of arbitrary size. This library may be a foundation for various, more complex higher-level
+solutions. It delivers a generic, easy-to-use set of functions.
+
+It uses underneath **libpmem2** and **libminiasync** libraries. The latter one
+specifically for asynchronous API.
+
+Up-to-date information about this library can be found on
+[GitHub repository](https://github.com/pmem/pmemstream)
+
+Core features in libpmemstream are:
+
+- pmemstream may contain multiple regions,
+- new data entries are appended at the end (of a selected region),
+- each entry may be of arbitrary size,
+- each entry append is atomic (there're no data consistency issues),
+- asynchronous (additional to synchronous) API for appending,
+- multiple threads can append data concurrently (only to different regions - see below!),
+- entry_iterator allows reading data in sequence (within a region),
+- each entry is marked with timestamp, to provide global entries' order (and easier recovery).
+
+## Known constraints
+
+**Note:**
+*This is experimental pre-release software and should not be used in production systems.
+APIs and file formats may change at any time without preserving backwards compatibility.
+All known issues and limitations are logged as GitHub issues.*
+
+There are few relevant constraints, we're aware of (some are only temporary and will be
+fixed in future releases):
+- region allocator is constrained with a single allocation size - first allocated region
+    defines the size for other regions within one stream,
+- no entry modification allowed,
+- appends can be spawned concurrently only to ,
+- as stated above - multiple threads can append data concurrently, but only to different regions. No two threads can append to the same region (concurrently),
+- most functions return (on error) generic `-1` value, instead of more specific error codes.
+
+<!-- XXX:
+## Entries committed vs persisted
+## Use cases
+## diff to libpmemlog
+## Performance?
+-->
 
 # EXAMPLES #
 
 See [examples dir on our GitHub](https://github.com/pmem/pmemstream/tree/master/examples)
 for libpmemstream API usage.
+
+<!-- XXX: describe some examples? -->
 
 # SEE ALSO #
 
