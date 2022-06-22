@@ -73,6 +73,7 @@ bool all_equal(const R &r)
 
 struct test_config_type {
 	std::string filename = "";
+	size_t max_concurrency = std::numeric_limits<size_t>::max() - 1;
 	size_t stream_size = TEST_DEFAULT_STREAM_SIZE;
 	size_t block_size = TEST_DEFAULT_BLOCK_SIZE;
 	/* all regions are required to have the same size */
@@ -93,6 +94,9 @@ static inline int run_test(test_config_type config, std::function<void()> test)
 
 	if (On_valgrind && config.rc_params.count("max_success") == 0)
 		config.rc_params["max_success"] = std::to_string(RAPIDCHECK_MAX_SUCCESS_ON_VALGRIND);
+
+	if (On_valgrind)
+		config.max_concurrency = TEST_DEFAULT_MAX_CONCURRENCY_ON_VALGRIND;
 
 	std::string rapidcheck_config;
 	for (auto &kv : config.rc_params)

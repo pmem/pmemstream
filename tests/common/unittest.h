@@ -62,6 +62,8 @@ extern "C" {
 #define TEST_DEFAULT_REGION_MULTI_SIZE (TEST_DEFAULT_REGION_SIZE / TEST_DEFAULT_REGION_MULTI_MAX_COUNT)
 #define TEST_DEFAULT_BLOCK_SIZE (4096UL)
 
+#define TEST_DEFAULT_MAX_CONCURRENCY_ON_VALGRIND 3UL
+
 static inline void UT_OUT(const char *format, ...)
 {
 	va_list args_list;
