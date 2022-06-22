@@ -77,6 +77,7 @@ struct test_config_type {
 	size_t block_size = TEST_DEFAULT_BLOCK_SIZE;
 	/* all regions are required to have the same size */
 	size_t region_size = TEST_DEFAULT_REGION_MULTI_SIZE;
+	size_t regions_count = 1;
 	std::map<std::string, std::string> rc_params;
 };
 

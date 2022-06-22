@@ -26,6 +26,7 @@ int main(int argc, char *argv[])
 	struct test_config_type test_config;
 	test_config.filename = std::string(argv[1]);
 	test_config.stream_size = STREAM_SIZE;
+	test_config.regions_count = TEST_DEFAULT_REGION_MULTI_MAX_COUNT;
 
 	return run_test(test_config, [&] {
 		return_check ret;
