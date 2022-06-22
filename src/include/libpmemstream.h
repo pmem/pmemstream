@@ -52,206 +52,268 @@ struct pmemstream_async_wait_output {
 
 FUTURE(pmemstream_async_wait_fut, struct pmemstream_async_wait_data, struct pmemstream_async_wait_output);
 
-/* Creates new pmemstream instace from pmem2_map.
- * block_size defines alignment of regions - must be a power of 2 and multiple of CACHELINE size.
+/* Creates new pmemstream instance from the given pmem2_map 'map' and assigns it to 'stream' pointer.
+ * 'block_size' defines alignment of regions - must be a power of 2 and multiple of CACHELINE size.
+ * See **libpmem2**(7) for details on creating pmem2 mapping.
+ *
+ * If this function is called with an empty mapping the new pmemstream instance will be initialized,
+ * if mapping points to a previously existing pmemstream instance it re-opens it and reads persisted header's data,
+ * any other case it's undefined behavior.
+ *
+ * It returns 0 on success, error code otherwise.
  */
 int pmemstream_from_map(struct pmemstream **stream, size_t block_size, struct pmem2_map *map);
+
+/* Releases the given 'stream' resources and sets 'stream' pointer to NULL. */
 void pmemstream_delete(struct pmemstream **stream);
 
-/* Allocates new region with specified size. Actual size might be bigger due to alignment requirements.
+/* Allocates new region with specified 'size'. Actual size might be bigger due to alignment requirements.
  *
- * Only fixed-sized regions are supported for now (pmemstream_region_allocate must always be called with the
- * same size).
+ * Only fixed-sized regions are supported for now (all `pmemstream_region_allocate` calls within a single
+ * pmemstream instance have to use the same size).
+ *
+ * Optional 'region' parameter is updated with the new region information.
+ *
+ * It returns 0 on success, error code otherwise.
  */
 int pmemstream_region_allocate(struct pmemstream *stream, size_t size, struct pmemstream_region *region);
 
-/* Frees previously allocated region. */
+/* Frees previously allocated, specified 'region'.
+ * It returns 0 on success, error code otherwise.
+ */
 int pmemstream_region_free(struct pmemstream *stream, struct pmemstream_region region);
 
-/* Returns region's size. It may be bigger from the size given to 'pmemstream_region_allocate'
- * due to an alignment (always up, never down). */
+/* Returns size of the given 'region'. It may be bigger than the size passed to 'pmemstream_region_allocate'
+ * due to an alignment.
+ * On error returns 0.
+ */
 size_t pmemstream_region_size(struct pmemstream *stream, struct pmemstream_region region);
 
-/* Returns current region's usable (free) size. It equals to: region end offset - region's append offset. */
+/* Returns current usable (free) size of the given 'region'.
+ * It equals to: 'region end offset' - 'region's append offset'.
+ * On error returns 0.
+ */
 size_t pmemstream_region_usable_size(struct pmemstream *stream, struct pmemstream_region region);
 
-/* Returns pointer to pmemstream_region_runtime. The runtime is managed by libpmemstream - user does not
- * have to explicitly delete/free it. Runtime becomes invalid after corresponding region is freed.
+/* Initializes pmemstream_region_runtime for the given 'region'. The runtime holds current, runtime
+ * data (like append_offset) for a region. The runtime is managed by libpmemstream - user does not have
+ * to explicitly delete/free it. Runtime becomes invalid after corresponding region is freed.
+ *
+ * Pointer to initialized pmemstream_region_runtime is returned via 'runtime' parameter.
  *
  * Call to this function might be expensive. If it is not called explicitly, pmemstream will call it
- * inside append/reserve.
+ * inside a first append/reserve in a region.
+ *
+ * Returns 0 on success, error code otherwise.
  */
 int pmemstream_region_runtime_initialize(struct pmemstream *stream, struct pmemstream_region region,
 					 struct pmemstream_region_runtime **runtime);
 
-/* Reserve space (for a future, custom write) of a given size, in a region at offset pointed by region_runtime.
- * Entry's data have to be copied into reserved space by the user and then published using pmemstream_publish.
- * For regular usage, pmemstream_append should be simpler and safer to use and provide better performance.
+/* Reserves space (for a future, custom write) of the given 'size', in a 'region' at offset determined
+ * by 'region_runtime'. Entry's data have to be copied into reserved space by the user and then published
+ * using pmemstream_publish. For regular usage, pmemstream_append should be simpler and safer to use
+ * and provide better performance.
  *
- * region_runtime is an optional parameter which can be obtained from pmemstream_region_runtime_initialize.
+ * 'region_runtime' is an optional parameter which can be obtained from pmemstream_region_runtime_initialize.
  * If it's NULL, it will be obtained from its internal structures (which might incur overhead).
- * reserved_entry is updated with offset of the reserved entry.
- * data is updated with a pointer to reserved space - this is a destination for, e.g., custom memcpy.
+ * 'reserved_entry' is updated with an offset of the reserved entry - this entry has to be passed to
+ * pmemstream_publish for completing the custom append process.
+ * 'data' is updated with a pointer to reserved space - this is a destination for, e.g., custom memcpy.
  *
  * It is not allowed to call pmemstream_reserve for the second time before calling pmemstream_publish.
- * */
+ *
+ * It returns 0 on success, error code otherwise.
+ */
 int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region region,
 		       struct pmemstream_region_runtime *region_runtime, size_t size,
 		       struct pmemstream_entry *reserved_entry, void **data);
 
-/* Publish previously custom-written entry.
+/* Synchronously publishes previously custom-written 'entry' in a 'region'.
  * After calling pmemstream_reserve and writing/memcpy'ing data into a reserved_entry, it's required
  * to call this function for setting proper entry's metadata and persist the data.
  *
- * size of the entry have to match the previous reservation and the actual size of the data written by user.
+ * 'region_runtime' is an optional parameter which can be obtained from pmemstream_region_runtime_initialize.
+ * If it's NULL, it will be obtained from its internal structures (which might incur overhead).
+ * 'size' of the entry has to match the previous reservation and the actual size of the data written by user.
+ *
+ * It returns 0 on success, error code otherwise.
  */
 int pmemstream_publish(struct pmemstream *stream, struct pmemstream_region region,
 		       struct pmemstream_region_runtime *region_runtime, struct pmemstream_entry entry, size_t size);
 
-/* Synchronously appends data buffer after last valid entry in region.
+/* Synchronously appends data buffer to a given region, at offset determined by region_runtime.
  * Fails if no space is available.
  *
- * region_runtime is an optional parameter which can be obtained from pmemstream_region_runtime_initialize.
+ * 'region_runtime' is an optional parameter which can be obtained from pmemstream_region_runtime_initialize.
  * If it's NULL, it will be obtained from its internal structures (which might incur overhead).
  *
- * data is a pointer to data to be appended
- * size is size of the data to be appended
+ * 'data' is a pointer to the data buffer, to be appended.
+ * 'size' is the size of the data buffer, to be appended.
+ * 'new_entry' is an optional pointer. On success, it will contain information about newly appended entry
+ * (with its offset within pmemstream).
  *
- * new_entry is an optional pointer. On success, it will contain information about position of newly
- * appended entry.
+ * It returns 0 on success, error code otherwise.
  */
 int pmemstream_append(struct pmemstream *stream, struct pmemstream_region region,
 		      struct pmemstream_region_runtime *region_runtime, const void *data, size_t size,
 		      struct pmemstream_entry *new_entry);
 
-/* Asynchronous publish. Entry is marked as ready for commit.
+/* Asynchronous version of pmemstream_publish.
+ * It publishes previously custom-written entry. 'entry' is marked as ready for commit.
  *
  * There is no guarantee whether data is visible by iterators or persisted after this call.
  * To commit (and make the data visible to iterators) or persist the data use: pmemstream_async_wait_committed or
  * pmemstream_async_wait_persisted.
+ *
+ * It returns 0 on success, error code otherwise.
  */
 int pmemstream_async_publish(struct pmemstream *stream, struct pmemstream_region region,
 			     struct pmemstream_region_runtime *region_runtime, struct pmemstream_entry entry,
 			     size_t size);
 
-/* Asynchronous append. Appends data to the region and marks it as ready for commit.
+/* Asynchronous version of pmemstream_append.
+ * It appends 'data' to the region and marks it as ready for commit.
  *
  * There is no guarantee whether data is visible by iterators or persisted after this call.
  * To commit (and make the data visible to iterators) or persist the data use: pmemstream_async_wait_committed or
- * pmemstream_async_wait_persisted.
+ * pmemstream_async_wait_persisted and poll returned future to completion.
+ *
+ * It returns 0 on success, error code otherwise.
  */
 int pmemstream_async_append(struct pmemstream *stream, struct vdm *vdm, struct pmemstream_region region,
 			    struct pmemstream_region_runtime *region_runtime, const void *data, size_t size,
 			    struct pmemstream_entry *new_entry);
 
-/* Return committed timestamp. All entries with timestamps less than or equal to that timestamp can be treated as
- * committed. */
+/* Returns the most recent committed timestamp in the given stream. All entries with timestamps less than or equal to
+ * that timestamp can be treated as committed.
+ *
+ * On error it returns invalid timestamp (a special flag properly handled in all functions using timestamps).
+ */
 uint64_t pmemstream_committed_timestamp(struct pmemstream *stream);
 
-/* Return persisted timestamp. All entries with timestamps less than or equal to that timestamp can be treated as
- * persisted. It is guaranteed to be less than or equal to committed timestamp.
+/* Returns the most recent persisted timestamp in the given stream. All entries with timestamps less than or equal to
+ * that timestamp can be treated as persisted.
+ * It is guaranteed to be less than or equal to committed timestamp.
+ *
+ * On error it returns invalid timestamp (a special flag properly handled in all functions using timestamps).
  */
 uint64_t pmemstream_persisted_timestamp(struct pmemstream *stream);
 
-/* Returns future for committing/persisting all entries up to specified timestamp.
- * Future must be polled until completion.
+/* Returns future for committing all entries up to specified 'timestamp'.
+ * To get "committed" guarantee for given 'timestamp', the returned future must be polled until completion.
  *
- * Data which is committed but not yet persisted will be visible for iterators but might not be reachable after
- * application restart.
- *
- * XXX: possible extra variants:
- * - pmemstream_wait_commited/persisted (blocking)
- * - pmemstream_process_commited/persisted (process as many commited/persisted ops as possible without blocking)
+ * Data which is committed, but not yet persisted, will be visible for iterators but might not be reachable after
+ * application's restart.
  */
 struct pmemstream_async_wait_fut pmemstream_async_wait_committed(struct pmemstream *stream, uint64_t timestamp);
+
+/* Returns future for persisting all entries up to specified 'timestamp'.
+ * To get "persisted" guarantee for given 'timestamp', the returned future must be polled until completion.
+ *
+ * Persisted data is guaranteed to be reachable after application's restart.
+ * If data is persisted is also guaranteed committed.
+ */
 struct pmemstream_async_wait_fut pmemstream_async_wait_persisted(struct pmemstream *stream, uint64_t timestamp);
 
-/* Returns pointer to the data of the entry. Assumes that 'entry' points to a valid entry. */
+/* Returns pointer to the data of the given 'entry' (if it points to a valid entry).
+ * On error returns NULL.
+ */
 const void *pmemstream_entry_data(struct pmemstream *stream, struct pmemstream_entry entry);
 
-/* Returns the size of the entry. Assumes that 'entry' points to a valid entry. */
+/* Returns the size of the given 'entry' (if it points to a valid entry).
+ * On error returns 0.
+ */
 size_t pmemstream_entry_length(struct pmemstream *stream, struct pmemstream_entry entry);
 
-/* Returns timestamp related with entry */
+/* Returns timestamp related to the given 'entry' (if it points to a valid entry).
+ * On error returns invalid timestamp (a special flag properly handled in all functions using timestamps).
+ */
 uint64_t pmemstream_entry_timestamp(struct pmemstream *stream, struct pmemstream_entry entry);
 
-/* Creates new region iterator
+/* Creates a new pmemstream_region_iterator and assigns it to 'iterator' pointer.
+ * Such iterator is bound to the given 'stream'.
  *
- * Default state is undefined: every new iterator should be moved to first element in the stream.
- * Returns -1 if there is an error.
- * See also: `pmemstream_region_iterator_seek_first`
+ * Default state is undefined: every new iterator should be moved (e.g.) to first element in the stream.
+ *
+ * Returns 0 on success, and error code otherwise.
  */
 int pmemstream_region_iterator_new(struct pmemstream_region_iterator **iterator, struct pmemstream *stream);
 
-/* Checks that region iterator is in valid state.
+/* Checks if given region 'iterator' is in valid state.
  *
  * Returns 0 when iterator is valid, and error code otherwise.
  */
 int pmemstream_region_iterator_is_valid(struct pmemstream_region_iterator *iterator);
 
-/* Set region iterator to first region.
+/* Sets region 'iterator' to the first region.
  *
- * Function sets iterator to first region, or sets iterator to invalid region.
+ * Function sets iterator to the first region, or sets iterator to invalid region.
  */
 void pmemstream_region_iterator_seek_first(struct pmemstream_region_iterator *iterator);
 
-/* Moves iterator to next region.
+/* Moves region 'iterator' to next region.
  *
- * Moves to next region, or sets iterator to invalid region.
+ * Moves to next region (if any more exists), or sets iterator to invalid region.
+ * Regions are accessed in the order of allocations.
  */
 void pmemstream_region_iterator_next(struct pmemstream_region_iterator *iterator);
 
-/* Get region from region iterator.
+/* Gets region from the given region 'iterator'.
  *
- * Function returns region that iterator points to, or invalid region otherwise.
+ * If the given iterator is valid, it returns a region pointed by it,
+ * otherwise it returns an invalid region.
  */
 struct pmemstream_region pmemstream_region_iterator_get(struct pmemstream_region_iterator *iterator);
 
-/* Release region iterator resources. */
+/* Releases the given 'iterator' resources and sets 'iterator' pointer to NULL. */
 void pmemstream_region_iterator_delete(struct pmemstream_region_iterator **iterator);
 
-/* Creates new entry iterator
+/* Creates a new pmemstream_entry_iterator for given 'region' and assigns it to 'iterator' pointer.
+ * Entry iterator will iterate over all committed (but not necessarily persisted) entries within the region.
+ * The entry iterator is bound to the given 'stream' and 'region'.
  *
- * Default state is undefined: every new iterator should be moved to first element in the stream.
+ * Default state is undefined: every new iterator should be moved (e.g.) to first element in the region.
  * Returns -1 if there is an error.
- * See also: `pmemstream_entry_iterator_seek_first`
- *
- * Entry iterator will iterate over all commited (but not necessarily persisted) entries.
  */
 int pmemstream_entry_iterator_new(struct pmemstream_entry_iterator **iterator, struct pmemstream *stream,
 				  struct pmemstream_region region);
 
-/* Checks that entry iterator is in valid state.
+/* Checks that entry 'iterator' is in valid state.
  *
  * Returns 0 when iterator is valid, and error code otherwise.
  */
 int pmemstream_entry_iterator_is_valid(struct pmemstream_entry_iterator *iterator);
 
-/* Moves iterator to next region.
+/* Moves entry 'iterator' to next entry.
  *
- * Moves to next entry if possible. Calling `pmemstream_entry_iterator_next()`
- * on invalid entry is undefined behaviour, so it should always be called after
- * `pmemstream_entry_iterator_is_valid()`
+ * Moves to next entry if possible. Calling this function on invalid entry is undefined behaviour,
+ * so it should always be called after `pmemstream_entry_iterator_is_valid()`.
  * ```
- *    if(pmemstream_entry_iterator_is_valid(it) == 0)
+ *	if(pmemstream_entry_iterator_is_valid(it) == 0)
  *		pmemstream_entry_iterator_next(it);
  * ```
+ *
+ * Entry iterator iterates over all committed (but not necessarily persisted) entries. They are accessed
+ * in the order of appending (which is always linear). Note: entries cannot be removed from the stream,
+ * with exception of removing the whole region.
  */
 void pmemstream_entry_iterator_next(struct pmemstream_entry_iterator *iterator);
 
-/* Set entry iterator to first entry.
+/* Sets entry 'iterator' to the first entry.
  *
- * Function sets entry iterator to first entry in region, or sets iterator to invalid entry.
+ * Function sets entry iterator to the first entry in the region (if such entry exists),
+ * or sets iterator to invalid entry.
  */
 void pmemstream_entry_iterator_seek_first(struct pmemstream_entry_iterator *iterator);
 
-/* Get entry from entry iterator.
+/* Gets entry from the given entry 'iterator'.
  *
- * Function returns entry that iterator points.
+ * If the given iterator is valid, it returns an entry pointed by it,
+ * otherwise it returns an invalid entry.
  */
 struct pmemstream_entry pmemstream_entry_iterator_get(struct pmemstream_entry_iterator *iterator);
 
-/* Release region iterator resources. */
+/* Releases the given 'iterator' resources and sets 'iterator' pointer to NULL. */
 void pmemstream_entry_iterator_delete(struct pmemstream_entry_iterator **iterator);
 
 #ifdef __cplusplus
