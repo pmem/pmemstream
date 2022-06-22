@@ -758,6 +758,10 @@ static enum future_state pmemstream_async_wait_persisted_impl(struct future_cont
 	return FUTURE_STATE_RUNNING;
 }
 
+/* XXX: possible extra variants
+ * - pmemstream_wait_commited/persisted (blocking)
+ * - pmemstream_process_commited/persisted (process as many commited/persisted ops as possible without blocking)
+ */
 struct pmemstream_async_wait_fut pmemstream_async_wait_committed(struct pmemstream *stream, uint64_t timestamp)
 {
 	struct pmemstream_async_wait_fut future;
