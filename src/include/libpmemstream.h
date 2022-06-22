@@ -21,7 +21,6 @@ extern "C" {
 #endif
 
 struct pmemstream;
-struct pmemstream_tx;
 struct pmemstream_entry_iterator;
 struct pmemstream_region_iterator;
 struct pmemstream_region_runtime;
