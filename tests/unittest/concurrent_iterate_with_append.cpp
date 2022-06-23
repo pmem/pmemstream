@@ -111,9 +111,11 @@ int main(int argc, char *argv[])
 		ret += rc::check(
 			"verify if iterators concurrent to append work do not return garbage (no pre-initialization)",
 			[&](pmemstream_empty &&stream, const std::vector<std::string> &extra_data, bool reopen,
-			    ranged<size_t, 0, max_write_concurrency> async_concurrent_appends,
-			    ranged<size_t, 0, max_write_concurrency> sync_concurrent_appends) {
+			    concurrency_type<0, max_write_concurrency> async_concurrent_appends,
+			    concurrency_type<0, max_write_concurrency> sync_concurrent_appends) {
 				RC_PRE(extra_data.size() > 0);
+				RC_PRE(async_concurrent_appends + sync_concurrent_appends <=
+				       get_test_config().max_concurrency);
 				verify_no_garbage(std::move(stream), {}, extra_data, reopen, async_concurrent_appends,
 						  sync_concurrent_appends);
 			});
@@ -121,9 +123,11 @@ int main(int argc, char *argv[])
 		ret += rc::check("verify if iterators concurrent to append work do not return garbage ",
 				 [&](pmemstream_empty &&stream, const std::vector<std::string> &data,
 				     const std::vector<std::string> &extra_data, bool reopen,
-				     ranged<size_t, 0, max_write_concurrency> async_concurrent_appends,
-				     ranged<size_t, 0, max_write_concurrency> sync_concurrent_appends) {
+				     concurrency_type<0, max_write_concurrency> async_concurrent_appends,
+				     concurrency_type<0, max_write_concurrency> sync_concurrent_appends) {
 					 RC_PRE(data.size() + extra_data.size() > 0);
+					 RC_PRE(async_concurrent_appends + sync_concurrent_appends <=
+						get_test_config().max_concurrency);
 					 verify_no_garbage(std::move(stream), data, extra_data, reopen,
 							   async_concurrent_appends, sync_concurrent_appends);
 				 });

@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
 
 		ret += rc::check("verify if each concurrent iteration observes the same data",
 				 [&](pmemstream_with_multi_non_empty_regions &&stream, bool reopen,
-				     ranged<size_t, 1, max_concurrency> concurrency) {
+				     concurrency_type<1, max_concurrency> concurrency) {
 					 if (reopen)
 						 stream.reopen();
 

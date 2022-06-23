@@ -7,6 +7,8 @@
 #include <rapidcheck.h>
 #include <rapidcheck/state.h>
 
+#include "valgrind_internal.h"
+
 #include "span.h"
 #include "stream_helpers.hpp"
 
@@ -88,6 +90,15 @@ struct ranged {
 	}
 
 	operator T() const
+	{
+		return value;
+	}
+};
+
+template <size_t Min, size_t Max>
+struct concurrency_type {
+	ranged<size_t, Min, Max> value;
+	operator size_t() const
 	{
 		return value;
 	}
@@ -180,6 +191,16 @@ struct Arbitrary<ranged<T, Min, Max>> {
 	static Gen<ranged<T, Min, Max>> arbitrary()
 	{
 		return gen::construct<ranged<T, Min, Max>>(gen::inRange<T>(Min, Max + 1));
+	}
+};
+
+template <size_t Min, size_t Max>
+struct Arbitrary<concurrency_type<Min, Max>> {
+	static Gen<concurrency_type<Min, Max>> arbitrary()
+	{
+		auto max_concurrency = get_test_config().max_concurrency;
+		return gen::construct<concurrency_type<Min, Max>>(
+			gen::inRange<size_t>(Min, std::min(max_concurrency + 1, Max + 1)));
 	}
 };
 
