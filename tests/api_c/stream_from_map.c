@@ -65,6 +65,8 @@ int main(int argc, char *argv[])
 	test_stream_from_map_invalid_size(path, 10240, 10240);
 	/* wrong block size (not a multiple of CACHELINE_SIZE) */
 	test_stream_from_map_invalid_size(path, 1024, 8);
+	/* usable stream size (after aligning down) is smaller than the block size */
+	test_stream_from_map_invalid_size(path, 255, 64);
 	/* usable stream size will not fit a single span_region */
 	test_stream_from_map_invalid_size(path, 256, 64);
 	/* test with map size to small for stream internal structures*/
