@@ -146,6 +146,8 @@ static inline struct pmem2_map *map_open(const char *file, size_t size, bool tru
 	if (pmem2_map_new(&map, config, source) != 0)
 		goto err_map;
 
+	UT_ASSERTne(map, NULL);
+
 err_map:
 	pmem2_config_delete(&config);
 err_config:
@@ -153,7 +155,6 @@ err_config:
 err_fd:
 	close(fd);
 
-	UT_ASSERTne(map, NULL);
 	return map;
 }
 

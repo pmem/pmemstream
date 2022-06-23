@@ -142,6 +142,7 @@ int main(int argc, char *argv[])
 							get_test_config().stream_size);
 					UT_ASSERT_UNREACHABLE;
 				} catch (std::runtime_error &e) {
+					UT_ASSERT(std::string(e.what()) == "pmemstream_from_map failed");
 				} catch (...) {
 					UT_ASSERT_UNREACHABLE;
 				}
@@ -153,7 +154,23 @@ int main(int argc, char *argv[])
 				make_pmemstream(get_test_config().filename, 0, get_test_config().stream_size);
 				UT_ASSERT_UNREACHABLE;
 			} catch (std::runtime_error &e) {
-				/* noop */
+				UT_ASSERT(std::string(e.what()) == "pmemstream_from_map failed");
+			} catch (...) {
+				UT_ASSERT_UNREACHABLE;
+			}
+		}
+
+		/* XXX: extend map_open helper to properly use stream size and add test similar to this one */
+		/* verify if a stream cannot be reopened with different block_size */
+		{
+			try {
+				make_pmemstream(get_test_config().filename, get_test_config().block_size,
+						get_test_config().stream_size);
+				make_pmemstream(get_test_config().filename, get_test_config().block_size + 1,
+						get_test_config().stream_size);
+				UT_ASSERT_UNREACHABLE;
+			} catch (std::runtime_error &e) {
+				UT_ASSERT(std::string(e.what()) == "pmemstream_from_map failed");
 			} catch (...) {
 				UT_ASSERT_UNREACHABLE;
 			}
