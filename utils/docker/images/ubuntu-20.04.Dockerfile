@@ -23,9 +23,5 @@ RUN ./install-rapidcheck.sh
 COPY install-miniasync.sh install-miniasync.sh
 RUN ./install-miniasync.sh
 
-# Download scripts required in run-*.sh
-COPY download-scripts.sh download-scripts.sh
-RUN ./download-scripts.sh
-
 # switch back to regular user
 USER ${USER}
