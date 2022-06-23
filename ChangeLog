@@ -1,3 +1,34 @@
+XXX Jun XX 2022 XXX <XXX@intel.com>
+
+	* Version 0.2.0-rc1
+
+	This is the second (still minor) release of pmemstream project.
+	It contains many functional updates, API changes, and refactors,
+	along with new tests and examples.
+
+	New features:
+	- Asynchronous API, which uses libminiasync (https://github.com/pmem/miniasync)
+		for concurrently appending data to the stream; currently, multiple threads can append
+		data concurrently to different regions, but no two threads can append to the same one.
+		It includes new functions for appending and publishing data;
+		exposing 2 stages of an append - committed and persisted with 2 functions
+		`pmemstream_async_wait_*(timestamp)` to wait for the given entry to be available
+		for reading and/or for persistency guarantee.
+	- Changed region and entry iterators API. It now provides `seek_first`, `next`, and `is_valid`
+		functions for both types of iterators. It offers higher flexibility.
+	- Multiple regions. A simple region allocator, allowing creation of multiple regions;
+		for now, only supports a single region size (within a given stream).
+	- Timestamps for each entry to provide global entries' order (and easier recovery).
+	- Exposed `pmemstream_region_usable_size` function to read the currently available size
+		in a given region; it can be used with the combination of "entire region size" function
+		(`pmemstream_region_size`) to, e.g., calculate the already used region's space.
+	- Full documentation of public API in the form of manpages.
+
+	Other changes:
+	- Add simple "append" benchmark
+	- Enable integrity, consistency, and sanitizers tests
+	- Add 4 more examples
+
 Fri Dec 03 2021 Igor Chorążewicz <igor.chorazewicz@intel.com>
 
 	* Version 0.1.0
