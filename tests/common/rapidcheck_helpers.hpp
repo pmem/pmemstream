@@ -159,20 +159,14 @@ struct Arbitrary<pmemstream_with_multi_non_empty_regions> {
 		using RegionT = std::vector<std::string>;
 		using StreamT = std::vector<RegionT>;
 
-		const auto region_generator = gen::container<RegionT>(gen::nonEmpty(gen::arbitrary<std::string>()));
-
 		const auto non_empty_region_generator =
-			gen::suchThat<RegionT>(region_generator, [](const RegionT &data) { return data.size() > 0; });
+			gen::nonEmpty(gen::container<RegionT>(gen::nonEmpty(gen::arbitrary<std::string>())));
 
-		const auto stream_generator = gen::container<StreamT>(non_empty_region_generator);
-		/* XXX: Configure number of regions via testconfig */
-		const auto constrained_stream_generator =
-			gen::suchThat<StreamT>(stream_generator, [](const StreamT &data) {
-				return (data.size() > 0) && (data.size() <= TEST_DEFAULT_REGION_MULTI_MAX_COUNT);
-			});
+		const auto non_empty_stream_generator = gen::nonEmpty(
+			gen::container<StreamT>(get_test_config().regions_count, non_empty_region_generator));
 
 		return gen::noShrink(gen::construct<pmemstream_with_multi_non_empty_regions>(
-			gen::arbitrary<pmemstream_test_base>(), constrained_stream_generator));
+			gen::arbitrary<pmemstream_test_base>(), non_empty_stream_generator));
 	}
 };
 
