@@ -225,6 +225,9 @@ void pmemstream_delete(struct pmemstream **stream)
 	if (!stream) {
 		return;
 	}
+	if (!(*stream)) {
+		return;
+	}
 	struct pmemstream *s = *stream;
 
 	region_runtimes_map_destroy(s->region_runtimes_map);

@@ -41,6 +41,7 @@ void test_stream_from_map_null_map(char *path)
 	struct pmemstream *s = NULL;
 	UT_ASSERTne(pmemstream_from_map(&s, TEST_DEFAULT_BLOCK_SIZE, NULL), 0);
 	UT_ASSERTeq(s, NULL);
+	pmemstream_delete(&s);
 }
 
 void test_null_stream()
