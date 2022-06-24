@@ -88,17 +88,17 @@ int main(int argc, char *argv[])
 		for (pmemstream_entry_iterator_seek_first(eiter); pmemstream_entry_iterator_is_valid(eiter) == 0;
 		     pmemstream_entry_iterator_next(eiter)) {
 			struct pmemstream_entry entry = pmemstream_entry_iterator_get(eiter);
-			auto entry_length = pmemstream_entry_length(stream, entry);
+			auto entry_size = pmemstream_entry_size(stream, entry);
 			printf("%s%s0x%-3X %ldbytes ", inner_pointers[1].data(), inner_pointers[0].data(),
-			       (unsigned int)entry.offset, entry_length);
+			       (unsigned int)entry.offset, entry_size);
 
 			if (values_as_text) {
 				string entry_text(static_cast<const char *>(pmemstream_entry_data(stream, entry)),
-						  entry_length);
+						  entry_size);
 				printf("%s", entry_text.c_str());
 			} else {
 				auto d = static_cast<const unsigned char *>(pmemstream_entry_data(stream, entry));
-				for (size_t i = 0; i < entry_length; i++) {
+				for (size_t i = 0; i < entry_size; i++) {
 					printf("%.2X ", d[i]);
 				}
 			}

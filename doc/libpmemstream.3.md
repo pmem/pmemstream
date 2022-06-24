@@ -85,7 +85,7 @@ struct pmemstream_async_wait_fut pmemstream_async_wait_committed(struct pmemstre
 struct pmemstream_async_wait_fut pmemstream_async_wait_persisted(struct pmemstream *stream, uint64_t timestamp);
 
 const void *pmemstream_entry_data(struct pmemstream *stream, struct pmemstream_entry entry);
-size_t pmemstream_entry_length(struct pmemstream *stream, struct pmemstream_entry entry);
+size_t pmemstream_entry_size(struct pmemstream *stream, struct pmemstream_entry entry);
 uint64_t pmemstream_entry_timestamp(struct pmemstream *stream, struct pmemstream_entry entry);
 
 int pmemstream_entry_iterator_new(struct pmemstream_entry_iterator **iterator, struct pmemstream *stream,
@@ -158,7 +158,7 @@ Refer to a specific function below for its signature and detailed description.
 :	Returns current usable (free) size of the given 'region'.
 	It equals to: 'region's end offset' - 'region's append offset'.
 	This function serves only as an approximation of available space for use.
-	See `pmemstream_entry_length` to read more about space used by entries.
+	See `pmemstream_entry_size` to read more about space used by entries.
 	On error returns 0.
 
 `int pmemstream_region_runtime_initialize(struct pmemstream *stream, struct pmemstream_region region, struct pmemstream_region_runtime **runtime);`
@@ -260,7 +260,7 @@ Refer to a specific function below for its signature and detailed description.
 	by pmemstream_entry is actually bigger than the size of appended data.
 	It returns 0, if 'entry' does not point to a valid entry or error occurred.
 
-`size_t pmemstream_entry_length(struct pmemstream *stream, struct pmemstream_entry entry);`
+`size_t pmemstream_entry_size(struct pmemstream *stream, struct pmemstream_entry entry);`
 
 :	Returns the size of the given 'entry' (if it points to a valid entry).
 	On error returns 0.

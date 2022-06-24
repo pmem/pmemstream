@@ -93,7 +93,7 @@ size_t pmemstream_region_size(struct pmemstream *stream, struct pmemstream_regio
  * It equals to: 'region's end offset' - 'region's append offset'.
  *
  * This function serves only as an approximation of available space for use.
- * See `pmemstream_entry_length` to read more about space used by entries.
+ * See `pmemstream_entry_size` to read more about space used by entries.
  *
  * On error returns 0.
  */
@@ -231,7 +231,7 @@ const void *pmemstream_entry_data(struct pmemstream *stream, struct pmemstream_e
  *
  * It returns 0, if 'entry' does not point to a valid entry or error occurred.
  */
-size_t pmemstream_entry_length(struct pmemstream *stream, struct pmemstream_entry entry);
+size_t pmemstream_entry_size(struct pmemstream *stream, struct pmemstream_entry entry);
 
 /* Returns timestamp related to the given 'entry' (if it points to a valid entry).
  * On error returns invalid timestamp (a special flag properly handled in all functions using timestamps).
