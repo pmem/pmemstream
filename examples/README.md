@@ -37,8 +37,19 @@ it will print its usage, otherwise it will run and print the execution results (
 
 ## Descriptions and additional dependencies:
 
-* 01_basic_iterate/main.c -- contains basic example workflow of C application.
+* 01_basic_iterate/main.c -- contains basic example workflow of C application:
+	creating/opening pmemstream instance, iterating over regions and entries,
+	appending data and reading it back.
 
-* 02_visual_iterator/main.cpp -- it iterates over all entries, on previously
+* 02_visual_iterator/main.cpp -- iterates over all entries, on previously
 	created file, with pmemstream data (e.g. created using `01_basic_iterate` example)
 	and prints these entries in a readable format (hex data or strings).
+
+* 03_reserve_publish/main.cpp --  demonstrates how to use `pmemstream_reserve` and `pmemstream_publish`
+	(with custom write), instead of "the usual" `pmemstream_append` approach.
+
+* 04_basic_async/main.cpp -- shows example usage of sync and async appends.
+	Each async append is executed in a different region.
+
+* 05_timestamp_based_order/main.cpp -- shows how to achieve global ordering of elements concurrently
+	appended to multiple regions in a stream. Application operates in the region per thread manner.

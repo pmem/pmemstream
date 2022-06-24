@@ -53,7 +53,6 @@ static size_t pmemstream_header_size_aligned(size_t block_size)
 static size_t pmemstream_usable_size(size_t stream_size, size_t block_size)
 {
 	assert(stream_size >= pmemstream_header_size_aligned(block_size));
-	assert(stream_size - pmemstream_header_size_aligned(block_size) >= block_size);
 	return ALIGN_DOWN(stream_size - pmemstream_header_size_aligned(block_size), block_size);
 }
 
@@ -84,11 +83,11 @@ static int pmemstream_validate_sizes(size_t block_size, struct pmem2_map *map)
 		return -1;
 	}
 
-	if (pmemstream_usable_size(stream_size, block_size) <= sizeof(struct span_region)) {
+	if (pmemstream_usable_size(stream_size, block_size) < block_size) {
 		return -1;
 	}
 
-	if (pmemstream_usable_size(stream_size, block_size) < block_size) {
+	if (pmemstream_usable_size(stream_size, block_size) <= sizeof(struct span_region)) {
 		return -1;
 	}
 
@@ -224,6 +223,9 @@ err_region_runtimes:
 void pmemstream_delete(struct pmemstream **stream)
 {
 	if (!stream) {
+		return;
+	}
+	if (!(*stream)) {
 		return;
 	}
 	struct pmemstream *s = *stream;
