@@ -115,7 +115,8 @@ int main(int argc, char *argv[])
 	do {
 		uint64_t committed_timestamp = pmemstream_committed_timestamp(stream);
 		uint64_t persisted_timestamp = pmemstream_persisted_timestamp(stream);
-		printf("Timestamp commited: %lu, timestamp persisted: %lu\n", committed_timestamp, persisted_timestamp);
+		printf("Timestamp committed: %lu, timestamp persisted: %lu\n", committed_timestamp,
+		       persisted_timestamp);
 
 		/*
 		 * an additional user/application work could be done here
@@ -125,7 +126,7 @@ int main(int argc, char *argv[])
 
 	uint64_t committed_timestamp = pmemstream_committed_timestamp(stream);
 	uint64_t persisted_timestamp = pmemstream_persisted_timestamp(stream);
-	printf("After future completed. Timestamp commited: %lu, timestamp persisted: %lu\n", committed_timestamp,
+	printf("After future completed. Timestamp committed: %lu, timestamp persisted: %lu\n", committed_timestamp,
 	       persisted_timestamp);
 
 	/* cleanup */
