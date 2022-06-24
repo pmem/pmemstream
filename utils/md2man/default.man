@@ -8,7 +8,7 @@ $endif$
 $if(adjusting)$
 .ad $adjusting$
 $endif$
-.TH "$title$" "$section$" "$date$" "$title$ - $secondary_title$ ver. $version$" "$title$ Programmer's Manual"
+.TH "$title$" "$section$" "$date$" "$title$ - $secondary_title$ ver. $version$" "$title$ | PMDK Programmer's Manual"
 $if(hyphenate)$
 .hy
 $else$

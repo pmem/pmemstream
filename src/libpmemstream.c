@@ -363,7 +363,7 @@ const void *pmemstream_entry_data(struct pmemstream *stream, struct pmemstream_e
 }
 
 // returns the size of the entry
-size_t pmemstream_entry_length(struct pmemstream *stream, struct pmemstream_entry entry)
+size_t pmemstream_entry_size(struct pmemstream *stream, struct pmemstream_entry entry)
 {
 	int ret = pmemstream_validate_stream_and_offset(stream, entry.offset);
 	if (ret) {
@@ -760,6 +760,10 @@ static enum future_state pmemstream_async_wait_persisted_impl(struct future_cont
 	return FUTURE_STATE_RUNNING;
 }
 
+/* XXX: possible extra variants
+ * - pmemstream_wait_committed/persisted (blocking)
+ * - pmemstream_process_committed/persisted (process as many committed/persisted ops as possible without blocking)
+ */
 struct pmemstream_async_wait_fut pmemstream_async_wait_committed(struct pmemstream *stream, uint64_t timestamp)
 {
 	struct pmemstream_async_wait_fut future;

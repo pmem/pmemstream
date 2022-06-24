@@ -32,6 +32,7 @@ extern "C" {
 static_assert(PMEMSTREAM_INVALID_TIMESTAMP + 1 == PMEMSTREAM_FIRST_TIMESTAMP, "wrong timestamp's macros values");
 
 /* XXX: make this a parameter */
+/* It has to be power of two */
 #define PMEMSTREAM_MAX_CONCURRENCY 1024ULL
 
 struct pmemstream_header {

@@ -200,7 +200,7 @@ struct stream {
 	std::string_view get_entry(struct pmemstream_entry entry)
 	{
 		auto ptr = reinterpret_cast<const char *>(pmemstream_entry_data(c_stream.get(), entry));
-		return std::string_view(ptr, pmemstream_entry_length(c_stream.get(), entry));
+		return std::string_view(ptr, pmemstream_entry_size(c_stream.get(), entry));
 	}
 
 	auto committed_timestamp()
