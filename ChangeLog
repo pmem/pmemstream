@@ -25,6 +25,7 @@ XXX Jun XX 2022 XXX <XXX@intel.com>
 	- Full documentation of public API in the form of manpages.
 
 	Other changes:
+	- Rename `pmemstream_entry_length` to `pmemstream_entry_size` for consistent naming convention
 	- Add simple "append" benchmark
 	- Enable integrity, consistency, and sanitizers tests
 	- Add 4 more examples

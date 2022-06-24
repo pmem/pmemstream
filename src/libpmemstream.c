@@ -363,7 +363,7 @@ const void *pmemstream_entry_data(struct pmemstream *stream, struct pmemstream_e
 }
 
 // returns the size of the entry
-size_t pmemstream_entry_length(struct pmemstream *stream, struct pmemstream_entry entry)
+size_t pmemstream_entry_size(struct pmemstream *stream, struct pmemstream_entry entry)
 {
 	int ret = pmemstream_validate_stream_and_offset(stream, entry.offset);
 	if (ret) {

@@ -8,7 +8,7 @@
 
 /**
  * append_entry - unit test for pmemstream_append, pmemstream_entry_data,
- *					pmemstream_entry_length
+ *					pmemstream_entry_size
  */
 
 struct entry_data {
@@ -35,7 +35,7 @@ void valid_input_test(char *path)
 	UT_ASSERTne(entry_data, NULL);
 	UT_ASSERTeq(entry_data->data, data.data);
 
-	UT_ASSERTeq(pmemstream_entry_length(env.stream, entry), sizeof(data));
+	UT_ASSERTeq(pmemstream_entry_size(env.stream, entry), sizeof(data));
 
 	pmemstream_test_teardown(env);
 }
@@ -59,7 +59,7 @@ void null_stream_test(char *path)
 	data_ptr = pmemstream_entry_data(NULL, entry);
 	UT_ASSERTeq(data_ptr, NULL);
 
-	UT_ASSERTeq(pmemstream_entry_length(NULL, entry), 0);
+	UT_ASSERTeq(pmemstream_entry_size(NULL, entry), 0);
 
 	pmemstream_test_teardown(env);
 }
@@ -167,7 +167,7 @@ void invalid_entry_test(char *path)
 	const struct entry_data *data = (const struct entry_data *)pmemstream_entry_data(env.stream, invalid_entry);
 	UT_ASSERTeq(data, NULL);
 
-	UT_ASSERTeq(pmemstream_entry_length(env.stream, invalid_entry), 0);
+	UT_ASSERTeq(pmemstream_entry_size(env.stream, invalid_entry), 0);
 
 	pmemstream_test_teardown(env);
 }
