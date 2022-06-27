@@ -172,7 +172,7 @@ int main(int argc, char *argv[])
 		/* checks if appends on multiple regions work as expected */
 		ret += rc::check(
 			"verify if sequence of append and reopen commands leads to a consistent state on multiple regions",
-			[](pmemstream_with_multi_empty_regions &&stream) {
+			[](pmemstream_with_multi_empty_regions<> &&stream) {
 				pmemstream_model model;
 
 				size_t regions_count = stream.helpers.count_regions();
