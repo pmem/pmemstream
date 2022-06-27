@@ -140,6 +140,16 @@ struct Arbitrary<pmemstream_with_multi_empty_regions<>> {
 	}
 };
 
+template <>
+struct Arbitrary<pmemstream_with_multi_empty_regions<true, true>> {
+	static Gen<pmemstream_with_multi_empty_regions<true, true>> arbitrary()
+	{
+		return gen::noShrink(gen::construct<pmemstream_with_multi_empty_regions<true, true>>(
+			gen::arbitrary<pmemstream_test_base>(),
+			gen::inRange<size_t>(1, TEST_DEFAULT_REGION_MULTI_MAX_COUNT)));
+	}
+};
+
 /* XXX: Pass max data size to generator */
 template <>
 struct Arbitrary<pmemstream_with_multi_non_empty_regions> {
