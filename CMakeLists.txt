@@ -11,9 +11,9 @@ include(${PMEMSTREAM_ROOT_DIR}/cmake/functions.cmake)
 ## Set required and useful variables
 # ----------------------------------------------------------------- #
 set(VERSION_MAJOR 0)
-set(VERSION_MINOR 1)
+set(VERSION_MINOR 2)
 set(VERSION_PATCH 0)
-#set(VERSION_PRERELEASE rc1)
+set(VERSION_PRERELEASE rc1)
 
 set(VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH})
 if(VERSION_PRERELEASE)
