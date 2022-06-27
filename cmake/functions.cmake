@@ -200,17 +200,9 @@ endfunction()
 
 # src version shows the current version, as reported by git describe
 # unless git is not available, then it's set to the recently released VERSION
-function(set_source_ver SRCVERSION)
-	# if there's version file committed, use it
-	set(VERSION_FILE ${PMEMSTREAM_ROOT_DIR}/VERSION)
-	if(EXISTS ${VERSION_FILE})
-		file(STRINGS ${VERSION_FILE} FILE_VERSION)
-		set(SRCVERSION ${FILE_VERSION} PARENT_SCOPE)
-		return()
-	endif()
-
+function(set_source_ver)
 	# otherwise take it from git
-	execute_process(COMMAND git describe
+	execute_process(COMMAND git describe --always
 		OUTPUT_VARIABLE GIT_VERSION
 		WORKING_DIRECTORY ${PMEMSTREAM_ROOT_DIR}
 		OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -239,21 +231,8 @@ function(set_source_ver SRCVERSION)
 				PARENT_SCOPE)
 			return()
 		endif()
-	else()
-		execute_process(COMMAND git log -1 --format=%h
-			OUTPUT_VARIABLE GIT_COMMIT
-			WORKING_DIRECTORY ${PMEMSTREAM_ROOT_DIR}
-			OUTPUT_STRIP_TRAILING_WHITESPACE)
-		set(SRCVERSION ${GIT_COMMIT} PARENT_SCOPE)
-
-		# CPack may complain about commit sha being a package version
-		if(NOT "${CPACK_GENERATOR}" STREQUAL "")
-			message(WARNING "It seems this is a shallow clone. SRCVERSION is set to: \"${GIT_COMMIT}\". "
-				"CPack may complain about setting it as a package version. Unshallow this repo before making a package.")
-		endif()
-		return()
 	endif()
 
-	# last chance: use version set up in the top-level CMake
+	# no git, just use version set up in the top-level CMake
 	set(SRCVERSION ${VERSION} PARENT_SCOPE)
 endfunction()
