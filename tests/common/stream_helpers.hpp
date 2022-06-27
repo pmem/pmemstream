@@ -623,10 +623,15 @@ struct pmemstream_with_single_empty_region : public pmemstream_test_base {
 	}
 };
 
+template<bool initialize_region_runtime = false, bool initialize_region_runtime_after_reopen = false>
 struct pmemstream_with_multi_empty_regions : public pmemstream_test_base {
 	pmemstream_with_multi_empty_regions(pmemstream_test_base &&base, size_t max_regions_count)
 	    : pmemstream_test_base(std::move(base))
 	{
+		// XXX: always initialize for concurrent appends (region_runtime map in helpers is not thread safe)
+		stream.call_initialize_region_runtime = initialize_region_runtime;
+		stream.call_initialize_region_runtime_after_reopen = initialize_region_runtime_after_reopen;
+		stream.helpers.call_region_runtime_initialize = initialize_region_runtime;
 		helpers.initialize_multi_regions(max_regions_count, get_test_config().region_size, {});
 	}
 };

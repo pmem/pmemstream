@@ -131,10 +131,10 @@ struct Arbitrary<pmemstream_with_single_empty_region> {
 };
 
 template <>
-struct Arbitrary<pmemstream_with_multi_empty_regions> {
-	static Gen<pmemstream_with_multi_empty_regions> arbitrary()
+struct Arbitrary<pmemstream_with_multi_empty_regions<>> {
+	static Gen<pmemstream_with_multi_empty_regions<>> arbitrary()
 	{
-		return gen::noShrink(gen::construct<pmemstream_with_multi_empty_regions>(
+		return gen::noShrink(gen::construct<pmemstream_with_multi_empty_regions<>>(
 			gen::arbitrary<pmemstream_test_base>(),
 			gen::inRange<size_t>(1, TEST_DEFAULT_REGION_MULTI_MAX_COUNT)));
 	}
