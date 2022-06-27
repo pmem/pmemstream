@@ -8,14 +8,9 @@ Make a release locally:
 - add an entry to ChangeLog, remember to change the day of the week in the release date
   - for major/minor releases mention compatibility with the previous release
   - for major/minor releases add new ChangeLog template (for $VER+1)
-- echo $VERSION > VERSION
-- git add VERSION
+- update project's version in top-level CMakeLists.txt
 - git commit -a -S -m "$VERSION release"
 - git tag -a -s -m "Version $VERSION" $VERSION
-
-Undo temporary release changes:
-- git rm VERSION
-- git commit -m "Remove VERSION file"
 - for major/minor release:
   - create stable-$VER branch now: git checkout -b stable-$VER
 
