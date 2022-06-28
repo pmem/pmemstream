@@ -1,6 +1,6 @@
-Mon Jun 27 2022 Łukasz Stolarczuk <lukasz.stolarczuk@intel.com>
+Tue Jun 28 2022 Łukasz Stolarczuk <lukasz.stolarczuk@intel.com>
 
-	* Version 0.2.0-rc1
+	* Version 0.2.0
 
 	This is the second (still minor) release of pmemstream project.
 	It contains many functional updates, API changes, and refactors,
