@@ -13,15 +13,18 @@ include(${PMEMSTREAM_ROOT_DIR}/cmake/functions.cmake)
 set(VERSION_MAJOR 0)
 set(VERSION_MINOR 2)
 set(VERSION_PATCH 0)
-# set(VERSION_PRERELEASE rc1)
+# after release it's set to "devel" for package naming (when 'git' is not available)
+set(VERSION_PRERELEASE devel)
 
+# XXX: do we need "VERSION" at all?
 set(VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH})
 if(VERSION_PRERELEASE)
 	set(VERSION ${VERSION}-${VERSION_PRERELEASE})
 endif()
 
 # set SRCVERSION, it's more accurate and "current" than VERSION
-set_source_ver(SRCVERSION)
+set_source_ver()
+message(STATUS "pmemstream version: ${VERSION} (source ver: ${SRCVERSION})")
 
 set(C_STANDARD 11 CACHE STRING "C language standard")
 
