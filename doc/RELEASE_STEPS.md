@@ -11,6 +11,8 @@ Make a release locally:
 - update project's version in top-level CMakeLists.txt
 - git commit -a -S -m "$VERSION release"
 - git tag -a -s -m "Version $VERSION" $VERSION
+- update project's version in top-level CMakeLists.txt: VERSION_PRERELEASE should be set to "devel"
+- git commit -a -m "Update version to devel"
 - for major/minor release:
   - create stable-$VER branch now: git checkout -b stable-$VER
 
