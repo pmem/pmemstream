@@ -77,6 +77,9 @@ endif()
 # ----------------------------------------------------------------- #
 ## All tests
 # ----------------------------------------------------------------- #
+build_test_ext(NAME async SRC_FILES api_c/async.c LIBS miniasync)
+add_test_generic(NAME async TRACERS none memcheck pmemcheck drd helgrind)
+
 build_test(append_entry api_c/append_entry.c)
 add_test_generic(NAME append_entry TRACERS none memcheck pmemcheck drd helgrind)
 
