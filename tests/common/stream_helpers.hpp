@@ -8,9 +8,13 @@
 #include <cstring>
 #include <functional>
 #include <map>
+#include <numeric>
 #include <string>
 #include <tuple>
 #include <vector>
+
+#define PMEMSTREAM_INVALID_TIMESTAMP (0ULL)
+#define PMEMSTREAM_FIRST_TIMESTAMP (PMEMSTREAM_INVALID_TIMESTAMP + 1ULL)
 
 #include "stream_span_helpers.hpp"
 #include "unittest.hpp"
@@ -227,6 +231,84 @@ struct stream {
 	std::unique_ptr<struct pmemstream, std::function<void(struct pmemstream *)>> c_stream;
 }; /* struct stream */
 
+// XXX: replace with actual global entry iterator once implemented
+/* pmememstream entry iterator wrapper, which helps to manage entries from
+ * different regions in global order. */
+class timestamp_iterator {
+ public:
+	timestamp_iterator(pmemstream *stream, pmemstream_region &region) : stream(stream)
+	{
+		struct pmemstream_entry_iterator *new_entry_iterator;
+		if (pmemstream_entry_iterator_new(&new_entry_iterator, stream, region) != 0) {
+			throw std::runtime_error("Cannot create entry iterators");
+		}
+		it = std::shared_ptr<pmemstream_entry_iterator>(new_entry_iterator, [](pmemstream_entry_iterator *eit) {
+			pmemstream_entry_iterator_delete(&eit);
+		});
+		pmemstream_entry_iterator_seek_first(it.get());
+	}
+
+	void operator++()
+	{
+		pmemstream_entry_iterator_next(it.get());
+	}
+
+	bool operator<(timestamp_iterator &other)
+	{
+		if (pmemstream_entry_iterator_is_valid(it.get()) != 0)
+			return false;
+
+		if (pmemstream_entry_iterator_is_valid(other.it.get()) != 0)
+			return true;
+
+		return get_timestamp() < other.get_timestamp();
+	}
+
+	bool operator==(timestamp_iterator &other)
+	{
+		if (pmemstream_entry_iterator_is_valid(it.get()) != 0)
+			return false;
+
+		if (pmemstream_entry_iterator_is_valid(other.it.get()) != 0)
+			return false;
+
+		return get_timestamp() == other.get_timestamp();
+	}
+
+	uint64_t get_timestamp()
+	{
+		if (pmemstream_entry_iterator_is_valid(it.get()) != 0) {
+			throw std::runtime_error("Invalid iterator");
+		}
+
+		auto this_entry = pmemstream_entry_iterator_get(it.get());
+		return pmemstream_entry_timestamp(stream, this_entry);
+	}
+
+	bool is_valid()
+	{
+		return pmemstream_entry_iterator_is_valid(it.get()) == 0;
+	}
+
+	pmemstream_entry_iterator *raw_iterator()
+	{
+		return it.get();
+	}
+
+	static std::vector<timestamp_iterator> get_entry_iterators(pmemstream *stream,
+								   const std::vector<pmemstream_region> &regions)
+	{
+		std::vector<timestamp_iterator> entry_iterators;
+		for (auto region : regions) {
+			entry_iterators.emplace_back(timestamp_iterator(stream, region));
+		}
+		return entry_iterators;
+	}
+
+ private:
+	pmemstream *stream;
+	std::shared_ptr<pmemstream_entry_iterator> it;
+}; /* class timestamp_iterator */
 } // namespace pmem
 
 template <typename FutureT>
@@ -284,7 +366,13 @@ struct pmemstream_helpers_type {
 	void append(struct pmemstream_region region, const std::vector<std::string> &data)
 	{
 		for (const auto &e : data) {
-			auto [ret, entry] = stream.append(region, e, region_runtime[region.offset]);
+			pmemstream_region_runtime *rrt = nullptr;
+			auto it = region_runtime.find(region.offset);
+			if (it != region_runtime.end()) {
+				rrt = it->second;
+			}
+
+			auto [ret, entry] = stream.append(region, e, rrt);
 			UT_ASSERTeq(ret, 0);
 		}
 	}
@@ -296,8 +384,12 @@ struct pmemstream_helpers_type {
 
 		struct pmemstream_entry entry;
 		for (size_t i = 0; i < data.size(); ++i) {
-			auto [ret, new_entry] =
-				stream.async_append(thread_mover, region, data[i], region_runtime[region.offset]);
+			pmemstream_region_runtime *rrt = nullptr;
+			auto it = region_runtime.find(region.offset);
+			if (it != region_runtime.end()) {
+				rrt = it->second;
+			}
+			auto [ret, new_entry] = stream.async_append(thread_mover, region, data[i], rrt);
 			UT_ASSERTeq(ret, 0);
 			entry = new_entry;
 		}
@@ -523,10 +615,60 @@ struct pmemstream_helpers_type {
 		UT_ASSERT(std::equal(extra_data_start, all_elements.end(), extra_data.begin()));
 	}
 
+	std::vector<pmemstream_entry> get_entries_from_regions(const std::vector<pmemstream_region> &regions)
+	{
+		std::vector<pmemstream_entry> entries;
+		auto entry_iterators = pmem::timestamp_iterator::get_entry_iterators(stream.c_ptr(), regions);
+		while (entry_iterators.size() > 0) {
+			auto oldest_iterator = std::min_element(entry_iterators.begin(), entry_iterators.end());
+			if (oldest_iterator->is_valid()) {
+				entries.push_back(pmemstream_entry_iterator_get(oldest_iterator->raw_iterator()));
+				++(*oldest_iterator);
+			} else {
+				entry_iterators.erase(oldest_iterator);
+			}
+		}
+		return entries;
+	}
+
+	/* checks timestamps' order across regions */
+	bool validate_timestamps_possible_gaps(const std::vector<struct pmemstream_region> &regions)
+	{
+		return validate_timestamps(regions, true);
+	}
+
+	/* checks timestamps' order across regions when expectation is to have all generated
+	 * timestamps */
+	bool validate_timestamps_no_gaps(const std::vector<struct pmemstream_region> &regions)
+	{
+		return validate_timestamps(regions, false);
+	}
+
 	pmem::stream &stream;
 	std::map<uint64_t, pmemstream_region_runtime *> region_runtime;
 	bool call_region_runtime_initialize = false;
 	thread_data_mover_type thread_mover_handle;
+
+ private:
+	bool validate_timestamps(const std::vector<struct pmemstream_region> &regions, bool possible_gaps = true)
+	{
+		auto entries = get_entries_from_regions(regions);
+		std::vector<uint64_t> timestamps;
+		std::transform(entries.begin(), entries.end(), std::back_inserter(timestamps),
+			       [this](const auto &entry) { return pmemstream_entry_timestamp(stream.c_ptr(), entry); });
+
+		if (!std::is_sorted(timestamps.begin(), timestamps.end())) {
+			return false;
+		}
+
+		if (!possible_gaps) {
+			return std::adjacent_find(timestamps.begin(), timestamps.end()) == timestamps.end() &&
+				timestamps.front() == PMEMSTREAM_FIRST_TIMESTAMP &&
+				timestamps.back() == PMEMSTREAM_FIRST_TIMESTAMP + timestamps.size() - 1;
+		}
+		/* Check timestamp duplications */
+		return std::adjacent_find(timestamps.begin(), timestamps.end()) == timestamps.end();
+	}
 }; /* struct pmemstream_helpers_type */
 
 struct pmemstream_test_base {
