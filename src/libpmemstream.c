@@ -239,7 +239,6 @@ void pmemstream_delete(struct pmemstream **stream)
 	*stream = NULL;
 }
 
-// XXX: add more tests using these 2 timestamp functions
 uint64_t pmemstream_persisted_timestamp(struct pmemstream *stream)
 {
 	if (!stream) {
