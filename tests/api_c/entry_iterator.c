@@ -9,11 +9,13 @@
 
 /**
  * entry_iterator - unit test for pmemstream_entry_iterator_new,
+ *					pmemstream_entry_iterator_seek_first, pmemstream_entry_iterator_is_valid,
  *					pmemstream_entry_iterator_next, pmemstream_entry_iterator_delete
  */
 
 struct entry_data {
 	uint64_t data;
+	uint64_t extra_data;
 };
 
 void valid_input_test(char *path)
@@ -108,7 +110,6 @@ void null_iterator_test(char *path)
 	pmemstream_entry_iterator_next(NULL);
 
 	ret = pmemstream_entry_iterator_is_valid(NULL);
-
 	UT_ASSERTeq(ret, -1);
 
 	struct pmemstream_entry entry = pmemstream_entry_iterator_get(NULL);
@@ -136,6 +137,49 @@ void invalid_region_test(char *path)
 	UT_ASSERTeq(invalid_region.offset, invalid_offset);
 
 	pmemstream_entry_iterator_delete(&eiter);
+	pmemstream_test_teardown(env);
+}
+
+void invalid_iterator_test(char *path)
+{
+	pmemstream_test_env env = pmemstream_test_make_default(path);
+
+	struct pmemstream_region region;
+	int ret = pmemstream_region_allocate(env.stream, TEST_DEFAULT_REGION_SIZE, &region);
+	UT_ASSERTeq(ret, 0);
+
+	struct entry_data data;
+	data.data = UINT64_MAX;
+	ret = pmemstream_append(env.stream, region, NULL, &data, sizeof(data), NULL);
+	UT_ASSERTeq(ret, 0);
+
+	/* set an iterator and set for entry */
+	struct pmemstream_entry_iterator *eiter;
+	ret = pmemstream_entry_iterator_new(&eiter, env.stream, region);
+	UT_ASSERTeq(ret, 0);
+	UT_ASSERTne(eiter, NULL);
+
+	pmemstream_entry_iterator_seek_first(eiter);
+
+	ret = pmemstream_entry_iterator_is_valid(eiter);
+	UT_ASSERTeq(ret, 0);
+
+	ret = pmemstream_region_free(env.stream, region);
+	UT_ASSERTeq(ret, 0);
+
+	/*
+	 * XXX: shouldn't this test also work if this re-allocation didn't happen?
+	 * Without re-allocation, the "lazy free" does not mark iterator as invalid, because region_span is still there
+	 */
+	ret = pmemstream_region_allocate(env.stream, TEST_DEFAULT_REGION_SIZE, &region);
+	UT_ASSERTeq(ret, 0);
+
+	ret = pmemstream_entry_iterator_is_valid(eiter);
+	UT_ASSERTeq(ret, -1);
+
+	pmemstream_entry_iterator_delete(&eiter);
+	UT_ASSERTeq(eiter, NULL);
+
 	pmemstream_test_teardown(env);
 }
 
@@ -196,6 +240,7 @@ int main(int argc, char *argv[])
 	test_get_last_entry(path);
 	null_iterator_test(path);
 	invalid_region_test(path);
+	invalid_iterator_test(path);
 	null_stream_test(path);
 	null_stream_and_invalid_region_test(path);
 	null_entry_iterator_test(path);

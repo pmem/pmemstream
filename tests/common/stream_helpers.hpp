@@ -604,10 +604,10 @@ struct pmemstream_helpers_type {
 
 	/* XXX: extend to allow more than one extra_data vector */
 	void verify(pmemstream_region region, const std::vector<std::string> &data,
-		    const std::vector<std::string> &extra_data, bool persisted = true)
+		    const std::vector<std::string> &extra_data, bool persisted_only = true)
 	{
 		/* Verify if stream now holds data + extra_data */
-		auto all_elements = get_elements_in_region(region, persisted);
+		auto all_elements = get_elements_in_region(region, persisted_only);
 		auto extra_data_start = all_elements.begin() + static_cast<int>(data.size());
 
 		UT_ASSERTeq(all_elements.size(), data.size() + extra_data.size());

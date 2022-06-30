@@ -59,6 +59,8 @@ struct rc_reopen_command : public pmemstream_command {
 struct rc_verify_command : public pmemstream_command {
 	void run(const pmemstream_model &m, pmemstream_test_base &s) const override
 	{
+		size_t total_entries_count = 0;
+
 		for (auto data : m.regions) {
 			s.helpers.verify(pmemstream_region{data.first}, {data.second}, {});
 
@@ -70,7 +72,12 @@ struct rc_verify_command : public pmemstream_command {
 
 			UT_ASSERTeq(s.sut.region_size(pmemstream_region{data.first}) - total_entries_size,
 				    s.sut.region_usable_size(pmemstream_region{data.first}));
+
+			total_entries_count += data.second.size();
 		}
+
+		UT_ASSERTeq(s.sut.persisted_timestamp(), total_entries_count);
+		UT_ASSERTeq(s.sut.committed_timestamp(), total_entries_count);
 	}
 };
 

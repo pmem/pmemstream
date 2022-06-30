@@ -117,7 +117,7 @@ int main(int argc, char *argv[])
 			RC_ASSERT(no_regions == regions.size());
 			RC_ASSERT(no_regions == stream.helpers.count_regions());
 
-			stream.helpers.remove_region(stream.helpers.get_region(to_delete_pos).offset);
+			RC_ASSERT(stream.helpers.remove_region(stream.helpers.get_region(to_delete_pos).offset) == 0);
 			RC_ASSERT(no_regions - 1 == stream.helpers.count_regions());
 		});
 
