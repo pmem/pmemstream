@@ -266,7 +266,7 @@ function(add_test_common executable name tracer testcase cmake_script)
 			return()
 		endif()
 
-		if(USE_ASAN OR USE_UBSAN)
+		if(USE_ASAN OR USE_UBSAN OR USE_TSAN)
 			skip_test(${name}_${testcase}_${tracer} "SKIPPED_BECAUSE_SANITIZER_USED")
 			return()
 		endif()
