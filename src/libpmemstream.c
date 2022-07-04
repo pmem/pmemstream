@@ -247,7 +247,8 @@ uint64_t pmemstream_persisted_timestamp(struct pmemstream *stream)
 	}
 
 	/* Make sure that persisted_timestamp is actually persisted before returning. */
-	uint64_t timestamp = __atomic_load_n(&stream->header->persisted_timestamp, __ATOMIC_ACQUIRE);
+	uint64_t timestamp;
+	atomic_load_acquire(&stream->header->persisted_timestamp, &timestamp);
 	stream->data.persist(&stream->header->persisted_timestamp, sizeof(uint64_t));
 	return timestamp;
 }
@@ -258,7 +259,9 @@ uint64_t pmemstream_committed_timestamp(struct pmemstream *stream)
 		return PMEMSTREAM_INVALID_TIMESTAMP;
 	}
 
-	return __atomic_load_n(&stream->committed_timestamp, __ATOMIC_ACQUIRE);
+	uint64_t timestamp;
+	atomic_load_acquire(&stream->committed_timestamp, &timestamp);
+	return timestamp;
 }
 
 static size_t pmemstream_region_total_size_aligned(struct pmemstream *stream, size_t size)
@@ -423,17 +426,27 @@ static uint64_t pmemstream_acquire_timestamp(struct pmemstream *stream)
 			;
 	}
 
-	uint64_t timestamp = __atomic_fetch_add(&stream->next_timestamp, 1, __ATOMIC_RELAXED);
-	assert(__atomic_load_n(&pmemstream_async_operation(stream, timestamp)->timestamp, __ATOMIC_RELAXED) ==
-	       PMEMSTREAM_INVALID_TIMESTAMP);
+	uint64_t timestamp;
+	atomic_fetch_add_relaxed(&stream->next_timestamp, 1, &timestamp);
+
+#ifndef NDEBUG
+	uint64_t current_timestamp;
+	atomic_load_relaxed(&pmemstream_async_operation(stream, timestamp)->timestamp, &current_timestamp);
+	assert(current_timestamp == PMEMSTREAM_INVALID_TIMESTAMP);
+#endif
+
 	return timestamp;
 }
 
 static void pmemstream_publish_timestamp(struct pmemstream *stream, uint64_t timestamp)
 {
-	assert(__atomic_load_n(&pmemstream_async_operation(stream, timestamp)->timestamp, __ATOMIC_RELAXED) ==
-	       PMEMSTREAM_INVALID_TIMESTAMP);
-	__atomic_store_n(&pmemstream_async_operation(stream, timestamp)->timestamp, timestamp, __ATOMIC_RELEASE);
+#ifndef NDEBUG
+	uint64_t current_timestamp;
+	atomic_load_relaxed(&pmemstream_async_operation(stream, timestamp)->timestamp, &current_timestamp);
+	assert(current_timestamp == PMEMSTREAM_INVALID_TIMESTAMP);
+#endif
+
+	atomic_store_explicit_release(&pmemstream_async_operation(stream, timestamp)->timestamp, timestamp);
 }
 
 int pmemstream_reserve(struct pmemstream *stream, struct pmemstream_region region,
@@ -618,15 +631,18 @@ static bool pmemstream_acquire_processing_timestamp(struct pmemstream_async_wait
 {
 	assert(data->last_timestamp == PMEMSTREAM_INVALID_TIMESTAMP);
 
-	uint64_t processing_timestamp = __atomic_load_n(&data->stream->processing_timestamp, __ATOMIC_ACQUIRE);
+	uint64_t processing_timestamp;
+	atomic_load_acquire(&data->stream->processing_timestamp, &processing_timestamp);
 
 	/* Some other consumer owns this part of the queue, need to wait for it to finish. */
 	if (data->timestamp <= processing_timestamp)
 		return false;
 
 	const bool weak = false;
-	bool success = __atomic_compare_exchange_n(&data->stream->processing_timestamp, &processing_timestamp,
-						   data->timestamp, weak, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
+	bool success = false;
+
+	atomic_compare_exchange_acquire_release(&data->stream->processing_timestamp, &processing_timestamp,
+						data->timestamp, weak, &success);
 	if (!success)
 		return false;
 
@@ -644,7 +660,10 @@ static bool pmemstream_process_async_ops(struct pmemstream_async_wait_data *data
 
 	struct async_operation *async_op = pmemstream_async_operation(data->stream, data->processing_timestamp + 1);
 
-	if (__atomic_load_n(&async_op->timestamp, __ATOMIC_ACQUIRE) == data->processing_timestamp + 1 &&
+	uint64_t op_timestamp;
+	atomic_load_acquire(&async_op->timestamp, &op_timestamp);
+
+	if (op_timestamp == data->processing_timestamp + 1 &&
 	    future_poll(FUTURE_AS_RUNNABLE(&async_op->future), NULL) == FUTURE_STATE_COMPLETE) {
 		/* XXX: we can combine multiple persist into one. */
 		const uint8_t *destination =
@@ -661,19 +680,21 @@ static bool pmemstream_process_async_ops(struct pmemstream_async_wait_data *data
 
 static void pmemstream_increase_committed_timestamp(struct pmemstream_async_wait_data *data)
 {
-	assert(__atomic_load_n(&data->stream->committed_timestamp, __ATOMIC_RELAXED) == data->first_timestamp);
-
 	uint64_t num_committed_timestamps = data->processing_timestamp - data->first_timestamp;
 
 #ifndef NDEBUG
+	uint64_t committed_timestamp;
+	atomic_load_relaxed(&data->stream->committed_timestamp, &committed_timestamp);
+	assert(committed_timestamp == data->first_timestamp);
+
 	for (uint64_t i = 0; i < num_committed_timestamps; i++) {
 		struct async_operation *async_op =
 			pmemstream_async_operation(data->stream, data->first_timestamp + i + 1);
-		__atomic_store_n(&async_op->timestamp, PMEMSTREAM_INVALID_TIMESTAMP, __ATOMIC_RELEASE);
+		atomic_store_explicit_release(&async_op->timestamp, PMEMSTREAM_INVALID_TIMESTAMP);
 	}
 #endif
 
-	__atomic_fetch_add(&data->stream->committed_timestamp, num_committed_timestamps, __ATOMIC_RELEASE);
+	atomic_add_release(&data->stream->committed_timestamp, num_committed_timestamps);
 
 	for (uint64_t i = 0; i < num_committed_timestamps; i++) {
 		sem_post(&data->stream->async_ops_semaphore);
@@ -681,7 +702,10 @@ static void pmemstream_increase_committed_timestamp(struct pmemstream_async_wait
 
 	data->first_timestamp += num_committed_timestamps;
 
-	assert(__atomic_load_n(&data->stream->committed_timestamp, __ATOMIC_RELAXED) >= data->processing_timestamp);
+#ifndef NDEBUG
+	atomic_load_relaxed(&data->stream->committed_timestamp, &committed_timestamp);
+	assert(committed_timestamp >= data->processing_timestamp);
+#endif
 }
 
 static enum future_state pmemstream_async_wait_committed_impl(struct future_context *ctx,
@@ -696,7 +720,8 @@ static enum future_state pmemstream_async_wait_committed_impl(struct future_cont
 	struct pmemstream_async_wait_output *out = future_context_get_output(ctx);
 	out->error_code = 0;
 
-	uint64_t committed_timestamp = __atomic_load_n(&data->stream->committed_timestamp, __ATOMIC_ACQUIRE);
+	uint64_t committed_timestamp;
+	atomic_load_acquire(&data->stream->committed_timestamp, &committed_timestamp);
 
 	if (data->timestamp <= committed_timestamp)
 		return FUTURE_STATE_COMPLETE;
@@ -750,8 +775,10 @@ static enum future_state pmemstream_async_wait_persisted_impl(struct future_cont
 	}
 
 	bool weak = false;
-	bool success = __atomic_compare_exchange_n(&data->stream->header->persisted_timestamp, &persisted_timestamp,
-						   data->timestamp, weak, __ATOMIC_RELEASE, __ATOMIC_RELAXED);
+	bool success = false;
+
+	atomic_compare_exchange_acquire_release(&data->stream->header->persisted_timestamp, &persisted_timestamp,
+						data->timestamp, weak, &success);
 	if (success) {
 		data->stream->data.persist(&data->stream->header->persisted_timestamp, sizeof(uint64_t));
 		return FUTURE_STATE_COMPLETE;

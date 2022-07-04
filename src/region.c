@@ -151,6 +151,8 @@ int region_runtimes_map_get_or_create(struct region_runtimes_map *map, struct pm
 				      struct pmemstream_region_runtime **container_handle)
 {
 	assert(container_handle);
+	assert(map);
+	assert(map->container);
 
 	struct pmemstream_region_runtime *runtime = critnib_get(map->container, region.offset);
 	if (runtime) {
@@ -164,19 +166,25 @@ int region_runtimes_map_get_or_create(struct region_runtimes_map *map, struct pm
 static enum region_runtime_state
 region_runtime_get_state_acquire(const struct pmemstream_region_runtime *region_runtime)
 {
-	return __atomic_load_n(&region_runtime->state, __ATOMIC_ACQUIRE);
+	enum region_runtime_state state;
+	atomic_load_acquire(&region_runtime->state, &state);
+	return state;
 }
 
 uint64_t region_runtime_get_append_offset_relaxed(const struct pmemstream_region_runtime *region_runtime)
 {
 	assert(region_runtime_get_state_acquire(region_runtime) == REGION_RUNTIME_STATE_WRITE_READY);
-	return __atomic_load_n(&region_runtime->append_offset, __ATOMIC_RELAXED);
+	uint64_t append_offset;
+	atomic_load_relaxed(&region_runtime->append_offset, &append_offset);
+	return append_offset;
 }
 
 uint64_t region_runtime_get_append_offset_acquire(const struct pmemstream_region_runtime *region_runtime)
 {
 	assert(region_runtime_get_state_acquire(region_runtime) == REGION_RUNTIME_STATE_WRITE_READY);
-	return __atomic_load_n(&region_runtime->append_offset, __ATOMIC_ACQUIRE);
+	uint64_t append_offset;
+	atomic_load_acquire(&region_runtime->append_offset, &append_offset);
+	return append_offset;
 }
 
 void region_runtimes_map_remove(struct region_runtimes_map *map, struct pmemstream_region region)
@@ -188,7 +196,7 @@ void region_runtimes_map_remove(struct region_runtimes_map *map, struct pmemstre
 void region_runtime_increase_append_offset(struct pmemstream_region_runtime *region_runtime, uint64_t diff)
 {
 	assert(region_runtime_get_state_acquire(region_runtime) == REGION_RUNTIME_STATE_WRITE_READY);
-	__atomic_fetch_add(&region_runtime->append_offset, diff, __ATOMIC_RELAXED);
+	atomic_add_relaxed(&region_runtime->append_offset, diff);
 }
 
 static void region_runtime_initialize_for_write_no_lock(struct pmemstream_region_runtime *region_runtime,
@@ -209,7 +217,7 @@ static void region_runtime_initialize_for_write_no_lock(struct pmemstream_region
 	span_region->max_valid_timestamp = UINT64_MAX;
 	region_runtime->data->persist(&span_region->max_valid_timestamp, sizeof(span_region->max_valid_timestamp));
 
-	__atomic_store_n(&region_runtime->state, REGION_RUNTIME_STATE_WRITE_READY, __ATOMIC_RELEASE);
+	atomic_store_explicit_release(&region_runtime->state, REGION_RUNTIME_STATE_WRITE_READY);
 }
 
 static void region_runtime_initialize_for_write_locked(struct pmemstream_region_runtime *region_runtime,
@@ -289,7 +297,8 @@ bool check_entry_consistency(const struct pmemstream_entry_iterator *iterator)
 
 	/* XXX: max timestamp should be passed to iterator */
 	uint64_t committed_timestamp = pmemstream_committed_timestamp(iterator->stream);
-	uint64_t max_valid_timestamp = __atomic_load_n(&span_region->max_valid_timestamp, __ATOMIC_RELAXED);
+	uint64_t max_valid_timestamp;
+	atomic_load_relaxed(&span_region->max_valid_timestamp, &max_valid_timestamp);
 
 	if (committed_timestamp < max_valid_timestamp)
 		max_valid_timestamp = committed_timestamp;

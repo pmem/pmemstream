@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BSD-3-Clause
-/* Copyright 2015-2021, Intel Corporation */
+/* Copyright 2015-2022, Intel Corporation */
 
 /*
  * backtrace.c -- backtrace reporting routines
@@ -157,10 +157,12 @@ void test_dump_backtrace(void)
  */
 void test_sighandler(int sig)
 {
+#ifndef PMEMSTREAM_USE_TSAN
 	printf("\nSignal: %s, backtrace:\n", strsignal(sig));
 	test_dump_backtrace();
 	printf("\n");
 	exit(128 + sig);
+#endif
 }
 
 /*
@@ -169,6 +171,7 @@ void test_sighandler(int sig)
  */
 void test_register_sighandlers(void)
 {
+#ifndef PMEMSTREAM_USE_TSAN
 	signal(SIGSEGV, test_sighandler);
 	signal(SIGABRT, test_sighandler);
 	signal(SIGILL, test_sighandler);
@@ -178,5 +181,6 @@ void test_register_sighandlers(void)
 	signal(SIGALRM, test_sighandler);
 	signal(SIGQUIT, test_sighandler);
 	signal(SIGBUS, test_sighandler);
+#endif
 #endif
 }

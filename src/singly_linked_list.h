@@ -41,6 +41,7 @@
 #include "assert.h"
 #include "stdint.h"
 
+#include "common/util.h"
 #include "pmemstream_runtime.h"
 
 #ifdef __cplusplus
@@ -67,7 +68,7 @@ struct singly_linked_list {
 
 static inline void store_with_flush(const struct pmemstream_runtime *runtime, uint64_t *dst, uint64_t value)
 {
-	__atomic_store_n(dst, value, __ATOMIC_RELAXED);
+	atomic_store_explicit_relaxed(dst, value);
 	(runtime)->flush(dst, sizeof(*dst));
 }
 
