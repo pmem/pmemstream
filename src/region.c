@@ -214,7 +214,7 @@ static void region_runtime_initialize_for_write_no_lock(struct pmemstream_region
 
 	struct span_region *span_region =
 		(struct span_region *)span_offset_to_span_ptr(region_runtime->data, region_runtime->region.offset);
-	span_region->max_valid_timestamp = UINT64_MAX;
+	atomic_store_explicit_relaxed(&span_region->max_valid_timestamp, UINT64_MAX);
 	region_runtime->data->persist(&span_region->max_valid_timestamp, sizeof(span_region->max_valid_timestamp));
 
 	atomic_store_explicit_release(&region_runtime->state, REGION_RUNTIME_STATE_WRITE_READY);
