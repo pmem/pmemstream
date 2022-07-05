@@ -210,7 +210,10 @@ static void region_runtime_initialize_for_write_no_lock(struct pmemstream_region
 	region_runtime->append_offset = tail_offset;
 
 	uint8_t *next_entry_dst = (uint8_t *)pmemstream_offset_to_ptr(region_runtime->data, tail_offset);
-	region_runtime->data->memset(next_entry_dst, 0, sizeof(struct span_entry), 0);
+
+	struct span_empty span_empty = {.span_base = span_base_create(0, SPAN_EMPTY)};
+	span_base_atomic_store((struct span_base *)(next_entry_dst), span_empty.span_base);
+	region_runtime->data->persist(next_entry_dst, sizeof(struct span_base));
 
 	struct span_region *span_region =
 		(struct span_region *)span_offset_to_span_ptr(region_runtime->data, region_runtime->region.offset);
