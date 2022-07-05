@@ -115,6 +115,7 @@ void null_iterator_test(char *path)
 	struct pmemstream_entry entry = pmemstream_entry_iterator_get(NULL);
 	UT_ASSERTeq(entry.offset, PMEMSTREAM_INVALID_OFFSET);
 
+	pmemstream_entry_iterator_delete(NULL);
 	pmemstream_test_teardown(env);
 }
 

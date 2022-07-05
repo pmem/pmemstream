@@ -71,6 +71,13 @@ struct pmemstream_region pmemstream_region_iterator_get(struct pmemstream_region
 
 void pmemstream_region_iterator_delete(struct pmemstream_region_iterator **iterator)
 {
+	if (!iterator) {
+		return;
+	}
+	if (!(*iterator)) {
+		return;
+	}
+
 	struct pmemstream_region_iterator *iter = *iterator;
 
 	free(iter);
@@ -213,6 +220,13 @@ struct pmemstream_entry pmemstream_entry_iterator_get(struct pmemstream_entry_it
 
 void pmemstream_entry_iterator_delete(struct pmemstream_entry_iterator **iterator)
 {
+	if (!iterator) {
+		return;
+	}
+	if (!(*iterator)) {
+		return;
+	}
+
 	struct pmemstream_entry_iterator *iter = *iterator;
 
 	free(iter);

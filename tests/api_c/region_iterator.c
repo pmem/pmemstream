@@ -102,6 +102,7 @@ void null_iterator_test(char *path)
 	ret = pmemstream_region_iterator_is_valid(NULL);
 	UT_ASSERTeq(ret, -1);
 
+	pmemstream_region_iterator_delete(NULL);
 	pmemstream_test_teardown(env);
 }
 
