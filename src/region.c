@@ -151,6 +151,8 @@ int region_runtimes_map_get_or_create(struct region_runtimes_map *map, struct pm
 				      struct pmemstream_region_runtime **container_handle)
 {
 	assert(container_handle);
+	assert(map);
+	assert(map->container);
 
 	struct pmemstream_region_runtime *runtime = critnib_get(map->container, region.offset);
 	if (runtime) {
@@ -164,19 +166,25 @@ int region_runtimes_map_get_or_create(struct region_runtimes_map *map, struct pm
 static enum region_runtime_state
 region_runtime_get_state_acquire(const struct pmemstream_region_runtime *region_runtime)
 {
-	return __atomic_load_n(&region_runtime->state, __ATOMIC_ACQUIRE);
+	enum region_runtime_state state;
+	atomic_load_acquire(&region_runtime->state, &state);
+	return state;
 }
 
 uint64_t region_runtime_get_append_offset_relaxed(const struct pmemstream_region_runtime *region_runtime)
 {
 	assert(region_runtime_get_state_acquire(region_runtime) == REGION_RUNTIME_STATE_WRITE_READY);
-	return __atomic_load_n(&region_runtime->append_offset, __ATOMIC_RELAXED);
+	uint64_t append_offset;
+	atomic_load_relaxed(&region_runtime->append_offset, &append_offset);
+	return append_offset;
 }
 
 uint64_t region_runtime_get_append_offset_acquire(const struct pmemstream_region_runtime *region_runtime)
 {
 	assert(region_runtime_get_state_acquire(region_runtime) == REGION_RUNTIME_STATE_WRITE_READY);
-	return __atomic_load_n(&region_runtime->append_offset, __ATOMIC_ACQUIRE);
+	uint64_t append_offset;
+	atomic_load_acquire(&region_runtime->append_offset, &append_offset);
+	return append_offset;
 }
 
 void region_runtimes_map_remove(struct region_runtimes_map *map, struct pmemstream_region region)
@@ -188,7 +196,7 @@ void region_runtimes_map_remove(struct region_runtimes_map *map, struct pmemstre
 void region_runtime_increase_append_offset(struct pmemstream_region_runtime *region_runtime, uint64_t diff)
 {
 	assert(region_runtime_get_state_acquire(region_runtime) == REGION_RUNTIME_STATE_WRITE_READY);
-	__atomic_fetch_add(&region_runtime->append_offset, diff, __ATOMIC_RELAXED);
+	atomic_add_relaxed(&region_runtime->append_offset, diff);
 }
 
 static void region_runtime_initialize_for_write_no_lock(struct pmemstream_region_runtime *region_runtime,
@@ -202,14 +210,17 @@ static void region_runtime_initialize_for_write_no_lock(struct pmemstream_region
 	region_runtime->append_offset = tail_offset;
 
 	uint8_t *next_entry_dst = (uint8_t *)pmemstream_offset_to_ptr(region_runtime->data, tail_offset);
-	region_runtime->data->memset(next_entry_dst, 0, sizeof(struct span_entry), 0);
+
+	struct span_empty span_empty = {.span_base = span_base_create(0, SPAN_EMPTY)};
+	span_base_atomic_store((struct span_base *)(next_entry_dst), span_empty.span_base);
+	region_runtime->data->persist(next_entry_dst, sizeof(struct span_base));
 
 	struct span_region *span_region =
 		(struct span_region *)span_offset_to_span_ptr(region_runtime->data, region_runtime->region.offset);
-	span_region->max_valid_timestamp = UINT64_MAX;
+	atomic_store_relaxed(&span_region->max_valid_timestamp, UINT64_MAX);
 	region_runtime->data->persist(&span_region->max_valid_timestamp, sizeof(span_region->max_valid_timestamp));
 
-	__atomic_store_n(&region_runtime->state, REGION_RUNTIME_STATE_WRITE_READY, __ATOMIC_RELEASE);
+	atomic_store_release(&region_runtime->state, REGION_RUNTIME_STATE_WRITE_READY);
 }
 
 static void region_runtime_initialize_for_write_locked(struct pmemstream_region_runtime *region_runtime,
@@ -289,7 +300,11 @@ bool check_entry_consistency(const struct pmemstream_entry_iterator *iterator)
 
 	/* XXX: max timestamp should be passed to iterator */
 	uint64_t committed_timestamp = pmemstream_committed_timestamp(iterator->stream);
-	uint64_t max_valid_timestamp = __atomic_load_n(&span_region->max_valid_timestamp, __ATOMIC_RELAXED);
+	uint64_t max_valid_timestamp;
+
+	/* No need to make sure that max_valid_timestamp is persisted. We'll synchronize
+	 * on committed/persisted timestamp anyway. */
+	atomic_load_relaxed(&span_region->max_valid_timestamp, &max_valid_timestamp);
 
 	if (committed_timestamp < max_valid_timestamp)
 		max_valid_timestamp = committed_timestamp;

@@ -66,5 +66,53 @@ int main(int argc, char *argv[])
 						    0);
 				});
 			});
+
+		ret += rc::check(
+			"synchronization between region_runtime_initialize and iterators is race-free",
+			[&](pmemstream_with_single_init_region &&stream,
+			    ranged<size_t, 2, max_concurrency> concurrency) {
+				auto entries = stream.helpers.get_elements_in_region(stream.helpers.get_first_region());
+
+				stream.call_initialize_region_runtime_after_reopen = false;
+				stream.reopen();
+
+				parallel_exec(concurrency, [&](size_t tid) {
+					if (tid == 0) {
+						auto [ret, rr] = stream.sut.region_runtime_initialize(
+							stream.helpers.get_first_region());
+						UT_ASSERTeq(ret, 0);
+						UT_ASSERTne(rr, nullptr);
+					} else {
+						auto entries_after_reopen = stream.helpers.get_elements_in_region(
+							stream.helpers.get_first_region());
+						UT_ASSERT(entries == entries_after_reopen);
+					}
+				});
+			});
+
+		ret += rc::check(
+			"synchronization between region_runtime_initialize and iterators is race-free for empty region",
+			[&](pmemstream_with_single_empty_region &&stream,
+			    ranged<size_t, 2, max_concurrency> concurrency) {
+				stream.call_initialize_region_runtime_after_reopen = false;
+				stream.reopen();
+
+				static constexpr size_t num_iters = 1000;
+
+				parallel_exec(concurrency, [&](size_t tid) {
+					if (tid == 0) {
+						auto [ret, rr] = stream.sut.region_runtime_initialize(
+							stream.helpers.get_first_region());
+						UT_ASSERTeq(ret, 0);
+						UT_ASSERTne(rr, nullptr);
+					} else {
+						for (size_t i = 0; i < num_iters; i++) {
+							auto entries = stream.helpers.get_elements_in_region(
+								stream.helpers.get_first_region());
+							UT_ASSERTeq(entries.size(), 0);
+						}
+					}
+				});
+			});
 	});
 }

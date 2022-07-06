@@ -45,41 +45,23 @@ enum span_type span_get_type(const struct span_base *span)
 	return span->size_and_type & SPAN_TYPE_MASK;
 }
 
-/* Following atomic store/load functions are protected by appropriate fences.
- * They make sure that no load/store operation (issued either before or after)
- * can be reorder with storing/loading span metadata.
- *
- * Release fence prohibits reordering stores in any direction.
- * Acquire fence prohibits reordering loads in any direction.
- */
+/* Following atomic store/load functions follow acquire/release semantics. */
 void span_base_atomic_store(struct span_base *dst, struct span_base base)
 {
-	__atomic_thread_fence(__ATOMIC_RELEASE);
-
-	__atomic_store_n(&dst->size_and_type, base.size_and_type, __ATOMIC_RELAXED);
-
-	__atomic_thread_fence(__ATOMIC_RELEASE);
+	atomic_store_release(&dst->size_and_type, base.size_and_type);
 }
 
 void span_entry_atomic_store(struct span_entry *dst, struct span_entry entry)
 {
-	__atomic_thread_fence(__ATOMIC_RELEASE);
-
-	__atomic_store_n(&dst->timestamp, entry.timestamp, __ATOMIC_RELAXED);
-	__atomic_store_n(&dst->span_base.size_and_type, entry.span_base.size_and_type, __ATOMIC_RELAXED);
-
-	__atomic_thread_fence(__ATOMIC_RELEASE);
+	/* Store timestamp first because it's only valid for ENTRY span type. */
+	atomic_store_relaxed(&dst->timestamp, entry.timestamp);
+	atomic_store_release(&dst->span_base.size_and_type, entry.span_base.size_and_type);
 }
 
 struct span_entry span_entry_atomic_load(const struct span_entry *entry_ptr)
 {
-	__atomic_thread_fence(__ATOMIC_ACQUIRE);
-
 	struct span_entry entry;
-	entry.span_base.size_and_type = __atomic_load_n(&entry_ptr->span_base.size_and_type, __ATOMIC_RELAXED);
-	entry.timestamp = __atomic_load_n(&entry_ptr->timestamp, __ATOMIC_RELAXED);
-
-	__atomic_thread_fence(__ATOMIC_ACQUIRE);
-
+	atomic_load_acquire(&entry_ptr->span_base.size_and_type, &entry.span_base.size_and_type);
+	atomic_load_relaxed(&entry_ptr->timestamp, &entry.timestamp);
 	return entry;
 }
