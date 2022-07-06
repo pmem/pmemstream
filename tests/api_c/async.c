@@ -54,14 +54,14 @@ void valid_input_helper(char *path, bool do_memcpy)
 	UT_ASSERTeq(future1.data.timestamp, 1);
 	UT_ASSERTeq(future1.output.error_code, 0);
 	while (future_poll(FUTURE_AS_RUNNABLE(&future1), NULL) != FUTURE_STATE_COMPLETE)
-			;
+		;
 	UT_ASSERTeq(future1.output.error_code, 0);
 
 	struct pmemstream_async_wait_fut future2 = pmemstream_async_wait_persisted(env.stream, 2);
 	UT_ASSERTeq(future2.data.timestamp, 2);
 	UT_ASSERTeq(future2.output.error_code, 0);
 	while (future_poll(FUTURE_AS_RUNNABLE(&future2), NULL) != FUTURE_STATE_COMPLETE)
-			;
+		;
 	UT_ASSERTeq(future2.output.error_code, 0);
 
 	data_mover_threads_delete(dmt);
@@ -112,9 +112,17 @@ void null_stream_test(char *path)
 	/* async waits */
 	struct pmemstream_async_wait_fut future1 = pmemstream_async_wait_committed(NULL, 1);
 	UT_ASSERTeq(future1.data.timestamp, 1);
+	UT_ASSERTeq(future1.output.error_code, -1);
+	while (future_poll(FUTURE_AS_RUNNABLE(&future1), NULL) != FUTURE_STATE_COMPLETE)
+		;
+	UT_ASSERTeq(future1.output.error_code, -1);
 
 	struct pmemstream_async_wait_fut future2 = pmemstream_async_wait_persisted(NULL, 2);
 	UT_ASSERTeq(future2.data.timestamp, 2);
+	UT_ASSERTeq(future2.output.error_code, -1);
+	while (future_poll(FUTURE_AS_RUNNABLE(&future2), NULL) != FUTURE_STATE_COMPLETE)
+		;
+	UT_ASSERTeq(future2.output.error_code, -1);
 
 	data_mover_threads_delete(dmt);
 	pmemstream_test_teardown(env);
