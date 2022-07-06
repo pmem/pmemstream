@@ -136,6 +136,16 @@ err:
 	return ret;
 }
 
+static bool pmemstream_entry_iterator_offset_is_inside_region(struct pmemstream_entry_iterator *iterator)
+{
+	/* XXX: we should update region_free to change 'region_span' into 'empty_span' and add check here
+	 * if the iterator is not on freed region; right now it would be costly to iterate over "free regions list"
+	 */
+	const struct span_base *span_base = span_offset_to_span_ptr(&iterator->stream->data, iterator->region.offset);
+	uint64_t region_end_offset = iterator->region.offset + span_get_total_size(span_base);
+	return iterator->offset >= iterator->region.offset && iterator->offset <= region_end_offset;
+}
+
 int pmemstream_entry_iterator_is_valid(struct pmemstream_entry_iterator *iterator)
 {
 	if (!iterator) {
@@ -146,17 +156,14 @@ int pmemstream_entry_iterator_is_valid(struct pmemstream_entry_iterator *iterato
 		return -1;
 	}
 
+	if (!pmemstream_entry_iterator_offset_is_inside_region(iterator)) {
+		return -1;
+	}
+
 	if (check_entry_consistency(iterator)) {
 		return 0;
 	}
 	return -1;
-}
-
-static bool pmemstream_entry_iterator_offset_is_inside_region(struct pmemstream_entry_iterator *iterator)
-{
-	const struct span_base *span_base = span_offset_to_span_ptr(&iterator->stream->data, iterator->region.offset);
-	uint64_t region_end_offset = iterator->region.offset + span_get_total_size(span_base);
-	return iterator->offset >= iterator->region.offset && iterator->offset <= region_end_offset;
 }
 
 static void pmemstream_entry_iterator_advance(struct pmemstream_entry_iterator *iterator)
