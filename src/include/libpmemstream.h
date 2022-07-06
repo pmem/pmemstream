@@ -209,6 +209,9 @@ uint64_t pmemstream_persisted_timestamp(struct pmemstream *stream);
  *
  * Data which is committed, but not yet persisted, will be visible for iterators but might not be reachable after
  * application's restart.
+ *
+ * When returned future is polled to completion, it's best to check its output field `error_code`
+ * (see: `struct pmemstream_async_wait_output`) for any non-zero returned value.
  */
 struct pmemstream_async_wait_fut pmemstream_async_wait_committed(struct pmemstream *stream, uint64_t timestamp);
 
@@ -217,6 +220,9 @@ struct pmemstream_async_wait_fut pmemstream_async_wait_committed(struct pmemstre
  *
  * Persisted data is guaranteed to be reachable after application's restart.
  * If entry is persisted, it is also guaranteed to be committed.
+ *
+ * When returned future is polled to completion, it's best to check its output field `error_code`
+ * (see: `struct pmemstream_async_wait_output`) for any non-zero returned value.
  */
 struct pmemstream_async_wait_fut pmemstream_async_wait_persisted(struct pmemstream *stream, uint64_t timestamp);
 
