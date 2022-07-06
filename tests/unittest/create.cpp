@@ -182,14 +182,16 @@ int main(int argc, char *argv[])
 						 generate_region_size_and_block_size(get_test_config().stream_size);
 
 					 {
+						 auto aligned_entry_size = ALIGN_UP(entry.size() + sizeof(span_entry),
+										    sizeof(span_bytes));
+
 						 pmemstream_test_base stream(get_test_config().filename, block_size,
 									     get_test_config().stream_size);
 
-						 auto region =
-							 stream.helpers.initialize_single_region(region_size, {entry});
-						 RC_PRE(entry.size() + sizeof(span_entry) <
-							stream.sut.region_usable_size(region));
+						 auto region = stream.helpers.initialize_single_region(region_size, {});
+						 RC_PRE(aligned_entry_size < stream.sut.region_usable_size(region));
 
+						 stream.sut.append(region, entry);
 						 stream.helpers.verify(region, {entry}, {});
 
 						 UT_ASSERTeq(stream.helpers.count_regions(), 1);
