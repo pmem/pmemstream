@@ -13,6 +13,9 @@ MAINTAINER igor.chorazewicz@intel.com
 # use 'root' while building the image
 USER root
 
+# Install dependency for thread sanitizer
+RUN dnf install -y libtsan
+
 # Install all PMDK packages
 # Use non-released ("custom") version with the fix for proper ndctl header include
 ENV PMDK_VERSION bbd93c8c4c3ca8bc4d1136ad30b3bc15fa78919a
