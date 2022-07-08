@@ -96,12 +96,7 @@ struct ranged {
 };
 
 template <size_t Min, size_t Max>
-struct concurrency_type {
-	ranged<size_t, Min, Max> value;
-	operator size_t() const
-	{
-		return value;
-	}
+struct concurrency_type : ranged<size_t, Min, Max> {
 };
 
 /* Generators for custom structures. */
