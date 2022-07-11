@@ -75,7 +75,7 @@ int main(int argc, char *argv[])
 				regions.erase(regions.begin() + static_cast<int>(pos));
 
 				/* Global ordering validation. */
-				if (regions.size() > 1)
+				if (regions.size() >= 1)
 					UT_ASSERT(stream.helpers.validate_timestamps_possible_gaps(regions));
 
 				regions.push_back(stream.helpers.initialize_single_region(region_size, extra_data));

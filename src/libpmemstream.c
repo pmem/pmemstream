@@ -239,7 +239,6 @@ void pmemstream_delete(struct pmemstream **stream)
 	*stream = NULL;
 }
 
-// XXX: add more tests using these 2 timestamp functions
 uint64_t pmemstream_persisted_timestamp(struct pmemstream *stream)
 {
 	if (!stream) {
@@ -799,8 +798,14 @@ struct pmemstream_async_wait_fut pmemstream_async_wait_committed(struct pmemstre
 	future.data.first_timestamp = PMEMSTREAM_INVALID_TIMESTAMP;
 	future.data.last_timestamp = PMEMSTREAM_INVALID_TIMESTAMP;
 	future.data.processing_timestamp = PMEMSTREAM_INVALID_TIMESTAMP;
-	future.output.error_code = 0;
-	FUTURE_INIT(&future, pmemstream_async_wait_committed_impl);
+
+	if (!stream) {
+		future.output.error_code = -1;
+		FUTURE_INIT_COMPLETE(&future);
+	} else {
+		future.output.error_code = 0;
+		FUTURE_INIT(&future, pmemstream_async_wait_committed_impl);
+	}
 
 	return future;
 }
@@ -813,8 +818,14 @@ struct pmemstream_async_wait_fut pmemstream_async_wait_persisted(struct pmemstre
 	future.data.first_timestamp = PMEMSTREAM_INVALID_TIMESTAMP;
 	future.data.last_timestamp = PMEMSTREAM_INVALID_TIMESTAMP;
 	future.data.processing_timestamp = PMEMSTREAM_INVALID_TIMESTAMP;
-	future.output.error_code = 0;
-	FUTURE_INIT(&future, pmemstream_async_wait_persisted_impl);
+
+	if (!stream) {
+		future.output.error_code = -1;
+		FUTURE_INIT_COMPLETE(&future);
+	} else {
+		future.output.error_code = 0;
+		FUTURE_INIT(&future, pmemstream_async_wait_persisted_impl);
+	}
 
 	return future;
 }

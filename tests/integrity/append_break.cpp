@@ -69,20 +69,16 @@ static void test(std::string mode)
 		UT_ASSERTeq(cnt, 0);
 
 		/* timestamp should be equal to the number of all elements in the stream */
-		auto committed_timestamp = pmemstream_committed_timestamp(s.helpers.stream.c_ptr());
-		auto persisted_timestamp = pmemstream_persisted_timestamp(s.helpers.stream.c_ptr());
-		UT_ASSERTeq(init_data.size(), committed_timestamp);
-		UT_ASSERTeq(init_data.size(), persisted_timestamp);
+		UT_ASSERTeq(init_data.size(), s.sut.committed_timestamp());
+		UT_ASSERTeq(init_data.size(), s.sut.persisted_timestamp());
 
 		/* append new entry to the second (empty) region */
 		std::string buf(128, 'A');
 		s.sut.append(r2, buf);
 
 		/* we're using regular append here, so both timestamps should be immediately updated */
-		committed_timestamp = pmemstream_committed_timestamp(s.helpers.stream.c_ptr());
-		persisted_timestamp = pmemstream_persisted_timestamp(s.helpers.stream.c_ptr());
-		UT_ASSERTeq(init_data.size() + 1, committed_timestamp);
-		UT_ASSERTeq(init_data.size() + 1, persisted_timestamp);
+		UT_ASSERTeq(init_data.size() + 1, s.sut.committed_timestamp());
+		UT_ASSERTeq(init_data.size() + 1, s.sut.persisted_timestamp());
 
 		/* iterate, recover (underneath) and make sure the entries count is as expected */
 		read_elements = s.helpers.get_elements_in_region(r1);
@@ -99,10 +95,8 @@ static void test(std::string mode)
 
 		pmemstream_test_base s(get_test_config().filename, get_test_config().block_size, 0, false);
 
-		auto committed_timestamp = pmemstream_committed_timestamp(s.helpers.stream.c_ptr());
-		auto persisted_timestamp = pmemstream_persisted_timestamp(s.helpers.stream.c_ptr());
-		UT_ASSERTeq(init_data.size(), committed_timestamp);
-		UT_ASSERTeq(init_data.size(), persisted_timestamp);
+		UT_ASSERTeq(init_data.size(), s.sut.committed_timestamp());
+		UT_ASSERTeq(init_data.size(), s.sut.persisted_timestamp());
 
 		/* append new entry to the second (empty) region */
 		auto r2 = s.helpers.get_region(1);
@@ -110,10 +104,8 @@ static void test(std::string mode)
 		s.sut.append(r2, buf);
 
 		/* we're using regular append here, so both timestamps should be immediately updated */
-		committed_timestamp = pmemstream_committed_timestamp(s.helpers.stream.c_ptr());
-		persisted_timestamp = pmemstream_persisted_timestamp(s.helpers.stream.c_ptr());
-		UT_ASSERTeq(init_data.size() + 1, committed_timestamp);
-		UT_ASSERTeq(init_data.size() + 1, persisted_timestamp);
+		UT_ASSERTeq(init_data.size() + 1, s.sut.committed_timestamp());
+		UT_ASSERTeq(init_data.size() + 1, s.sut.persisted_timestamp());
 
 		/* check if we have for sure a duplicated timestamp */
 		auto regions = span_runtimes_from_stream(s.sut);
@@ -146,9 +138,8 @@ static void test(std::string mode)
 		 * the initial 3 entries and should have the next proper timestamp */
 		s.sut.append(r1, buf);
 
-		committed_timestamp = pmemstream_committed_timestamp(s.helpers.stream.c_ptr());
-		persisted_timestamp = pmemstream_persisted_timestamp(s.helpers.stream.c_ptr());
-		UT_ASSERTeq(init_data.size() + 2, committed_timestamp);
+		auto persisted_timestamp = s.sut.persisted_timestamp();
+		UT_ASSERTeq(init_data.size() + 2, s.sut.committed_timestamp());
 		UT_ASSERTeq(init_data.size() + 2, persisted_timestamp);
 
 		/* check if new entries (in both regions) have proper timestamps and each of these

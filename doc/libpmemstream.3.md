@@ -245,6 +245,8 @@ Refer to a specific function below for its signature and detailed description.
 	To get "committed" guarantee for given 'timestamp', the returned future must be polled until completion.
 	Data which is committed, but not yet persisted, will be visible for iterators but might not be reachable after
 	application's restart.
+	When returned future is polled to completion, it's best to check its output field `error_code`
+	(see: `struct pmemstream_async_wait_output`) for any non-zero returned value.
 
 `struct pmemstream_async_wait_fut pmemstream_async_wait_persisted(struct pmemstream *stream, uint64_t timestamp);`
 
@@ -252,6 +254,8 @@ Refer to a specific function below for its signature and detailed description.
 	To get "persisted" guarantee for given 'timestamp', the returned future must be polled until completion.
 	Persisted data is guaranteed to be reachable after application's restart.
 	If entry is persisted, it is also guaranteed to be committed.
+	When returned future is polled to completion, it's best to check its output field `error_code`
+	(see: `struct pmemstream_async_wait_output`) for any non-zero returned value.
 
 `const void *pmemstream_entry_data(struct pmemstream *stream, struct pmemstream_entry entry);`
 

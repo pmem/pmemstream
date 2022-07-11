@@ -604,10 +604,10 @@ struct pmemstream_helpers_type {
 
 	/* XXX: extend to allow more than one extra_data vector */
 	void verify(pmemstream_region region, const std::vector<std::string> &data,
-		    const std::vector<std::string> &extra_data, bool persisted = true)
+		    const std::vector<std::string> &extra_data, bool persisted_only = true)
 	{
 		/* Verify if stream now holds data + extra_data */
-		auto all_elements = get_elements_in_region(region, persisted);
+		auto all_elements = get_elements_in_region(region, persisted_only);
 		auto extra_data_start = all_elements.begin() + static_cast<int>(data.size());
 
 		UT_ASSERTeq(all_elements.size(), data.size() + extra_data.size());
@@ -615,6 +615,7 @@ struct pmemstream_helpers_type {
 		UT_ASSERT(std::equal(extra_data_start, all_elements.end(), extra_data.begin()));
 	}
 
+	/* gets all entries from given regions, preserving global ordering */
 	std::vector<pmemstream_entry> get_entries_from_regions(const std::vector<pmemstream_region> &regions)
 	{
 		std::vector<pmemstream_entry> entries;
@@ -631,14 +632,13 @@ struct pmemstream_helpers_type {
 		return entries;
 	}
 
-	/* checks timestamps' order across regions */
+	/* returns status of timestamps' order across regions */
 	bool validate_timestamps_possible_gaps(const std::vector<struct pmemstream_region> &regions)
 	{
 		return validate_timestamps(regions, true);
 	}
 
-	/* checks timestamps' order across regions when expectation is to have all generated
-	 * timestamps */
+	/* returns status of timestamps' order across regions, when we expect all generated timestamps */
 	bool validate_timestamps_no_gaps(const std::vector<struct pmemstream_region> &regions)
 	{
 		return validate_timestamps(regions, false);
@@ -653,6 +653,9 @@ struct pmemstream_helpers_type {
 	bool validate_timestamps(const std::vector<struct pmemstream_region> &regions, bool possible_gaps = true)
 	{
 		auto entries = get_entries_from_regions(regions);
+		if (entries.size() == 0)
+			return true;
+
 		std::vector<uint64_t> timestamps;
 		std::transform(entries.begin(), entries.end(), std::back_inserter(timestamps),
 			       [this](const auto &entry) { return pmemstream_entry_timestamp(stream.c_ptr(), entry); });
@@ -697,6 +700,13 @@ struct pmemstream_test_base {
 	      call_initialize_region_runtime(rhs.call_initialize_region_runtime),
 	      call_initialize_region_runtime_after_reopen(rhs.call_initialize_region_runtime_after_reopen)
 	{
+	}
+
+	~pmemstream_test_base()
+	{
+		/* due to RC shrinking and rejecting TCs, stream may be uninitialized yet */
+		if (this->sut.c_ptr() != nullptr)
+			UT_ASSERT(helpers.validate_timestamps_possible_gaps(helpers.get_regions()));
 	}
 
 	/* This function closes and reopens the stream. All pointers to stream data, iterators, etc. are invalidated. */
@@ -755,6 +765,7 @@ struct pmemstream_with_single_init_region : public pmemstream_test_base {
 	    : pmemstream_test_base(std::move(base))
 	{
 		helpers.initialize_single_region(TEST_DEFAULT_REGION_SIZE, data);
+		UT_ASSERT(helpers.validate_timestamps_no_gaps(helpers.get_regions()));
 	}
 };
 
@@ -787,6 +798,7 @@ struct pmemstream_with_multi_non_empty_regions : public pmemstream_test_base {
 		for (const auto &d : data) {
 			helpers.initialize_single_region(TEST_DEFAULT_REGION_MULTI_SIZE, d);
 		}
+		UT_ASSERT(helpers.validate_timestamps_no_gaps(helpers.get_regions()));
 	}
 };
 

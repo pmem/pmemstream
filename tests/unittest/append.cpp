@@ -34,12 +34,19 @@ int main(int argc, char *argv[])
 					 stream.helpers.verify(region, data, {});
 					 stream.helpers.append(region, extra_data);
 					 stream.helpers.verify(region, data, extra_data);
+
+					 auto total_entries_count = data.size() + extra_data.size();
+					 UT_ASSERTeq(total_entries_count, stream.sut.persisted_timestamp());
+					 UT_ASSERTeq(total_entries_count, stream.sut.committed_timestamp());
 				 });
 
 		/* Verify if empty region does not return any data. */
 		{
 			pmemstream_with_single_empty_region stream(make_default_test_stream());
 			stream.helpers.verify(stream.helpers.get_first_region(), {}, {});
+
+			UT_ASSERTeq(stream.sut.persisted_timestamp(), PMEMSTREAM_INVALID_TIMESTAMP);
+			UT_ASSERTeq(stream.sut.committed_timestamp(), PMEMSTREAM_INVALID_TIMESTAMP);
 		}
 
 		/* verify if an entry of size = 0 can be appended */
@@ -57,6 +64,9 @@ int main(int argc, char *argv[])
 
 			UT_ASSERTeq(stream.sut.region_size(region) - sizeof(span_entry),
 				    stream.sut.region_usable_size(region));
+
+			UT_ASSERTeq(stream.sut.persisted_timestamp(), PMEMSTREAM_FIRST_TIMESTAMP);
+			UT_ASSERTeq(stream.sut.committed_timestamp(), PMEMSTREAM_FIRST_TIMESTAMP);
 		}
 
 		/* and entry with size > region's size cannot be appended */
@@ -68,6 +78,9 @@ int main(int argc, char *argv[])
 			auto entry = std::string(region_size * 2, 'W');
 			auto [ret, new_entry] = stream.sut.append(region, entry);
 			UT_ASSERTeq(ret, -1);
+
+			UT_ASSERTeq(stream.sut.persisted_timestamp(), PMEMSTREAM_INVALID_TIMESTAMP);
+			UT_ASSERTeq(stream.sut.committed_timestamp(), PMEMSTREAM_INVALID_TIMESTAMP);
 		}
 
 		ret += rc::check(

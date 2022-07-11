@@ -8,6 +8,7 @@
 
 /**
  * region_iterator - unit test for pmemstream_region_iterator_new,
+ *					pmemstream_region_iterator_seek_first, pmemstream_region_iterator_is_valid,
  *					pmemstream_region_iterator_next, pmemstream_region_iterator_delete
  */
 
@@ -98,6 +99,10 @@ void null_iterator_test(char *path)
 
 	pmemstream_region_iterator_seek_first(NULL);
 
+	ret = pmemstream_region_iterator_is_valid(NULL);
+	UT_ASSERTeq(ret, -1);
+
+	pmemstream_region_iterator_delete(NULL);
 	pmemstream_test_teardown(env);
 }
 
@@ -114,6 +119,9 @@ void invalid_region_test(char *path)
 	UT_ASSERTne(riter, NULL);
 
 	pmemstream_region_iterator_seek_first(riter);
+
+	ret = pmemstream_region_iterator_is_valid(NULL);
+	UT_ASSERTeq(ret, -1);
 
 	invalid_region = pmemstream_region_iterator_get(riter);
 	UT_ASSERTeq(invalid_region.offset, SLIST_INVALID_OFFSET);
