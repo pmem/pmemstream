@@ -31,7 +31,6 @@ Publish package and make it official:
 
 Later, for major/minor release:
 
-<!-- XXX: re-write this paragraph when transition to pmem.io is done -->
-- once 'docs' branch contains new documentation:
-  - add there (in index.md) new links to manpages and Doxygen docs
+- once 'main' branch of pmem.io repository contains new documentation:
+  - add there new links to manpages
   - update there "Releases' support status" table (update any other release's status if needed)
