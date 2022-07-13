@@ -40,7 +40,7 @@ static void pmemstream_init(struct pmemstream *stream)
 	stream->header->block_size = stream->block_size;
 	stream->header->persisted_timestamp = PMEMSTREAM_INVALID_TIMESTAMP;
 	stream->data.persist(stream->header, sizeof(struct pmemstream_header));
-
+	stream->persisted_timestamp = PMEMSTREAM_INVALID_TIMESTAMP;
 	stream->data.memcpy(stream->header->signature, PMEMSTREAM_SIGNATURE, strlen(PMEMSTREAM_SIGNATURE),
 			    PMEM2_F_MEM_NONTEMPORAL);
 }
@@ -178,6 +178,7 @@ int pmemstream_from_map(struct pmemstream **stream, size_t block_size, struct pm
 	s->committed_timestamp = s->header->persisted_timestamp;
 	s->processing_timestamp = s->header->persisted_timestamp;
 	s->next_timestamp = s->header->persisted_timestamp + 1;
+	s->persisted_timestamp = s->header->persisted_timestamp;
 
 	allocator_runtime_initialize(&s->data, &s->header->region_allocator_header);
 
@@ -245,10 +246,15 @@ uint64_t pmemstream_persisted_timestamp(struct pmemstream *stream)
 		return PMEMSTREAM_INVALID_TIMESTAMP;
 	}
 
-	/* Make sure that persisted_timestamp is actually persisted before returning. */
 	uint64_t timestamp;
-	atomic_load_acquire(&stream->header->persisted_timestamp, &timestamp);
-	stream->data.persist(&stream->header->persisted_timestamp, sizeof(uint64_t));
+	atomic_load_acquire(&stream->persisted_timestamp, &timestamp);
+
+#ifndef NDEBUG
+	uint64_t timestamp_on_pmem;
+	atomic_load_acquire(&stream->header->persisted_timestamp, &timestamp_on_pmem);
+	assert(timestamp <= timestamp_on_pmem);
+#endif
+
 	return timestamp;
 }
 
@@ -778,8 +784,15 @@ static enum future_state pmemstream_async_wait_persisted_impl(struct future_cont
 
 	atomic_compare_exchange_acquire_release(&data->stream->header->persisted_timestamp, &persisted_timestamp,
 						data->timestamp, weak, &success);
+
 	if (success) {
 		data->stream->data.persist(&data->stream->header->persisted_timestamp, sizeof(uint64_t));
+
+		atomic_compare_exchange_acquire_release(&data->stream->persisted_timestamp, &persisted_timestamp,
+							data->timestamp, weak, &success);
+		if (!success)
+			assert(persisted_timestamp > data->timestamp);
+
 		return FUTURE_STATE_COMPLETE;
 	}
 
