@@ -19,6 +19,7 @@
 /* XXX: Change this header when make_pmemstream moved to public API */
 #include "stream_helpers.hpp"
 
+#include <libminiasync.h>
 #include <libpmemlog.h>
 
 class config {
@@ -34,6 +35,10 @@ class config {
 						  {"iterations", required_argument, NULL, 'i'},
 						  {"null_region_runtime", no_argument, NULL, 'n'},
 						  {"concurrency", required_argument, NULL, 't'},
+						  {"async_append", no_argument, NULL, 'a'},
+						  {"committing_threads", required_argument, NULL, 'm'},
+						  {"persisting_threads", required_argument, NULL, 'g'},
+						  {"wait_period", required_argument, NULL, 'w'},
 						  {"help", no_argument, NULL, 'h'},
 						  {NULL, 0, NULL, 0}};
 
@@ -75,12 +80,16 @@ class config {
 	size_t iterations = 10;
 	bool null_region_runtime = false;
 	size_t concurrency = 1;
+	bool async_append = false;
+	size_t committing_threads = 0;
+	size_t persisting_threads = 0;
+	size_t wait_period = 0;
 
 	int parse_arguments(int argc, char *argv[])
 	{
 		app_name = std::string(argv[0]);
 		int ch;
-		while ((ch = getopt_long(argc, argv, "e:p:x:b:r:c:s:i:nt:h", long_options, NULL)) != -1) {
+		while ((ch = getopt_long(argc, argv, "e:p:x:b:r:c:s:i:nt:am:g:w:h", long_options, NULL)) != -1) {
 			switch (ch) {
 				case 'e':
 					set_engine(std::string(optarg));
@@ -112,6 +121,18 @@ class config {
 				case 't':
 					concurrency = std::stoull(optarg);
 					break;
+				case 'a':
+					async_append = true;
+					break;
+				case 'm':
+					committing_threads = std::stoull(optarg);
+					break;
+				case 'g':
+					persisting_threads = std::stoull(optarg);
+					break;
+				case 'w':
+					wait_period = std::stoull(optarg);
+					break;
 				case 'h':
 					return -1;
 				default:
@@ -120,6 +141,21 @@ class config {
 		}
 		if (path.empty()) {
 			throw std::invalid_argument("Please provide path");
+		}
+		if (async_append && (!wait_period || !(committing_threads + persisting_threads))) {
+			throw std::invalid_argument(
+				"wait_period and commiting_threads or persisting_threads must not be 0 when async_append is used");
+		}
+		if (committing_threads + persisting_threads + wait_period && !async_append) {
+			throw std::invalid_argument(
+				"Commiting threads and persisting threads and wait_period can only be set for async appends");
+		}
+		if (committing_threads && persisting_threads) {
+			throw std::invalid_argument("Only committing or persiting threads can be configured");
+		}
+		if (committing_threads + persisting_threads > concurrency) {
+			throw std::invalid_argument(
+				"Number of commiting threads and persisting threads exceeds concurrency");
 		}
 		return 0;
 	}
@@ -144,6 +180,12 @@ class config {
 			{"More iterations gives more robust statistical data, but takes more time", ""},
 			{"--null_region_runtime", "indicates if **null** region runtime would be passed to append"},
 			{"--concurrency [num]", "number of threads, which append concurrently"},
+			{"--async_append", "perform appends asynchronously"},
+			{"--committing_threads",
+			 "number of threads performing commit operation. can only be used for async appends. exclusive with persisting_threads"},
+			{"--persisting_threads",
+			 "number of threads performing persist operation. can only be used for async appends. exclusive with commiting_threads"},
+			{"--wait_period [num_ops]", "how often commit or persist is executed for async appends"},
 			{"--help", "display this message"}};
 		for (auto &option : options) {
 			std::cout << std::setw(25) << std::left << option[0] << " " << option[1] << std::endl;
@@ -163,7 +205,11 @@ std::ostream &operator<<(std::ostream &out, config const &cfg)
 	out << "element_count: " << cfg.element_count << ", ";
 	out << "element_size: " << cfg.element_size << ", ";
 	out << "null_region_runtime: " << std::boolalpha << cfg.null_region_runtime << ", ";
-	out << "Number of iterations: " << cfg.iterations << std::endl;
+	out << "Number of iterations: " << cfg.iterations << ", ";
+	out << "Async append: " << cfg.async_append << ", ";
+	out << "Committing threads: " << cfg.committing_threads << ", ";
+	out << "Persisting thread: " << cfg.persisting_threads << ", ";
+	out << "Wait period: " << cfg.wait_period << std::endl;
 	return out;
 }
 
@@ -187,7 +233,7 @@ class pmemlog_workload : public benchmark::workload_base {
 		prepare_data(bytes_to_generate);
 	}
 
-	void perform() override
+	void perform(size_t thread_id) override
 	{
 		auto data_chunks = get_data_chunks();
 		for (size_t i = 0; i < data.size() * sizeof(uint64_t); i += cfg.element_size) {
@@ -217,24 +263,21 @@ class pmemstream_workload : public benchmark::workload_base {
 
 	virtual void initialize() override
 	{
-		if (pmemstream_region_allocate(stream.get(), cfg.region_size, &region)) {
-			throw std::runtime_error("Error during region allocate!");
-		}
-		if (!cfg.null_region_runtime &&
-		    pmemstream_region_runtime_initialize(stream.get(), region, &region_runtime_ptr)) {
-			throw std::runtime_error("Error during getting region runtime!");
+		for (size_t i = 0; i < cfg.concurrency; i++) {
+			regions.emplace_back(allocate_region());
 		}
 
 		auto bytes_to_generate = cfg.element_count * cfg.element_size;
 		prepare_data(bytes_to_generate);
 	}
 
-	void perform() override
+	void perform(size_t thread_id) override
 	{
 		auto data_chunks = get_data_chunks();
 		for (size_t i = 0; i < data.size() * sizeof(uint64_t); i += cfg.element_size) {
-			if (pmemstream_append(stream.get(), region, region_runtime_ptr, data_chunks + i,
-					      cfg.element_size, NULL) < 0) {
+			if (pmemstream_append(stream.get(), regions[thread_id].region,
+					      regions[thread_id].region_runtime, data_chunks + i, cfg.element_size,
+					      NULL) < 0) {
 				throw std::runtime_error("Error while appending " + std::to_string(i) + " entry!");
 			}
 		}
@@ -242,14 +285,75 @@ class pmemstream_workload : public benchmark::workload_base {
 
 	void clean() override
 	{
-		pmemstream_region_free(stream.get(), region);
+		for (size_t i = 0; i < cfg.concurrency; i++) {
+			pmemstream_region_free(stream.get(), regions[i].region);
+		}
+		regions.clear();
+	}
+
+ protected:
+	config cfg;
+	std::unique_ptr<struct pmemstream, std::function<void(struct pmemstream *)>> stream;
+
+	struct region_wrapper {
+		pmemstream_region region;
+		pmemstream_region_runtime *region_runtime;
+	};
+
+	std::vector<region_wrapper> regions;
+
+	region_wrapper allocate_region()
+	{
+		pmemstream_region region = {0};
+		pmemstream_region_runtime *region_runtime = nullptr;
+
+		if (pmemstream_region_allocate(stream.get(), cfg.region_size, &region)) {
+			throw std::runtime_error("Error during region allocate!");
+		}
+		if (!cfg.null_region_runtime &&
+		    pmemstream_region_runtime_initialize(stream.get(), region, &region_runtime)) {
+			throw std::runtime_error("Error during getting region runtime!");
+		}
+
+		return {region, region_runtime};
+	}
+};
+
+class pmemstream_async_workload : public pmemstream_workload {
+ public:
+	pmemstream_async_workload(config &cfg)
+	    : pmemstream_workload(cfg), dmv(data_mover_sync_new(), &data_mover_sync_delete)
+	{
+	}
+
+	void perform(size_t thread_id) override
+	{
+		auto data_chunks = get_data_chunks();
+
+		for (size_t i = 0; i < data.size() * sizeof(uint64_t); i += cfg.element_size) {
+			struct pmemstream_entry entry;
+			if (pmemstream_async_append(stream.get(), data_mover_sync_get_vdm(dmv.get()),
+						    regions[thread_id].region, regions[thread_id].region_runtime,
+						    data_chunks + i, cfg.element_size, &entry) < 0) {
+				throw std::runtime_error("Error while appending " + std::to_string(i) + " entry!");
+			}
+
+			if (thread_id < cfg.committing_threads && i % cfg.wait_period == 0) {
+				auto future = pmemstream_async_wait_committed(
+					stream.get(), pmemstream_entry_timestamp(stream.get(), entry));
+				while (future_poll(FUTURE_AS_RUNNABLE(&future), NULL) != FUTURE_STATE_COMPLETE)
+					;
+			} else if (thread_id < cfg.persisting_threads && i % cfg.wait_period == 0) {
+				auto future = pmemstream_async_wait_persisted(
+					stream.get(), pmemstream_entry_timestamp(stream.get(), entry));
+				while (future_poll(FUTURE_AS_RUNNABLE(&future), NULL) != FUTURE_STATE_COMPLETE)
+					;
+			}
+		}
 	}
 
  private:
-	config cfg;
-	struct pmemstream_region region;
-	pmemstream_region_runtime *region_runtime_ptr = nullptr;
-	std::unique_ptr<struct pmemstream, std::function<void(struct pmemstream *)>> stream;
+	std::unique_ptr<data_mover_sync, decltype(&data_mover_sync_delete)> dmv;
 };
 
 int main(int argc, char *argv[])
@@ -271,8 +375,10 @@ int main(int argc, char *argv[])
 
 	if (cfg.engine == "pmemlog") {
 		workload = std::make_unique<pmemlog_workload>(cfg);
-	} else if (cfg.engine == "pmemstream") {
+	} else if (cfg.engine == "pmemstream" && !cfg.async_append) {
 		workload = std::make_unique<pmemstream_workload>(cfg);
+	} else if (cfg.engine == "pmemstream") {
+		workload = std::make_unique<pmemstream_async_workload>(cfg);
 	}
 
 	/* XXX: Add initialization phase with separate measurement */
