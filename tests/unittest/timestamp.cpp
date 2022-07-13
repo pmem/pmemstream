@@ -11,6 +11,12 @@
  * timestamp - unit test for testing method pmemstream_entry_timestamp()
  */
 
+void multithreaded_asynchronous_append(pmemstream_test_base &stream, const std::vector<pmemstream_region> &regions,
+				       const std::vector<std::string> &data)
+{
+	parallel_exec(regions.size(), [&](size_t thread_id) { stream.helpers.async_append(regions[thread_id], data); });
+}
+
 void multithreaded_synchronous_append(pmemstream_test_base &stream, const std::vector<pmemstream_region> &regions,
 				      const std::vector<std::string> &data)
 {
@@ -85,5 +91,68 @@ int main(int argc, char *argv[])
 			});
 
 		// XXX: implement asynchronous cases
+		ret += rc::check("timestamp values should increase in each region after asynchronous append",
+				 [&](pmemstream_with_multi_empty_regions &&stream, const std::vector<std::string> &data,
+				     const std::vector<std::string> &extra_data) {
+					 RC_PRE(data.size() > 0);
+					 auto regions = stream.helpers.get_regions();
+
+					 /* Multithreaded append to many regions with global ordering. */
+					 multithreaded_asynchronous_append(stream, regions, data);
+
+					 /* Single region ordering validation. */
+					 for (auto &region : regions) {
+						 UT_ASSERT(stream.helpers.validate_timestamps_possible_gaps({region}));
+					 }
+				 });
+
+		ret += rc::check(
+			"timestamp values should globally increase in multi-region environment after asynchronous append",
+			[&](pmemstream_with_multi_empty_regions &&stream, const std::vector<std::string> &data) {
+				RC_PRE(data.size() > 0);
+				auto regions = stream.helpers.get_regions();
+
+				/* Multithreaded append to many regions with global ordering. */
+				multithreaded_asynchronous_append(stream, regions, data);
+
+				/* Global ordering validation */
+				UT_ASSERT(stream.helpers.validate_timestamps_no_gaps(regions));
+			});
+
+		ret += rc::check(
+			"timestamp values should globally increase in multi-region environment after asynchronous append to respawned region",
+			[&](pmemstream_with_multi_empty_regions &&stream, const std::vector<std::string> &data,
+			    const std::vector<std::string> &extra_data) {
+				RC_PRE(data.size() > 0);
+				RC_PRE(extra_data.size() > 0);
+				auto regions = stream.helpers.get_regions();
+
+				/* Multithreaded append to many regions with global ordering. */
+				multithreaded_asynchronous_append(stream, regions, data);
+
+				size_t pos = *rc::gen::inRange<size_t>(0, regions.size());
+				auto region_to_remove = regions[pos];
+				auto region_size = stream.sut.region_size(region_to_remove);
+				UT_ASSERTeq(stream.helpers.remove_region(region_to_remove.offset), 0);
+				regions.erase(regions.begin() + static_cast<int>(pos));
+
+				/* Global ordering validation. */
+				if (regions.size() > 1)
+					UT_ASSERT(stream.helpers.validate_timestamps_possible_gaps(regions));
+
+				{
+					auto [ret, region] = stream.sut.region_allocate(region_size);
+					UT_ASSERTeq(ret, 0);
+					regions.push_back(region);
+
+					auto future = stream.helpers.async_append(region, extra_data);
+					while (future.poll() != FUTURE_STATE_COMPLETE)
+						;
+				}
+
+				UT_ASSERTeq(stream.helpers.get_entries_from_regions(regions).size(),
+					    (regions.size() - 1) * data.size() + extra_data.size());
+				UT_ASSERT(stream.helpers.validate_timestamps_possible_gaps(regions));
+			});
 	});
 }
