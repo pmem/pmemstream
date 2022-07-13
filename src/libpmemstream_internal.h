@@ -82,6 +82,9 @@ struct pmemstream {
 	/* This timestamp is used to synchronize commits. */
 	alignas(CACHELINE_SIZE) uint64_t processing_timestamp;
 
+	/* Shadow value of header->persisted_timestamp placed in DRAM */
+	alignas(CACHELINE_SIZE) uint64_t persisted_timestamp;
+
 	/* Stores in-progress operations, indexed by timestamp mod array size. */
 	struct async_operation *async_ops;
 
