@@ -15,7 +15,7 @@ class workload_base {
  public:
 	virtual ~workload_base(){};
 	virtual void initialize() = 0;
-	virtual void perform() = 0;
+	virtual void perform(size_t thread_id) = 0;
 	virtual void clean() = 0;
 
 	void prepare_data(size_t bytes_to_generate)
@@ -78,7 +78,7 @@ auto measure(size_t iterations, workload_base *workload, size_t concurrency = 1)
 		parallel_exec(concurrency, [&](size_t id) {
 			syncthreads();
 
-			iteration_results[id] = measure<TimeUnit>([&]() { workload->perform(); });
+			iteration_results[id] = measure<TimeUnit>([&]() { workload->perform(id); });
 
 			syncthreads();
 		});
