@@ -35,6 +35,8 @@ static_assert(PMEMSTREAM_INVALID_TIMESTAMP + 1 == PMEMSTREAM_FIRST_TIMESTAMP, "w
 /* It has to be power of two */
 #define PMEMSTREAM_MAX_CONCURRENCY 1024ULL
 
+#define PMEMSTREAM_TIMESTAMP_PROCESSING_BATCH 15ULL
+
 struct pmemstream_header {
 	char signature[PMEMSTREAM_SIGNATURE_SIZE];
 	uint64_t stream_size;
@@ -89,6 +91,9 @@ struct pmemstream {
 
 	/* Used to perform synchronous memcpy. */
 	struct data_mover_sync *data_mover_sync;
+
+	/* Contains timestamps which are ready to be committed. */
+	critnib *ready_timestamps;
 
 	/* Protects against exceeding PMEMSTREAM_MAX_CONCURRENCY. */
 	sem_t async_ops_semaphore;
