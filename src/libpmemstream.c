@@ -206,9 +206,16 @@ int pmemstream_from_map(struct pmemstream **stream, size_t block_size, struct pm
 		goto err_sem_init;
 	}
 
+	s->ready_timestamps = critnib_new();
+	if (!s->ready_timestamps) {
+		goto err_ready_timestamps;
+	}
+
 	*stream = s;
 	return 0;
 
+err_ready_timestamps:
+	sem_destroy(&s->async_ops_semaphore);
 err_sem_init:
 	data_mover_sync_delete(s->data_mover_sync);
 err_data_mover:
@@ -234,6 +241,7 @@ void pmemstream_delete(struct pmemstream **stream)
 	free(s->async_ops);
 	data_mover_sync_delete(s->data_mover_sync);
 	sem_destroy(&s->async_ops_semaphore);
+	critnib_delete(s->ready_timestamps);
 
 	free(s);
 	*stream = NULL;
@@ -626,10 +634,8 @@ int pmemstream_async_append(struct pmemstream *stream, struct vdm *vdm, struct p
 	return 0;
 }
 
-static bool pmemstream_acquire_processing_timestamp(struct pmemstream_async_wait_data *data)
+static bool pmemstream_acquire_timestamps_for_processing(struct pmemstream_async_wait_data *data)
 {
-	assert(data->last_timestamp == PMEMSTREAM_INVALID_TIMESTAMP);
-
 	uint64_t processing_timestamp;
 	atomic_load_acquire(&data->stream->processing_timestamp, &processing_timestamp);
 
@@ -637,17 +643,21 @@ static bool pmemstream_acquire_processing_timestamp(struct pmemstream_async_wait
 	if (data->timestamp <= processing_timestamp)
 		return false;
 
+	uint64_t last_timestamp = data->timestamp;
+	if (last_timestamp - processing_timestamp > PMEMSTREAM_TIMESTAMP_PROCESSING_BATCH)
+		last_timestamp = processing_timestamp + PMEMSTREAM_TIMESTAMP_PROCESSING_BATCH;
+
 	const bool weak = false;
 	bool success = false;
 
 	atomic_compare_exchange_acquire_release(&data->stream->processing_timestamp, &processing_timestamp,
-						data->timestamp, weak, &success);
+						last_timestamp, weak, &success);
 	if (!success)
 		return false;
 
 	data->first_timestamp = processing_timestamp;
 	data->processing_timestamp = processing_timestamp;
-	data->last_timestamp = data->timestamp;
+	data->last_timestamp = last_timestamp;
 
 	return true;
 }
@@ -677,34 +687,23 @@ static bool pmemstream_process_async_ops(struct pmemstream_async_wait_data *data
 	return false;
 }
 
-static void pmemstream_increase_committed_timestamp(struct pmemstream_async_wait_data *data)
+static void pmemstream_increase_committed_timestamp(struct pmemstream *stream, size_t num)
 {
-	uint64_t num_committed_timestamps = data->processing_timestamp - data->first_timestamp;
-
 #ifndef NDEBUG
 	uint64_t committed_timestamp;
-	atomic_load_relaxed(&data->stream->committed_timestamp, &committed_timestamp);
-	assert(committed_timestamp == data->first_timestamp);
+	atomic_load_relaxed(&stream->committed_timestamp, &committed_timestamp);
 
-	for (uint64_t i = 0; i < num_committed_timestamps; i++) {
-		struct async_operation *async_op =
-			pmemstream_async_operation(data->stream, data->first_timestamp + i + 1);
+	for (uint64_t i = 0; i < num; i++) {
+		struct async_operation *async_op = pmemstream_async_operation(stream, committed_timestamp + i + 1);
 		atomic_store_release(&async_op->timestamp, PMEMSTREAM_INVALID_TIMESTAMP);
 	}
 #endif
 
-	atomic_add_release(&data->stream->committed_timestamp, num_committed_timestamps);
+	atomic_add_release(&stream->committed_timestamp, num);
 
-	for (uint64_t i = 0; i < num_committed_timestamps; i++) {
-		sem_post(&data->stream->async_ops_semaphore);
+	for (uint64_t i = 0; i < num; i++) {
+		sem_post(&stream->async_ops_semaphore);
 	}
-
-	data->first_timestamp += num_committed_timestamps;
-
-#ifndef NDEBUG
-	atomic_load_relaxed(&data->stream->committed_timestamp, &committed_timestamp);
-	assert(committed_timestamp >= data->processing_timestamp);
-#endif
 }
 
 static enum future_state pmemstream_async_wait_committed_impl(struct future_context *ctx,
@@ -725,9 +724,8 @@ static enum future_state pmemstream_async_wait_committed_impl(struct future_cont
 	if (data->timestamp <= committed_timestamp)
 		return FUTURE_STATE_COMPLETE;
 
-	/* first poll */
-	if (data->last_timestamp == PMEMSTREAM_INVALID_TIMESTAMP) {
-		if (!pmemstream_acquire_processing_timestamp(data)) {
+	if (data->last_timestamp == data->processing_timestamp && data->timestamp > data->last_timestamp) {
+		if (!pmemstream_acquire_timestamps_for_processing(data)) {
 			return FUTURE_STATE_RUNNING;
 		}
 	}
@@ -739,8 +737,33 @@ static enum future_state pmemstream_async_wait_committed_impl(struct future_cont
 		}
 	}
 
+	if (committed_timestamp != data->first_timestamp && data->timestamp == data->processing_timestamp) {
+		/* We finished processing out batch but we cannot increase committed_timestamp until previous batches
+		 * are finished. Hence, we need to either wait or iterate over finished batches and commit them. */
+		uintptr_t rkey = 0;
+		void *rvalue;
+		int ret = critnib_find(data->stream->ready_timestamps, 0, FIND_GE, &rkey, &rvalue);
+		while (ret == 1 && rkey + (uint64_t)rvalue <= data->last_timestamp) {
+			pmemstream_increase_committed_timestamp(data->stream, (uint64_t)rvalue);
+			critnib_remove(data->stream->ready_timestamps, rkey);
+			ret = critnib_find(data->stream->ready_timestamps, 0, FIND_GE, &rkey, &rvalue);
+		}
+	}
+
+	uint64_t num_committed_timestamps = data->processing_timestamp - data->first_timestamp;
 	if (committed_timestamp == data->first_timestamp) {
-		pmemstream_increase_committed_timestamp(data);
+		/* Can safely increase committed_timestamp since we don't need to wait on any batches. */
+		pmemstream_increase_committed_timestamp(data->stream, num_committed_timestamps);
+		data->first_timestamp += num_committed_timestamps;
+	} else if (data->last_timestamp == data->processing_timestamp) {
+		/* We finished processing our batch but we can't increase committed_timestamp since some other
+		 * thread owns batch containing committed_timestamp. To avoid waiting on that thread, mark
+		 * data->last_timestamp as ready to be committed by putting it into read_timestamps container.
+		 * After this is done, we can start processing next batch. */
+		int ret = critnib_insert(data->stream->ready_timestamps, data->first_timestamp,
+					 (void *)num_committed_timestamps, 0);
+		if (ret)
+			return FUTURE_STATE_RUNNING;
 	}
 
 	return FUTURE_STATE_RUNNING;
