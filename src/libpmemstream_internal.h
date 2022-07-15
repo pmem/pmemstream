@@ -31,7 +31,7 @@ extern "C" {
 #define PMEMSTREAM_FIRST_TIMESTAMP (PMEMSTREAM_INVALID_TIMESTAMP + 1ULL)
 static_assert(PMEMSTREAM_INVALID_TIMESTAMP + 1 == PMEMSTREAM_FIRST_TIMESTAMP, "wrong timestamp's macros values");
 
-/* XXX: make this a parameter */
+/* XXX: make this a parameter & remove "constraint" in the manpage */
 /* It has to be power of two */
 #define PMEMSTREAM_MAX_CONCURRENCY 1024ULL
 
