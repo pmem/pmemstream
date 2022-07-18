@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /* Copyright 2022, Intel Corporation */
 
+#include <random>
+
 #include "libpmemstream.h"
 #include "rapidcheck_helpers.hpp"
 #include "stream_helpers.hpp"
@@ -12,9 +14,27 @@
  */
 
 void multithreaded_asynchronous_append(pmemstream_test_base &stream, const std::vector<pmemstream_region> &regions,
-				       const std::vector<std::string> &data)
+				       const std::vector<std::vector<std::string>> &data, size_t concurrency_level)
 {
-	parallel_exec(regions.size(), [&](size_t thread_id) { stream.helpers.async_append(regions[thread_id], data); });
+	using future_type = decltype(stream.helpers.async_append(regions[0], data[0]));
+	std::vector<std::vector<future_type>> futures(concurrency_level);
+
+	for (size_t i = 0; i < concurrency_level; i++) {
+		for (auto &chunk : data) {
+			futures[i].emplace_back(stream.helpers.async_append(regions[i], chunk));
+		}
+	}
+	for (auto &future_sequence : futures) {
+		std::mt19937_64 g(*rc::gen::arbitrary<size_t>());
+		std::shuffle(future_sequence.begin(), future_sequence.end(), g);
+	}
+
+	parallel_exec(concurrency_level, [&](size_t thread_id) {
+		for (auto &fut : futures[thread_id]) {
+			while (fut.poll() != FUTURE_STATE_COMPLETE)
+				;
+		}
+	});
 }
 
 void multithreaded_synchronous_append(pmemstream_test_base &stream, const std::vector<pmemstream_region> &regions,
@@ -90,15 +110,16 @@ int main(int argc, char *argv[])
 				UT_ASSERT(stream.helpers.validate_timestamps_possible_gaps(regions));
 			});
 
-		// XXX: implement asynchronous cases
 		ret += rc::check("timestamp values should increase in each region after asynchronous append",
-				 [&](pmemstream_with_multi_empty_regions &&stream, const std::vector<std::string> &data,
-				     const std::vector<std::string> &extra_data) {
-					 RC_PRE(data.size() > 0);
+				 [&](pmemstream_with_multi_empty_regions &&stream) {
 					 auto regions = stream.helpers.get_regions();
+					 size_t concurrency_level =
+						 std::min(regions.size(), test_config.max_concurrency);
 
 					 /* Multithreaded append to many regions with global ordering. */
-					 multithreaded_asynchronous_append(stream, regions, data);
+					 const auto data = *rc::gen::container<std::vector<std::vector<std::string>>>(
+						 concurrency_level, rc::gen::arbitrary<std::vector<std::string>>());
+					 multithreaded_asynchronous_append(stream, regions, data, concurrency_level);
 
 					 /* Single region ordering validation. */
 					 for (auto &region : regions) {
@@ -108,12 +129,14 @@ int main(int argc, char *argv[])
 
 		ret += rc::check(
 			"timestamp values should globally increase in multi-region environment after asynchronous append",
-			[&](pmemstream_with_multi_empty_regions &&stream, const std::vector<std::string> &data) {
-				RC_PRE(data.size() > 0);
+			[&](pmemstream_with_multi_empty_regions &&stream) {
 				auto regions = stream.helpers.get_regions();
+				size_t concurrency_level = std::min(regions.size(), test_config.max_concurrency);
 
 				/* Multithreaded append to many regions with global ordering. */
-				multithreaded_asynchronous_append(stream, regions, data);
+				const auto data = *rc::gen::container<std::vector<std::vector<std::string>>>(
+					concurrency_level, rc::gen::arbitrary<std::vector<std::string>>());
+				multithreaded_asynchronous_append(stream, regions, data, concurrency_level);
 
 				/* Global ordering validation */
 				UT_ASSERT(stream.helpers.validate_timestamps_no_gaps(regions));
@@ -121,14 +144,15 @@ int main(int argc, char *argv[])
 
 		ret += rc::check(
 			"timestamp values should globally increase in multi-region environment after asynchronous append to respawned region",
-			[&](pmemstream_with_multi_empty_regions &&stream, const std::vector<std::string> &data,
-			    const std::vector<std::string> &extra_data) {
-				RC_PRE(data.size() > 0);
+			[&](pmemstream_with_multi_empty_regions &&stream, const std::vector<std::string> &extra_data) {
 				RC_PRE(extra_data.size() > 0);
 				auto regions = stream.helpers.get_regions();
+				size_t concurrency_level = std::min(regions.size(), test_config.max_concurrency);
 
 				/* Multithreaded append to many regions with global ordering. */
-				multithreaded_asynchronous_append(stream, regions, data);
+				const auto data = *rc::gen::container<std::vector<std::vector<std::string>>>(
+					concurrency_level, rc::gen::arbitrary<std::vector<std::string>>());
+				multithreaded_asynchronous_append(stream, regions, data, concurrency_level);
 
 				size_t pos = *rc::gen::inRange<size_t>(0, regions.size());
 				auto region_to_remove = regions[pos];
@@ -137,7 +161,7 @@ int main(int argc, char *argv[])
 				regions.erase(regions.begin() + static_cast<int>(pos));
 
 				/* Global ordering validation. */
-				if (regions.size() > 1)
+				if (regions.size() >= 1)
 					UT_ASSERT(stream.helpers.validate_timestamps_possible_gaps(regions));
 
 				{
@@ -150,8 +174,12 @@ int main(int argc, char *argv[])
 						;
 				}
 
+				size_t elements = 0;
+				for (auto &part : data) {
+					elements += part.size();
+				}
 				UT_ASSERTeq(stream.helpers.get_entries_from_regions(regions).size(),
-					    (regions.size() - 1) * data.size() + extra_data.size());
+					    elements * (regions.size() - 1) + extra_data.size());
 				UT_ASSERT(stream.helpers.validate_timestamps_possible_gaps(regions));
 			});
 	});
