@@ -12,9 +12,30 @@
  */
 
 void multithreaded_asynchronous_append(pmemstream_test_base &stream, const std::vector<pmemstream_region> &regions,
-				       const std::vector<std::string> &data)
+				       const std::vector<std::string> &data, size_t concurrency_level)
 {
-	parallel_exec(regions.size(), [&](size_t thread_id) { stream.helpers.async_append(regions[thread_id], data); });
+	// add batch write
+	// 0. Determine number of threads
+	// 1. Divide data into smaller, per thread
+	// 2.
+	std::vector<std::vector<size_t>> data_partitioned(concurrency_level);
+	for (size_t thread_id = 0; thread_id < concurrency_level; thread_id++) {
+		int part_start = 0;
+		int part_end = 0;
+		do {
+			part_end = *rc::gen::inRange<size_t>(static_cast<size_t>(part_start) + 1, data.size());
+			// data_partitioned[thread_id].push_back(
+			// 	std::vector<std::string>(data.begin() + part_start, data.begin() + part_end));
+			part_start += part_end - part_start;
+		} while (static_cast<size_t>(part_start) <= data.size());
+	}
+	// parallel_exec(concurrency_level, [&](size_t thread_id) {
+	//	for (auto partition : data_partitioned[thread_id]) {
+	//		auto future = stream.helpers.async_append(regions[thread_id], partition);
+	//		while (future.poll() != FUTURE_STATE_COMPLETE)
+	//			;
+	//	}
+	// });
 }
 
 void multithreaded_synchronous_append(pmemstream_test_base &stream, const std::vector<pmemstream_region> &regions,
@@ -96,10 +117,12 @@ int main(int argc, char *argv[])
 				     const std::vector<std::string> &extra_data) {
 					 RC_PRE(data.size() > 0);
 					 auto regions = stream.helpers.get_regions();
-
+					 size_t concurrency_level =
+						 std::min(regions.size(), test_config.max_concurrency);
+					 std::cout << "case start" << std::endl;
 					 /* Multithreaded append to many regions with global ordering. */
-					 multithreaded_asynchronous_append(stream, regions, data);
-
+					 multithreaded_asynchronous_append(stream, regions, data, concurrency_level);
+					 std::cout << "case end" << std::endl;
 					 /* Single region ordering validation. */
 					 for (auto &region : regions) {
 						 UT_ASSERT(stream.helpers.validate_timestamps_possible_gaps({region}));
@@ -111,9 +134,10 @@ int main(int argc, char *argv[])
 			[&](pmemstream_with_multi_empty_regions &&stream, const std::vector<std::string> &data) {
 				RC_PRE(data.size() > 0);
 				auto regions = stream.helpers.get_regions();
+				size_t concurrency_level = std::min(regions.size(), test_config.max_concurrency);
 
 				/* Multithreaded append to many regions with global ordering. */
-				multithreaded_asynchronous_append(stream, regions, data);
+				multithreaded_asynchronous_append(stream, regions, data, concurrency_level);
 
 				/* Global ordering validation */
 				UT_ASSERT(stream.helpers.validate_timestamps_no_gaps(regions));
@@ -126,9 +150,10 @@ int main(int argc, char *argv[])
 				RC_PRE(data.size() > 0);
 				RC_PRE(extra_data.size() > 0);
 				auto regions = stream.helpers.get_regions();
+				size_t concurrency_level = std::min(regions.size(), test_config.max_concurrency);
 
 				/* Multithreaded append to many regions with global ordering. */
-				multithreaded_asynchronous_append(stream, regions, data);
+				multithreaded_asynchronous_append(stream, regions, data, concurrency_level);
 
 				size_t pos = *rc::gen::inRange<size_t>(0, regions.size());
 				auto region_to_remove = regions[pos];
