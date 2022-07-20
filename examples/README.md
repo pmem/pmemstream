@@ -45,7 +45,7 @@ it will print its usage, otherwise it will run and print the execution results (
 	created file, with pmemstream data (e.g. created using `01_basic_iterate` example)
 	and prints these entries in a readable format (hex data or strings).
 
-* 03_reserve_publish/main.cpp --  demonstrates how to use `pmemstream_reserve` and `pmemstream_publish`
+* 03_reserve_publish/main.cpp -- demonstrates how to use `pmemstream_reserve` and `pmemstream_publish`
 	(with custom write), instead of "the usual" `pmemstream_append` approach.
 
 * 04_basic_async/main.cpp -- shows example usage of sync and async appends.
