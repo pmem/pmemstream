@@ -51,16 +51,16 @@ void span_base_atomic_store(struct span_base *dst, struct span_base base)
 	atomic_store_release(&dst->size_and_type, base.size_and_type);
 }
 
-void span_entry_atomic_store(struct span_entry *dst, struct span_entry entry)
+void span_timestamped_base_atomic_store(struct span_timestamped_base *dst, struct span_timestamped_base entry)
 {
 	/* Store timestamp first because it's only valid for ENTRY span type. */
 	atomic_store_relaxed(&dst->timestamp, entry.timestamp);
 	atomic_store_release(&dst->span_base.size_and_type, entry.span_base.size_and_type);
 }
 
-struct span_entry span_entry_atomic_load(const struct span_entry *entry_ptr)
+struct span_timestamped_base span_timestamped_base_atomic_load(const struct span_timestamped_base *entry_ptr)
 {
-	struct span_entry entry;
+	struct span_timestamped_base entry;
 	atomic_load_acquire(&entry_ptr->span_base.size_and_type, &entry.span_base.size_and_type);
 	atomic_load_relaxed(&entry_ptr->timestamp, &entry.timestamp);
 	return entry;

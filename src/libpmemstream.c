@@ -373,7 +373,7 @@ size_t pmemstream_entry_size(struct pmemstream *stream, struct pmemstream_entry 
 		return 0;
 	}
 	struct span_entry *span_entry = (struct span_entry *)span_offset_to_span_ptr(&stream->data, entry.offset);
-	return span_get_size(&span_entry->span_base);
+	return span_get_size(&span_entry->span_timestamped_base.span_base);
 }
 
 uint64_t pmemstream_entry_timestamp(struct pmemstream *stream, struct pmemstream_entry entry)
@@ -383,7 +383,7 @@ uint64_t pmemstream_entry_timestamp(struct pmemstream *stream, struct pmemstream
 		return PMEMSTREAM_INVALID_TIMESTAMP;
 	}
 	struct span_entry *span_entry = (struct span_entry *)span_offset_to_span_ptr(&stream->data, entry.offset);
-	return span_entry->timestamp;
+	return span_entry->span_timestamped_base.timestamp;
 }
 
 int pmemstream_region_runtime_initialize(struct pmemstream *stream, struct pmemstream_region region,
@@ -406,8 +406,8 @@ int pmemstream_region_runtime_initialize(struct pmemstream *stream, struct pmems
 
 static size_t pmemstream_entry_total_size_aligned(size_t size)
 {
-	struct span_entry span_entry = {.span_base = span_base_create(size, SPAN_ENTRY)};
-	return span_get_total_size(&span_entry.span_base);
+	struct span_entry span_entry = {.span_timestamped_base.span_base = span_base_create(size, SPAN_ENTRY)};
+	return span_get_total_size(&span_entry.span_timestamped_base.span_base);
 }
 
 struct async_operation *pmemstream_async_operation(struct pmemstream *stream, uint64_t timestamp)
@@ -575,8 +575,10 @@ static int pmemstream_async_publish_generic(struct pmemstream *stream, struct pm
 	span_base_atomic_store((struct span_base *)(destination + entry_total_size_span_aligned), span_empty.span_base);
 
 	/* Store this entry metadata. */
-	struct span_entry span_entry = {.span_base = span_base_create(size, SPAN_ENTRY), .timestamp = timestamp};
-	span_entry_atomic_store((struct span_entry *)destination, span_entry);
+	struct span_entry span_entry = {.span_timestamped_base.span_base = span_base_create(size, SPAN_ENTRY),
+					.span_timestamped_base.timestamp = timestamp};
+	span_timestamped_base_atomic_store((struct span_timestamped_base *)destination,
+					   span_entry.span_timestamped_base);
 
 	pmemstream_publish_timestamp(stream, timestamp);
 

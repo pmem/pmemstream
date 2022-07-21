@@ -311,17 +311,18 @@ bool check_entry_consistency(const struct pmemstream_entry_iterator *iterator)
 
 	const struct span_entry *span_entry_ptr =
 		(const struct span_entry *)span_offset_to_span_ptr(&iterator->stream->data, iterator->offset);
-	struct span_entry span_entry = span_entry_atomic_load(span_entry_ptr);
+	struct span_timestamped_base span_timestamped =
+		span_timestamped_base_atomic_load(&span_entry_ptr->span_timestamped_base);
 
-	if (span_get_type(&span_entry.span_base) != SPAN_ENTRY) {
+	if (span_get_type(&span_timestamped.span_base) != SPAN_ENTRY) {
 		return false;
 	}
 
-	if (span_entry.timestamp == PMEMSTREAM_INVALID_TIMESTAMP) {
+	if (span_timestamped.timestamp == PMEMSTREAM_INVALID_TIMESTAMP) {
 		return false;
 	}
 
-	if (span_entry.timestamp <= max_valid_timestamp) {
+	if (span_timestamped.timestamp <= max_valid_timestamp) {
 		return true;
 	}
 
