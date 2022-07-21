@@ -46,7 +46,7 @@ std::string span_to_str(const struct span_base *base)
 	std::string span_str = "type: " + span_type_names[type] + ", data size: " + std::to_string(span_get_size(base));
 	if (type == SPAN_ENTRY) {
 		auto entry = (const struct span_entry *)base;
-		span_str += ", timestamp: " + std::to_string(entry->timestamp);
+		span_str += ", timestamp: " + std::to_string(entry->span_timestamped_base.timestamp);
 	}
 	return span_str;
 }
