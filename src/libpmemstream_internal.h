@@ -40,7 +40,6 @@ struct pmemstream_header {
 	uint64_t stream_size;
 	uint64_t block_size;
 
-	/* XXX: investigate if it makes sense to store 'shadow' value in DRAM (for reads) */
 	/* XXX: we can 'distribute' persisted_timestamp and store multiple variables (one per thread) to speed up writes
 	 */
 	/* All entries with timestamps less than or equal to 'persisted_timestamp' can be treated as persisted. */
@@ -81,6 +80,9 @@ struct pmemstream {
 
 	/* This timestamp is used to synchronize commits. */
 	alignas(CACHELINE_SIZE) uint64_t processing_timestamp;
+
+	/* Shadow value of header->persisted_timestamp placed in DRAM */
+	alignas(CACHELINE_SIZE) uint64_t persisted_timestamp;
 
 	/* Stores in-progress operations, indexed by timestamp mod array size. */
 	struct async_operation *async_ops;
