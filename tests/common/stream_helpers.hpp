@@ -365,12 +365,12 @@ struct pmemstream_helpers_type {
 
 	void append(struct pmemstream_region region, const std::vector<std::string> &data)
 	{
+		pmemstream_region_runtime *rrt = nullptr;
+		auto it = region_runtime.find(region.offset);
+		if (it != region_runtime.end()) {
+			rrt = it->second;
+		}
 		for (const auto &e : data) {
-			pmemstream_region_runtime *rrt = nullptr;
-			auto it = region_runtime.find(region.offset);
-			if (it != region_runtime.end()) {
-				rrt = it->second;
-			}
 
 			auto [ret, entry] = stream.append(region, e, rrt);
 			UT_ASSERTeq(ret, 0);
@@ -383,12 +383,12 @@ struct pmemstream_helpers_type {
 		struct vdm *thread_mover = data_mover_threads_get_vdm(thread_mover_handle.get());
 
 		struct pmemstream_entry entry;
+		pmemstream_region_runtime *rrt = nullptr;
+		auto it = region_runtime.find(region.offset);
+		if (it != region_runtime.end()) {
+			rrt = it->second;
+		}
 		for (size_t i = 0; i < data.size(); ++i) {
-			pmemstream_region_runtime *rrt = nullptr;
-			auto it = region_runtime.find(region.offset);
-			if (it != region_runtime.end()) {
-				rrt = it->second;
-			}
 			auto [ret, new_entry] = stream.async_append(thread_mover, region, data[i], rrt);
 			UT_ASSERTeq(ret, 0);
 			entry = new_entry;
