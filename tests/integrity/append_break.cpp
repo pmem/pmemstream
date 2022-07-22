@@ -112,14 +112,14 @@ static void test(std::string mode)
 
 		/* in the 1. region there should be 4 entry spans (incl. broken one) + potentially 1 empty span */
 		UT_ASSERT(regions[0].sub_spans.size() >= 4);
-		auto broken_entry_in_r1 = (struct span_entry *)span_offset_to_span_ptr(&s.sut.c_ptr()->data,
-										       regions[0].sub_spans[3].offset);
+		auto broken_entry_in_r1 = (struct span_timestamped_base *)span_offset_to_span_ptr(
+			&s.sut.c_ptr()->data, regions[0].sub_spans[3].offset);
 		UT_ASSERT(span_get_type(&broken_entry_in_r1->span_base) == SPAN_ENTRY);
 
 		/* in the 2. region there have to be 1 entry + 1 empty span (we clear out 1 span after an append) */
 		UT_ASSERTeq(regions[1].sub_spans.size(), 2);
-		auto new_entry_in_r2 = (struct span_entry *)span_offset_to_span_ptr(&s.sut.c_ptr()->data,
-										    regions[1].sub_spans[0].offset);
+		auto new_entry_in_r2 = (struct span_timestamped_base *)span_offset_to_span_ptr(
+			&s.sut.c_ptr()->data, regions[1].sub_spans[0].offset);
 		UT_ASSERT(span_get_type(&new_entry_in_r2->span_base) == SPAN_ENTRY);
 		UT_ASSERTeq(broken_entry_in_r1->timestamp, new_entry_in_r2->timestamp);
 
@@ -148,8 +148,8 @@ static void test(std::string mode)
 
 		/* 1. region: 4 entry spans + 1 empty span (+ possible trash) */
 		UT_ASSERT(regions[0].sub_spans.size() >= 5);
-		auto new_entry_in_r1 = (struct span_entry *)span_offset_to_span_ptr(&s.sut.c_ptr()->data,
-										    regions[0].sub_spans[3].offset);
+		auto new_entry_in_r1 = (struct span_timestamped_base *)span_offset_to_span_ptr(
+			&s.sut.c_ptr()->data, regions[0].sub_spans[3].offset);
 		UT_ASSERT(span_get_type(&new_entry_in_r1->span_base) == SPAN_ENTRY);
 		auto next_empty_in_r1 = (struct span_base *)span_offset_to_span_ptr(&s.sut.c_ptr()->data,
 										    regions[0].sub_spans[4].offset);
@@ -157,8 +157,8 @@ static void test(std::string mode)
 
 		/* 2. region: 1 entry span + 1 empty span */
 		UT_ASSERTeq(regions[1].sub_spans.size(), 2);
-		new_entry_in_r2 = (struct span_entry *)span_offset_to_span_ptr(&s.sut.c_ptr()->data,
-									       regions[1].sub_spans[0].offset);
+		new_entry_in_r2 = (struct span_timestamped_base *)span_offset_to_span_ptr(
+			&s.sut.c_ptr()->data, regions[1].sub_spans[0].offset);
 		UT_ASSERT(span_get_type(&new_entry_in_r2->span_base) == SPAN_ENTRY);
 		auto next_empty_in_r2 = (struct span_base *)span_offset_to_span_ptr(&s.sut.c_ptr()->data,
 										    regions[1].sub_spans[1].offset);
