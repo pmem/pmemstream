@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /* Copyright 2021-2022, Intel Corporation */
 
+#include <algorithm>
 #include <cstdint>
+#include <random>
 #include <vector>
 
 #include "common/util.h"
@@ -13,7 +15,7 @@
 #include "libpmemstream_internal.h"
 
 static constexpr size_t max_write_concurrency = 8;
-static constexpr size_t max_size = 1024; /* Max number of elements in stream and max size of single entry. */
+static constexpr size_t max_size = 100; /* Max number of elements in stream and max size of single entry. */
 static constexpr size_t region_size =
 	ALIGN_UP(max_write_concurrency * max_size * max_size * 10, 4096ULL); /* 10x-margin */
 static constexpr size_t stream_size = (region_size + REGION_METADATA_SIZE) + STREAM_METADATA_SIZE;
@@ -37,29 +39,45 @@ int main(int argc, char *argv[])
 		ret += rc::check(
 			"verify if calling async_wait_persisted from multiple threads does not lead to any deadlocks",
 			[&](pmemstream_empty &&stream, const std::vector<std::string> &data,
-			    const std::vector<std::string> &extra_data, bool reopen,
+			    std::vector<std::vector<std::string>> &&extra_data, bool reopen,
 			    concurrency_type<1, max_write_concurrency> concurrency) {
+				RC_PRE(extra_data.size() >= concurrency);
+
+				auto extra_data_size = std::accumulate(
+					extra_data.begin(), extra_data.end(), 0U,
+					[](const auto &lhs, const auto &rhs) { return lhs + rhs.size(); });
+				RC_TAG(extra_data_size);
+
 				auto region = stream.helpers.initialize_single_region(region_size, data);
 
 				if (reopen)
 					stream.reopen();
 
-				using future_type = decltype(stream.helpers.async_append(region, extra_data));
-				std::vector<future_type> futures;
-				for (size_t i = 0; i < concurrency; i++) {
-					futures.emplace_back(stream.helpers.async_append(region, extra_data));
+				using future_type = decltype(stream.helpers.async_append(region, extra_data[0]));
+				std::vector<std::vector<future_type>> futures(concurrency);
+				for (size_t i = 0; i < extra_data.size(); i++) {
+					futures[i % concurrency].emplace_back(
+						stream.helpers.async_append(region, extra_data[i]));
+				}
+
+				for (auto &future_sequence : futures) {
+					std::mt19937_64 g(*rc::gen::arbitrary<size_t>());
+					std::shuffle(future_sequence.begin(), future_sequence.end(), g);
 				}
 
 				parallel_exec(concurrency, [&](size_t tid) {
-					while (futures[tid].poll() != FUTURE_STATE_COMPLETE)
-						;
+					for (auto &future : futures[tid]) {
+						while (future.poll() != FUTURE_STATE_COMPLETE)
+							;
+					}
 				});
 
 				std::vector<std::string> all_extra_data;
-				all_extra_data.reserve(concurrency * extra_data.size());
-				for (size_t i = 0; i < concurrency; i++)
-					all_extra_data.insert(all_extra_data.end(), extra_data.begin(),
-							      extra_data.end());
+				all_extra_data.reserve(extra_data_size);
+				for (auto &entry_sequency : extra_data) {
+					all_extra_data.insert(all_extra_data.end(), entry_sequency.begin(),
+							      entry_sequency.end());
+				}
 				stream.helpers.verify(region, data, all_extra_data);
 			});
 
