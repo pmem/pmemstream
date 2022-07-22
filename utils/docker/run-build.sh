@@ -19,9 +19,12 @@ CHECK_CPP_STYLE=${CHECK_CPP_STYLE:-ON}
 TESTS_LONG=${TESTS_LONG:-OFF}
 TESTS_USE_FORCED_PMEM=${TESTS_USE_FORCED_PMEM:-ON}
 TESTS_ASAN=${TESTS_ASAN:-OFF}
+TESTS_TSAN=${TESTS_TSAN:-OFF}
 TESTS_UBSAN=${TESTS_UBSAN:-OFF}
 TEST_TIMEOUT=${TEST_TIMEOUT:-600}
 TESTS_PMREORDER=${TESTS_PMREORDER:-ON}
+TESTS_LIBUNWIND=${TESTS_LIBUNWIND:-ON}
+
 
 ###############################################################################
 # BUILD tests_clang_debug_cpp17_no_valgrind llvm
@@ -46,8 +49,10 @@ function tests_clang_debug_cpp17_no_valgrind() {
 		-DTEST_DIR=${TEST_DIR} \
 		-DTESTS_USE_FORCED_PMEM=${TESTS_USE_FORCED_PMEM} \
 		-DUSE_ASAN=${TESTS_ASAN} \
+		-DUSE_TSAN=${TESTS_TSAN} \
 		-DUSE_UBSAN=${TESTS_UBSAN} \
-		-DBUILD_BENCHMARKS=1
+		-DBUILD_BENCHMARKS=1 \
+		-DUSE_LIBUNWIND=${TESTS_LIBUNWIND}
 
 	make -j$(nproc)
 	ctest --output-on-failure --timeout ${TEST_TIMEOUT}
@@ -80,8 +85,9 @@ function build_gcc_debug_cpp17() {
 		-DTESTS_PMREORDER=${TESTS_PMREORDER} \
 		-DTESTS_USE_FORCED_PMEM=${TESTS_USE_FORCED_PMEM} \
 		-DUSE_ASAN=${TESTS_ASAN} \
+		-DUSE_TSAN=${TESTS_TSAN} \
 		-DUSE_UBSAN=${TESTS_UBSAN} \
-		-DUSE_LIBUNWIND=1
+		-DUSE_LIBUNWIND=${TESTS_LIBUNWIND}
 
 	make -j$(nproc)
 }
@@ -133,8 +139,9 @@ function tests_gcc_release_cpp17_no_valgrind() {
 		-DTESTS_PMREORDER=${TESTS_PMREORDER} \
 		-DTESTS_USE_FORCED_PMEM=${TESTS_USE_FORCED_PMEM} \
 		-DUSE_ASAN=${TESTS_ASAN} \
+		-DUSE_TSAN=${TESTS_TSAN} \
 		-DUSE_UBSAN=${TESTS_UBSAN} \
-		-DUSE_LIBUNWIND=1
+		-DUSE_LIBUNWIND=${TESTS_LIBUNWIND}
 
 	make -j$(nproc)
 
@@ -168,7 +175,9 @@ function tests_clang_release_cpp20_no_valgrind() {
 		-DTEST_DIR=${TEST_DIR} \
 		-DTESTS_USE_FORCED_PMEM=${TESTS_USE_FORCED_PMEM} \
 		-DUSE_ASAN=${TESTS_ASAN} \
-		-DUSE_UBSAN=${TESTS_UBSAN}
+		-DUSE_TSAN=${TESTS_TSAN} \
+		-DUSE_UBSAN=${TESTS_UBSAN} \
+		-DUSE_LIBUNWIND=${TESTS_LIBUNWIND}
 
 	make -j$(nproc)
 	ctest --output-on-failure --timeout ${TEST_TIMEOUT}
