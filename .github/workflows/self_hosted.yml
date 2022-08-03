@@ -20,6 +20,10 @@ jobs:
         - name: Clone the git repo
           uses: actions/checkout@v2
 
+        - name: Print env variables
+          run: |
+            printenv
+
         - name: Build pmemstream and run basic tests
           run: |
             ./utils/docker/run-build.sh tests_gcc_debug_cpp17_no_valgrind
