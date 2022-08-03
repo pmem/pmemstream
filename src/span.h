@@ -49,9 +49,13 @@ struct span_region {
 static_assert(sizeof(struct span_region) == CACHELINE_SIZE,
 	      "size of struct span_region must be equal to CACHELINE_SIZE");
 
-struct span_entry {
+struct span_timestamped_base {
 	struct span_base span_base;
 	uint64_t timestamp;
+};
+
+struct span_entry {
+	struct span_timestamped_base span_timestamped_base;
 	uint64_t data[];
 };
 
@@ -73,8 +77,8 @@ enum span_type span_get_type(const struct span_base *span);
 
 void span_base_atomic_store(struct span_base *dst, struct span_base base);
 
-void span_entry_atomic_store(struct span_entry *dst, struct span_entry entry);
-struct span_entry span_entry_atomic_load(const struct span_entry *entry);
+void span_timestamped_base_atomic_store(struct span_timestamped_base *dst, struct span_timestamped_base entry);
+struct span_timestamped_base span_timestamped_base_atomic_load(const struct span_timestamped_base *entry);
 
 #ifdef __cplusplus
 } /* end extern "C" */
