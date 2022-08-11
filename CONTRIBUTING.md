@@ -168,3 +168,11 @@ It's simply possible to print this content by running C++ code like this (from a
 auto spans = span_runtimes_from_stream(stream);
 std::cout << spans << std::endl;
 ```
+
+## Debugging segfaults and other signals
+
+Pmemstream test framework has support for handling signals and turning them into exceptions so that
+applications do not crash. It is useful for Rapidcheck tests (it makes shrinking possible) and for ctest.
+
+To turn this feature on, set env variable PMEMSTREAM_HANDLE_SIGNAL_FOR_DEBUG=1 and add test_register_sighandlers()
+where the exceptions should be thrown (e.g. at the beginning of lambda passed to rc::check())

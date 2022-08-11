@@ -9,8 +9,7 @@ extern "C" {
 #endif
 
 void test_dump_backtrace(void);
-void test_sighandler(int sig);
-void test_register_sighandlers(void);
+void test_backtrace_sighandler(int sig);
 
 #ifdef __cplusplus
 }

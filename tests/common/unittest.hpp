@@ -18,6 +18,7 @@
 #include <type_traits>
 
 #include "env_setter.hpp"
+#include "test_sighandlers.hpp"
 #include "valgrind_internal.h"
 
 /* Execute only this many runs of rc_check tests under valgrind. It must be bigger than one because

@@ -5,7 +5,7 @@
 #define LIBPMEMSTREAM_UNITTEST_H
 
 #include "libpmemstream.h"
-#include "test_backtrace.h"
+#include "test_sighandlers.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -50,7 +50,7 @@ extern "C" {
 #endif
 
 /* XXX: refactor to use __start (https://stackoverflow.com/questions/15919356/c-program-start) */
-#define START() test_register_sighandlers()
+#define START() test_register_sighandlers(test_backtrace_sighandler)
 
 /* XXX: provide function to get the actual metadata overhead */
 #define STREAM_METADATA_SIZE (16UL * 1024)
