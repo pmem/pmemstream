@@ -115,8 +115,10 @@ int main(int argc, char *argv[])
 	/* Now, we make sure the only entry is stored as expected. */
 	verify_first_entry(stream, region, my_entry);
 
-	/* Finally we have to clean up */
+	/* At the end of this example we remove the only region, since it's not needed anymore. */
 	pmemstream_region_free(stream, region);
+
+	/* And do required cleanup. */
 	pmemstream_delete(&stream);
 	pmem2_map_delete(&map);
 
