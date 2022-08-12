@@ -16,13 +16,13 @@ fi
 PREFIX="/usr"
 PACKAGE_TYPE=${PACKAGE_MANAGER,,} # make it lowercase
 
-# 0.2.0-rc2 release, 11.08.2022
-MINIASYNC_VERSION="1c6ba8d18ea8194dd621a05c3eef24d005546aa0"
+# TBD release, 11.08.2022
+MINIASYNC_VERSION="7fa75e02f8d99393d8136cda2185e1af13622adb"
 echo "MINIASYNC_VERSION: ${MINIASYNC_VERSION}"
 
 build_dir=$(mktemp -d -t miniasync-XXX)
 
-git clone https://github.com/pmem/miniasync ${build_dir}
+git clone https://github.com/kfilipek/miniasync ${build_dir}
 
 pushd ${build_dir}
 git checkout ${MINIASYNC_VERSION}
