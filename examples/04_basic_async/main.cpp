@@ -25,7 +25,7 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
-	/* prepare stream and allocate or get a region */
+	/* Prepare stream and allocate or get a region. */
 	struct pmem2_map *map = example_map_open(argv[1], EXAMPLE_STREAM_SIZE);
 	if (map == NULL) {
 		pmem2_perror("pmem2_map");
@@ -39,7 +39,7 @@ int main(int argc, char *argv[])
 		return ret;
 	}
 
-	/* get or allocate regions */
+	/* Get (existing) or allocate new regions - we need at least 'EXAMPLE_ASYNC_COUNT' of them. */
 	struct pmemstream_region regions[EXAMPLE_ASYNC_COUNT];
 	struct pmemstream_region_iterator *riter;
 	ret = pmemstream_region_iterator_new(&riter, stream);
@@ -58,7 +58,7 @@ int main(int argc, char *argv[])
 		regions[i] = pmemstream_region_iterator_get(riter);
 		pmemstream_region_iterator_next(riter);
 	}
-	/* if regions are missing - allocate them */
+	/* If regions are missing - allocate them. */
 	for (; i < EXAMPLE_ASYNC_COUNT; ++i) {
 		ret = pmemstream_region_allocate(stream, EXAMPLE_REGION_SIZE, &regions[i]);
 		if (ret != 0) {
@@ -68,7 +68,7 @@ int main(int argc, char *argv[])
 	}
 	pmemstream_region_iterator_delete(&riter);
 
-	/* stream and regions are prepared, let's get to action */
+	/* Stream and regions are prepared, let's get to action. */
 
 	struct data_entry example_data[EXAMPLE_ASYNC_COUNT];
 	example_data[0].data = 1;
@@ -77,7 +77,7 @@ int main(int argc, char *argv[])
 	struct pmemstream_entry entry;
 
 	/*
-	 * Example synchronous (regular) append
+	 * Example synchronous (regular) append.
 	 */
 	ret = pmemstream_append(stream, regions[0], NULL, &example_data[0], sizeof(example_data[0]), &entry);
 	if (ret) {
@@ -88,7 +88,7 @@ int main(int argc, char *argv[])
 	printf("regular, synchronous append read data: %lu\n", read_data->data);
 
 	/*
-	 * Example asynchronous append, executed with libminiasync functions
+	 * Example asynchronous append, executed with libminiasync functions.
 	 */
 	/* Prepare environment and start async appends. */
 	struct data_mover_threads *dmt = data_mover_threads_default();
@@ -119,7 +119,7 @@ int main(int argc, char *argv[])
 		       persisted_timestamp);
 
 		/*
-		 * an additional user/application work could be done here
+		 * An additional user/application work could be done here.
 		 */
 		printf("User work done here...\n");
 	} while (future_poll(FUTURE_AS_RUNNABLE(&future), NULL) != FUTURE_STATE_COMPLETE);
@@ -129,7 +129,7 @@ int main(int argc, char *argv[])
 	printf("After future completed. Timestamp committed: %lu, timestamp persisted: %lu\n", committed_timestamp,
 	       persisted_timestamp);
 
-	/* cleanup */
+	/* Cleanup. */
 	data_mover_threads_delete(dmt);
 	pmemstream_delete(&stream);
 	pmem2_map_delete(&map);

@@ -53,3 +53,7 @@ it will print its usage, otherwise it will run and print the execution results (
 
 * 05_timestamp_based_order/main.cpp -- shows how to achieve global ordering of elements concurrently
 	appended to multiple regions in a stream. Application operates in the region per thread manner.
+
+Beside examples, there are two `examples_helpers` headers (`.h` and `.hpp`) with a helper functions for
+shared functionalities. They are hidden in these headers not to obfuscate the examples and to write them
+in one place for all examples.

@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
 		values_as_text = true;
 	}
 
-	/* helper function to open a file if exists, or create it with given size otherwise */
+	/* Use the helper function to open a file if exists, or create it with given size otherwise. */
 	struct pmem2_map *map = example_map_open(argv[1], 0);
 	if (map == NULL) {
 		pmem2_perror("pmem2_map");
@@ -84,7 +84,7 @@ int main(int argc, char *argv[])
 		printf("%s region%ld: %ld bytes\n", inner_pointers[0].data(), region_id++,
 		       pmemstream_region_size(stream, region));
 
-		/* Iterate over all elements in a region and save last entry value. */
+		/* Iterate over all entries in a region and print them. */
 		for (pmemstream_entry_iterator_seek_first(eiter); pmemstream_entry_iterator_is_valid(eiter) == 0;
 		     pmemstream_entry_iterator_next(eiter)) {
 			struct pmemstream_entry entry = pmemstream_entry_iterator_get(eiter);
@@ -108,6 +108,7 @@ int main(int argc, char *argv[])
 		pmemstream_region_iterator_next(riter);
 	}
 
+	/* Free up resources, before closing. */
 	pmemstream_region_iterator_delete(&riter);
 	pmemstream_delete(&stream);
 	pmem2_map_delete(&map);
