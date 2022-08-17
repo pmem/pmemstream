@@ -13,6 +13,7 @@
 #include <stdatomic.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 static int pmemstream_is_initialized(struct pmemstream *stream)
 {
@@ -143,6 +144,17 @@ static int pmemstream_initialize_async_ops(struct pmemstream *stream)
 	return 0;
 }
 
+static void pmemstream_force_prefault(struct pmem2_map *map)
+{
+	volatile char *cur_addr = pmem2_map_get_address(map);
+	char *addr_end = (char *)cur_addr + pmem2_map_get_size(map);
+	unsigned long long pagesize = (unsigned long)sysconf(_SC_PAGESIZE);
+	for (; cur_addr < addr_end; cur_addr += pagesize) {
+		*cur_addr = *cur_addr;
+		printf("%X\\n", *cur_addr);
+	}
+}
+
 int pmemstream_from_map(struct pmemstream **stream, size_t block_size, struct pmem2_map *map)
 {
 	if (!stream) {
@@ -173,6 +185,10 @@ int pmemstream_from_map(struct pmemstream **stream, size_t block_size, struct pm
 
 	if (pmemstream_is_initialized(s) != 0) {
 		pmemstream_init(s);
+	}
+
+	if (getenv("PREFAULT_AT_OPEN")) {
+		pmemstream_force_prefault(map);
 	}
 
 	s->committed_timestamp = s->header->persisted_timestamp;

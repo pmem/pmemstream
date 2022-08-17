@@ -73,6 +73,9 @@ message(STATUS "TEST_DIR set to: \"${TEST_DIR}\"")
 # of consumed Imported Targets as SYSTEM by default.
 set(CMAKE_NO_SYSTEM_FROM_IMPORTED 1)
 
+# Add option to force prefault at open/create time
+set(PREFAULT_AT_OPEN 1)
+
 # ----------------------------------------------------------------- #
 ## CMake build options
 # ----------------------------------------------------------------- #
