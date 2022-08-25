@@ -88,6 +88,9 @@ function run_benchmark() {
 	bench_path=${BUILD_DIR}/${case}/build/benchmarks/benchmark-append
 	bench_cmd="${bench_path} --path ${TEST_PATH}_${case}"
 
+	# always work on a clean file
+	rm -f "${TEST_PATH}_${case}"
+
 	echo ""
 	echo "### Running benchmark 'append' with default args for case: ${case}"
 	if [[ ${USE_FORCED_PMEM} ]]; then
@@ -149,7 +152,7 @@ fi
 echo "### Clean up working and testing dirs"
 rm -rf "${BUILD_DIR}"
 mkdir -p "${BUILD_DIR}"
-mkdir -p $(basename ${TEST_PATH})
+mkdir -p $(dirname ${TEST_PATH})
 
 pushd ${BUILD_DIR}
 download_repo "baseline" "ref" ${BASELINE_REF} ${BASELINE_REPO_ADDR}
@@ -157,9 +160,6 @@ download_repo "compare" ${ref_type} ${ref_value} ${COMPARE_REPO_ADDR}
 
 echo "### Build and run benchmarks"
 for case in "baseline" "compare"; do
-	# always work on clean file
-	rm -rf "${TEST_PATH}"
-
 	build_repo ${case} | tee -a ${BUILD_DIR}/build_${case}.log
 	run_benchmark ${case} | tee -a ${BUILD_DIR}/bench_${case}.log
 done
