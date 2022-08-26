@@ -4,6 +4,7 @@
 #include <stdlib.h>
 
 #include "valgrind_internal.h"
+#include <valgrind.h>
 
 unsigned On_valgrind = 0;
 unsigned On_pmemcheck = 0;
@@ -22,5 +23,5 @@ void set_valgrind_internals(void)
 	else if (getenv("PMEMSTREAM_TRACER_DRD"))
 		On_drd = 1;
 
-	On_valgrind = On_pmemcheck || On_memcheck || On_helgrind || On_drd;
+	On_valgrind = On_pmemcheck || On_memcheck || On_helgrind || On_drd || RUNNING_ON_VALGRIND;
 }
