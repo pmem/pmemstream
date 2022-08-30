@@ -88,7 +88,7 @@ static const test_config_type &get_test_config()
 	return test_config;
 }
 
-static inline int run_test(test_config_type config, std::function<void()> test)
+static inline int run_test(test_config_type &config, std::function<void()> test)
 {
 	test_register_sighandlers();
 	set_valgrind_internals();
@@ -121,7 +121,8 @@ static inline int run_test(test_config_type config, std::function<void()> test)
 
 static inline int run_test(std::function<void()> test)
 {
-	return run_test({}, test);
+	test_config_type default_config;
+	return run_test(default_config, test);
 }
 
 /* Helper structure for verifying return values from function.
