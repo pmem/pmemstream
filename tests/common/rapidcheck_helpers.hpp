@@ -11,6 +11,7 @@
 
 #include "span.h"
 #include "stream_helpers.hpp"
+#include "unittest.hpp"
 
 /*
  * Definition of models and commands for stateful testing.
@@ -149,7 +150,7 @@ struct Arbitrary<pmemstream_with_multi_empty_regions> {
 	{
 		return gen::noShrink(gen::construct<pmemstream_with_multi_empty_regions>(
 			gen::arbitrary<pmemstream_test_base>(),
-			gen::inRange<size_t>(1, TEST_DEFAULT_REGION_MULTI_MAX_COUNT)));
+			gen::inRange<size_t>(1, get_test_config().regions_count)));
 	}
 };
 
