@@ -17,6 +17,7 @@ TEST_PATH=${PMEMSTREAM_TEST_DIR:-"/tmp/pmemstream/benchfile"}
 USE_FORCED_PMEM=${TESTS_USE_FORCED_PMEM:-ON}
 
 DEFAULT_REPO_ADDR="https://github.com/pmem/pmemstream"
+QUIET=""
 COMPARE_PR=""
 COMPARE_REF="HEAD"
 COMPARE_REPO_ADDR=${DEFAULT_REPO_ADDR}
@@ -26,8 +27,9 @@ BASELINE_REPO_ADDR=${DEFAULT_REPO_ADDR}
 function print_usage() {
 	echo
 	echo "Script for comparing pmemstream benchmarks."
-	echo "Usage: $(basename ${1}) [-h|--help]  [-p|--pr] [-r|--ref] [--compare_repo] [--baseline_ref] [--baseline_repo]"
+	echo "Usage: $(basename ${1}) [-h|--help] [-q|--quiet] [-p|--pr] [-r|--ref] [--compare_repo] [--baseline_ref] [--baseline_repo]"
 	echo "-h, --help       Print help and exit"
+	echo "-q, --quiet      Hide part of the verbose output (e.g. from CMake), to make it more readable"
 	echo "--pr             Pull Request for comparing (if set, the 'ref' is not taken into account)"
 	echo "--ref            Commit or branch for comparing, if PR not specified [default: ${COMPARE_REF}]"
 	echo "--compare_repo   GitHub repo address for comparing. It makes sense when using 'ref' option (and repo is different than upstream) [default: ${COMPARE_REPO_ADDR}]"
@@ -44,9 +46,15 @@ function download_repo() {
 	local repo_full_path=${BUILD_DIR}/${repo_subdir}
 	mkdir -p ${repo_full_path}
 
+	quiet_command=""
+	if [ -n "${QUIET}" ]; then
+		# silencer for git clone
+		quiet_command=" --quiet"
+	fi
+
 	echo ""
 	echo "### Downloading repo (${repo_addr}) with ref_type: ${ref_type}, ref_value: ${ref_value}"
-	git clone ${repo_addr} ${repo_full_path}
+	git clone ${quiet_command} ${repo_addr} ${repo_full_path}
 	pushd ${repo_full_path}
 
 	if [[ "${ref_type}" == "PR" ]]; then
@@ -66,16 +74,21 @@ function build_repo() {
 	mkdir -p ${repo_path}/build
 	pushd ${repo_path}/build
 
+	quiet_command=""
+	if [ -n "${QUIET}" ]; then
+		# silencer for CMake
+		quiet_command=" --log-level=ERROR"
+	fi
+
 	echo ""
 	echo "### Building repo for case: ${case}"
-
 	PKG_CONFIG_PATH=${PKG_CONFIG_PATH}:/opt/pmdk/lib/pkgconfig/ \
 	cmake .. \
 		-DCMAKE_BUILD_TYPE=Release \
 		-DBUILD_BENCHMARKS=1 \
 		-DBUILD_EXAMPLES=0 \
 		-DBUILD_TESTS=0 \
-		-DBUILD_DOC=0
+		-DBUILD_DOC=0 ${quiet_command}
 
 	make -j$(nproc)
 
@@ -87,6 +100,9 @@ function run_benchmark() {
 	case=${1}
 	bench_path=${BUILD_DIR}/${case}/build/benchmarks/benchmark-append
 	bench_cmd="${bench_path} --path ${TEST_PATH}_${case}"
+
+	# always work on a clean file
+	rm -f "${TEST_PATH}_${case}"
 
 	echo ""
 	echo "### Running benchmark 'append' with default args for case: ${case}"
@@ -117,11 +133,12 @@ function compare_output() {
 ### main ###
 echo "Start of '${0}'"
 
-while getopts ":h-:" optchar; do
+while getopts ":hq-:" optchar; do
 	case "${optchar}" in
 		-)
 		case "${OPTARG}" in
 			help) print_usage ${0} && exit 0 ;;
+			quiet) QUIET=1 ;;
 			pr=*) COMPARE_PR="${OPTARG#*=}" ;;
 			ref=*) COMPARE_REF="${OPTARG#*=}" ;;
 			compare_repo=*) COMPARE_REPO_ADDR="${OPTARG#*=}" ;;
@@ -131,6 +148,7 @@ while getopts ":h-:" optchar; do
 		esac
 		;;
 		h) print_usage ${0} && exit 0 ;;
+		q) QUIET=1 ;;
 		*) echo "Invalid argument '${OPTARG}'"; print_usage ${0} && exit 1 ;;
 	esac
 done
@@ -149,7 +167,7 @@ fi
 echo "### Clean up working and testing dirs"
 rm -rf "${BUILD_DIR}"
 mkdir -p "${BUILD_DIR}"
-mkdir -p $(basename ${TEST_PATH})
+mkdir -p $(dirname ${TEST_PATH})
 
 pushd ${BUILD_DIR}
 download_repo "baseline" "ref" ${BASELINE_REF} ${BASELINE_REPO_ADDR}
@@ -157,9 +175,6 @@ download_repo "compare" ${ref_type} ${ref_value} ${COMPARE_REPO_ADDR}
 
 echo "### Build and run benchmarks"
 for case in "baseline" "compare"; do
-	# always work on clean file
-	rm -rf "${TEST_PATH}"
-
 	build_repo ${case} | tee -a ${BUILD_DIR}/build_${case}.log
 	run_benchmark ${case} | tee -a ${BUILD_DIR}/bench_${case}.log
 done
