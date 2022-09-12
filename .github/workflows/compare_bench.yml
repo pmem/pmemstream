@@ -1,0 +1,35 @@
+name: Compare Bench
+# It runs default OSes for each PR, push event or a new tag,
+# checks basic builds with various compilers and executes all sets of tests.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  linux:
+    name: Linux-Self_Hosted
+    if: github.repository == 'pmem/pmemstream'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [[self-hosted, ubuntu]]
+    env:
+      PMEMSTREAM_TEST_DIR: /mnt/pmem0/${{ github.job }}
+      CHECK_CPP_STYLE: OFF
+
+    steps:
+
+        - name: Clone the git repo
+          uses: actions/checkout@v2
+
+        - name: Build pmemstream and run basic tests
+          run: |
+            ./utils/docker/run-build.sh tests_gcc_debug_cpp17_no_valgrind
+
+        - name: Test dir cleanup
+          if: always()
+          run: rm -rf ${{ env.PMEMSTREAM_TEST_DIR }}
+
