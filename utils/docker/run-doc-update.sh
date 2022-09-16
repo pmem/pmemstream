@@ -14,7 +14,7 @@ if [[ -z "${DOC_UPDATE_GITHUB_TOKEN}" || -z "${DOC_UPDATE_BOT_NAME}" || -z "${DO
 	echo "To build documentation and upload it as a Github pull request, variables " \
 		"'DOC_UPDATE_BOT_NAME', 'DOC_REPO_OWNER' and 'DOC_UPDATE_GITHUB_TOKEN' have to " \
 		"be provided. For more details please read CONTRIBUTING.md"
-	exit 1
+	exit 0
 fi
 
 if [[ -z "${WORKDIR}" ]]; then
