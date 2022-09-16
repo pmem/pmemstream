@@ -10,17 +10,13 @@
 
 set -e
 
+source $(dirname ${0})/prepare-for-build.sh
+
 if [[ -z "${DOC_UPDATE_GITHUB_TOKEN}" || -z "${DOC_UPDATE_BOT_NAME}" || -z "${DOC_REPO_OWNER}" ]]; then
 	echo "To build documentation and upload it as a Github pull request, variables " \
 		"'DOC_UPDATE_BOT_NAME', 'DOC_REPO_OWNER' and 'DOC_UPDATE_GITHUB_TOKEN' have to " \
 		"be provided. For more details please read CONTRIBUTING.md"
 	exit 0
-fi
-
-if [[ -z "${WORKDIR}" ]]; then
-	echo "ERROR: The variable WORKDIR has to contain a path to the root " \
-		"of this project - 'build' sub-directory may be created there."
-	exit 1
 fi
 
 # Set up required variables
