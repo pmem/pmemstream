@@ -32,17 +32,17 @@ function workspace_cleanup() {
 function upload_codecov() {
 	printf "\n$(tput setaf 1)$(tput setab 7)COVERAGE ${FUNCNAME[0]} START$(tput sgr 0)\n"
 
-	# check if code was compiled with clang
+	# set proper gcov command
 	clang_used=$(cmake -LA -N . | grep -e "CMAKE_C.*_COMPILER" | grep clang | wc -c)
 	if [[ ${clang_used} -gt 0 ]]; then
-		# XXX: llvm-cov not supported
-		echo "Warning: Llvm-cov is not supported"
-		return 0
+		gcovexe="--gcovExecutable"
+	else
+		gcovexe="--gcov"
 	fi
 
-	# run codecov using gcov
+	# run codecov using gcovexe
 	# we rely on parsed report on codecov.io
-	/opt/scripts/codecov --flags ${1} --nonZero --gcov ${IGNORE_PATHS} --rootDir . --clean
+	/opt/scripts/codecov --flags ${1} --nonZero ${gcovexe} ${IGNORE_PATHS} --rootDir . --clean
 
 	echo "Check for any leftover gcov files"
 	leftover_files=$(find . -name "*.gcov")
