@@ -127,6 +127,7 @@ docker run --privileged=true --name=${CONTAINER_NAME} -i \
 	--env COVERITY_SCAN_TOKEN \
 	--env COVERITY_SCAN_NOTIFICATION_EMAIL \
 	--env CHECK_CPP_STYLE=${CHECK_CPP_STYLE:-OFF} \
+	--env ENABLE_FORTIFY_3=${ENABLE_FORTIFY_3:-OFF} \
 	--env COVERAGE \
 	--env DEFAULT_TEST_DIR=/mnt/pmem \
 	--env TESTS_LONG=${TESTS_LONG:-OFF} \

@@ -33,7 +33,7 @@ jobs:
                   "TYPE=debug OS=ubuntu OS_VER=22.04 CHECK_CPP_STYLE=1",
                   "TYPE=debug OS=ubuntu OS_VER=22.04 COVERAGE=1",
                   "TYPE=debug OS=fedora OS_VER=35",
-                  "TYPE=release OS=ubuntu OS_VER=22.04",
+                  "TYPE=release OS=ubuntu OS_VER=22.04 ENABLE_FORTIFY_3=1",
                   "TYPE=release OS=fedora OS_VER=35",
                   "TYPE=debug OS=ubuntu OS_VER=22.04 TESTS_ASAN=1 TESTS_PMREORDER=0",
                   "TYPE=debug OS=ubuntu OS_VER=22.04 TESTS_UBSAN=1 TESTS_PMREORDER=0",
