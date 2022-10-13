@@ -16,6 +16,7 @@ source $(dirname ${0})/prepare-for-build.sh
 # params set for this file; if not previously set, the right-hand param is used
 TEST_DIR=${PMEMSTREAM_TEST_DIR:-${DEFAULT_TEST_DIR}}
 CHECK_CPP_STYLE=${CHECK_CPP_STYLE:-ON}
+ENABLE_FORTIFY_3=${ENABLE_FORTIFY_3:-OFF}
 TESTS_LONG=${TESTS_LONG:-OFF}
 TESTS_USE_FORCED_PMEM=${TESTS_USE_FORCED_PMEM:-ON}
 TESTS_ASAN=${TESTS_ASAN:-OFF}
@@ -35,6 +36,7 @@ function tests_clang_debug_cpp17_no_valgrind() {
 	CC=clang CXX=clang++ \
 	cmake .. -DDEVELOPER_MODE=1 \
 		-DCHECK_CPP_STYLE=${CHECK_CPP_STYLE} \
+		-DENABLE_FORTIFY_3=${ENABLE_FORTIFY_3} \
 		-DCMAKE_BUILD_TYPE=Debug \
 		-DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} \
 		-DTRACE_TESTS=1 \
@@ -70,6 +72,7 @@ function build_gcc_debug_cpp17() {
 	CC=gcc CXX=g++ \
 	cmake .. -DDEVELOPER_MODE=1 \
 		-DCHECK_CPP_STYLE=${CHECK_CPP_STYLE} \
+		-DENABLE_FORTIFY_3=${ENABLE_FORTIFY_3} \
 		-DCMAKE_BUILD_TYPE=Debug \
 		-DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} \
 		-DTRACE_TESTS=1 \
@@ -123,6 +126,7 @@ function tests_gcc_release_cpp17_no_valgrind() {
 	CC=gcc CXX=g++ \
 	cmake .. -DDEVELOPER_MODE=1 \
 		-DCHECK_CPP_STYLE=${CHECK_CPP_STYLE} \
+		-DENABLE_FORTIFY_3=${ENABLE_FORTIFY_3} \
 		-DCMAKE_BUILD_TYPE=Release \
 		-DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} \
 		-DTRACE_TESTS=1 \
@@ -158,6 +162,7 @@ function tests_clang_release_cpp20_no_valgrind() {
 	CC=clang CXX=clang++ \
 	cmake .. -DDEVELOPER_MODE=1 \
 		-DCHECK_CPP_STYLE=${CHECK_CPP_STYLE} \
+		-DENABLE_FORTIFY_3=${ENABLE_FORTIFY_3} \
 		-DCMAKE_BUILD_TYPE=Release \
 		-DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} \
 		-DTRACE_TESTS=1 \
