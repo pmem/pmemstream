@@ -1,0 +1,68 @@
+name: "CodeQL"
+
+on:
+  push:
+    branches: [ "master", "docs" ]
+  pull_request:
+    branches: [ "master" ]
+  schedule:
+    - cron: "57 12 * * 5"
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ cpp ]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install Packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes libdaxctl-dev libndctl-dev pandoc
+
+      - name: After Prepare
+        run: |
+          wget -O install-cmake.sh https://cmake.org/files/v3.16/cmake-3.16.9-Linux-x86_64.sh
+          chmod +x ./install-cmake.sh
+          mkdir $RUNNER_TEMP/installed/
+          ./install-cmake.sh --skip-license --prefix=$RUNNER_TEMP/installed/
+          export PATH=$RUNNER_TEMP/installed/bin:$PATH && echo "PATH=$PATH" >> $GITHUB_ENV
+          git clone https://github.com/pmem/pmdk
+          cd pmdk
+          make install -j$(nproc) prefix=$RUNNER_TEMP/installed/
+          export PKG_CONFIG_PATH=$RUNNER_TEMP/installed/lib/pkgconfig:$PKG_CONFIG_PATH && echo "PKG_CONFIG_PATH=$PKG_CONFIG_PATH" >> $GITHUB_ENV
+          cd ..
+          git clone https://github.com/pmem/miniasync
+          cd miniasync && mkdir build && cd build
+          git checkout 6c21f8a6ab634d3860886c6b041107631db6e69e
+          cmake .. -DCMAKE_INSTALL_PREFIX=$RUNNER_TEMP/installed/
+          make -j$(nproc) install
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: ${{ matrix.language }}
+          queries: +security-and-quality
+
+      - name: Build cpp
+        run: |
+          mkdir build
+          cd build
+          cmake .. -DTESTS_RAPIDCHECK=OFF
+          make -j$(nproc)
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+        with:
+          category: "/language:${{ matrix.language }}"
