@@ -1,0 +1,63 @@
+name: CodeQL
+
+on: [push, pull_request, workflow_dispatch]
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ cpp ]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          export PMDK_DEPS="build-essential \
+            cmake \
+            git \
+            libdaxctl-dev \
+            libndctl-dev \
+            pandoc \
+            pkg-config"
+
+          sudo apt-get update \
+          && sudo apt-get dist-upgrade -y \
+          && sudo apt-get install -y --no-install-recommends \
+            ${PMDK_DEPS} \
+            valgrind \
+          && sudo PACKAGE_MANAGER="DEB" ./utils/docker/images/install-miniasync.sh \
+          && sudo ./utils/docker/images/install-rapidcheck.sh
+
+          git clone https://github.com/pmem/pmdk
+          pushd pmdk
+          sudo make DOC=n install -j$(nproc)
+          popd
+          sudo rm -rf ./pmdk
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: ${{ matrix.language }}
+          queries: +security-and-quality
+
+      - name: Build pmemstream
+        run: |
+          mkdir build
+          cd build
+          cmake ..
+          make -j$(nproc)
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+        with:
+          category: "/language:${{ matrix.language }}"
