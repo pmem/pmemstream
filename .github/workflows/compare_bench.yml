@@ -1,0 +1,82 @@
+name: Compare Bench
+# It runs default OSes for each PR, push event or a new tag,
+# checks basic builds with various compilers and executes all sets of tests.
+
+on:
+  workflow_dispatch:
+    inputs:
+      BASELINE_REF:
+        description: 'BASELINE_REF'
+        required: true
+        default: 'master'
+        type: string
+      COMPARE_REF:
+        description: 'COMPARE_REF'
+        required: false
+        default: 'HEAD'
+        type: string
+      PR:
+        description: 'PR'
+        required: false
+        default: ''
+        type: string
+      COMPARE_REPO_ADDR:
+        description: 'COMPARE_REPO_ADDR'
+        required: true
+        default: 'https://github.com/pmem/pmemstream'
+        type: string
+      BASELINE_REPO_ADDR:
+        description: 'BASELINE_REPO_ADDR'
+        required: true
+        default: 'https://github.com/pmem/pmemstream'
+        type: string
+      QUIET:
+        description: 'QUIET'
+        required: true
+        default: true
+        type: boolean
+  pull_request:
+  release:
+
+jobs:
+  linux:
+    name: Linux-compare-bench
+    if: github.repository == 'pmem/pmemstream'
+
+    runs-on: compare-bench
+    env:
+      PMEMSTREAM_TEST_DIR: /mnt/pmem0/${{ github.job }}
+
+    steps:
+        - name: Clone the git repo
+          uses: actions/checkout@v2
+
+        - name: Check github event
+          if: contains(fromJson('["pull_request"]'), github.event_name)
+          run: echo "PR_NUMBER=${{ github.event.number }}" >> $GITHUB_ENV
+
+        - name: Execute run-compare-bench script
+          run: |
+            VERBOSE_PARAM=''
+            if [ -n "${{ inputs.QUIET }}" ]; then
+              VERBOSE_PARAM="-q"
+            fi
+
+            PR_PARAM=''
+            if [ -n "${{ inputs.PR }}" ]; then
+              PR_PARAM="--pr=${{ inputs.PR }}"
+            fi
+
+            COMPARE_REF_PARAM=''
+            if [ -n "${{ inputs.COMPARE_REF }}" ]; then
+              COMPARE_REF_PARAM="--ref=${{ inputs.COMPARE_REF }}"
+            fi
+
+            #Run with default repo when triggered from PR.
+            if [ -n "$PR_NUMBER" ]; then
+              ./utils/docker/run-compare-bench.sh -e --pr=$PR_NUMBER
+            #Run from parameters from workflow_dispatch.
+            else
+              ./utils/docker/run-compare-bench.sh -e ${VERBOSE_PARAM} ${PR_PARAM} ${COMPARE_REF_PARAM} --baseline_repo=${{ inputs.BASELINE_REPO_ADDR }} --baseline_ref=${{ inputs.BASELINE_REF }} --compare_repo=${{ inputs.BASELINE_REPO_ADDR }}
+            fi
+          shell: bash
