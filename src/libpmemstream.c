@@ -816,7 +816,7 @@ static enum future_state pmemstream_async_wait_committed_impl(struct future_cont
 	} else if (pmemstream_should_acquire_next_timestamp_batch(data)) {
 		/* We finished processing our batch but we can't increase committed_timestamp since some other
 		 * future owns batch containing committed_timestamp. To avoid waiting on that future, mark
-		 * current batch as ready to be commited (it can be picked up by some other concurrent operation).
+		 * current batch as ready to be committed (it can be picked up by some other concurrent operation).
 		 * After this is done, we can start processing next batch. */
 		pmemstream_mark_timestamp_batch_as_committed(data);
 	}

@@ -144,18 +144,19 @@ class config {
 		}
 		if (async_append && (!wait_period || !(committing_threads + persisting_threads))) {
 			throw std::invalid_argument(
-				"wait_period and commiting_threads or persisting_threads must not be 0 when async_append is used");
+				"wait_period and committing_threads or persisting_threads must not be 0 when async_append is used");
 		}
 		if (committing_threads + persisting_threads + wait_period && !async_append) {
 			throw std::invalid_argument(
-				"Commiting threads and persisting threads and wait_period can only be set for async appends");
+				"Committing threads and persisting threads and wait_period can only be set for async appends");
 		}
 		if (committing_threads && persisting_threads) {
-			throw std::invalid_argument("Only committing or persiting threads can be configured, not both");
+			throw std::invalid_argument(
+				"Only committing or persisting threads can be configured, not both");
 		}
 		if (committing_threads + persisting_threads > concurrency) {
 			throw std::invalid_argument(
-				"Number of commiting threads and persisting threads exceeds concurrency");
+				"Number of committing threads and persisting threads exceeds concurrency");
 		}
 		if (wait_period > element_count) {
 			throw std::invalid_argument("wait_period must be less than or equal to element_count");
@@ -188,7 +189,7 @@ class config {
 			{"--committing_threads",
 			 "number of threads performing commit operation. Can only be used for async appends. Exclusive with persisting_threads"},
 			{"--persisting_threads",
-			 "number of threads performing persist operation. Can only be used for async appends. Exclusive with commiting_threads"},
+			 "number of threads performing persist operation. Can only be used for async appends. Exclusive with committing_threads"},
 			{"--wait_period [num_ops]", "how many entries are written before commit/perist_wait is called"},
 			{"--help", "display this message"}};
 		for (auto &option : options) {
