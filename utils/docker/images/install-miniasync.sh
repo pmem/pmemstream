@@ -16,8 +16,8 @@ fi
 PREFIX="/usr"
 PACKAGE_TYPE=${PACKAGE_MANAGER,,} # make it lowercase
 
-# 0.2.0 release, 25.08.2022
-MINIASYNC_VERSION="b98675ad172677973ec9ea941979fab462813409"
+# master: 0.2.1 + two fixes, 06.09.2022
+MINIASYNC_VERSION="b79c5387e452056e1d29f6fa004b9ad7ecdf654b"
 echo "MINIASYNC_VERSION: ${MINIASYNC_VERSION}"
 
 build_dir=$(mktemp -d -t miniasync-XXX)
