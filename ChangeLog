@@ -1,3 +1,23 @@
+Tue Jan 03 2023 Łukasz Stolarczuk <lukasz.stolarczuk@intel.com>
+
+	* Version 0.2.1-rc1
+
+	This is, most likely, the last patch release of pmemstream project.
+	It contains multiple fixes, documentation updates, refactors, minor
+	CI/examples/CMake changes, along with new and updated tests.
+	The most relevant updates are listed below:
+
+	- Add shadow value to pmemstream_persisted_timestamp
+	- Fix and prune fences in atomic span ops
+	- Fix races (e.g., in region.c) and issues reported by TSAN
+	- Fix append benchmark for concurrent ops
+	- Extend entry_iterator_is_valid with additional check
+	- Enable prefault at open/create time
+	- tests: extend multiple existing tests and add missing TCs
+	- tests: add check for recovery during recovery (a corner case for torn recovery process)
+	- Extend CMake with new options (e.g., for Thread Sanitizer and increased fortification level)
+	- Update manpages with detailed descriptions
+
 Tue Jun 28 2022 Łukasz Stolarczuk <lukasz.stolarczuk@intel.com>
 
 	* Version 0.2.0

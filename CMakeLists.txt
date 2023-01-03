@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: BSD-3-Clause
-# Copyright 2018-2022, Intel Corporation
+# Copyright 2018-2023, Intel Corporation
 
 cmake_minimum_required(VERSION 3.16)
 
@@ -12,9 +12,9 @@ include(${PMEMSTREAM_ROOT_DIR}/cmake/functions.cmake)
 # ----------------------------------------------------------------- #
 set(VERSION_MAJOR 0)
 set(VERSION_MINOR 2)
-set(VERSION_PATCH 0)
+set(VERSION_PATCH 1)
 # after release it's set to "devel" for package naming (when 'git' is not available)
-set(VERSION_PRERELEASE devel)
+set(VERSION_PRERELEASE rc1)
 
 # XXX: do we need "VERSION" at all?
 set(VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH})
