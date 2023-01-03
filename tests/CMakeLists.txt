@@ -56,6 +56,10 @@ if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
 	set(DEBUG_BUILD 1)
 endif()
 
+if(USE_ASAN OR USE_UBSAN OR USE_TSAN)
+	set(SANITIZER_USED 1)
+endif()
+
 # XXX: add libpmemset dependency and fix 'check_is_pmem.cpp'
 #		or use libpmem library? (fix findLIBPMEM2)
 # add_executable(check_is_pmem common/check_is_pmem.cpp)
@@ -72,6 +76,10 @@ endif()
 
 if(COVERAGE AND TESTS_USE_VALGRIND)
 	message(STATUS "This is the Coverage build - skipping Valgrind tests")
+endif()
+
+if(SANITIZER_USED)
+	message(STATUS "This build is run with sanitizer(s) - some integity tests will be skipped")
 endif()
 
 # ----------------------------------------------------------------- #
@@ -159,7 +167,7 @@ if(TESTS_RAPIDCHECK)
 	add_test_generic(NAME iterate_validation TRACERS none memcheck pmemcheck)
 endif()
 
-if(TESTS_PMREORDER)
+if(TESTS_PMREORDER AND NOT SANITIZER_USED)
 	build_test_ext(NAME singly_linked_list_pmreorder SRC_FILES integrity/singly_linked_list_pmreorder.cpp LIBS miniasync)
 	add_test_generic(NAME singly_linked_list_pmreorder SCRIPT integrity/default_create_fill_check.cmake TRACERS none)
 	add_test_generic(NAME singly_linked_list_pmreorder CASE negative SCRIPT integrity/default_create_fill_check_negative.cmake TRACERS none)
@@ -173,7 +181,7 @@ if(TESTS_PMREORDER)
 	add_test_generic(NAME append_to_existing_region_pmreorder CASE crash_during_recovery SCRIPT integrity/crash_during_recovery.cmake TRACERS none)
 endif()
 
-if(GDB AND DEBUG_BUILD)
+if(GDB AND DEBUG_BUILD AND NOT SANITIZER_USED)
 	build_test_ext(NAME append_break SRC_FILES integrity/append_break.cpp LIBS miniasync)
 	foreach(TESTCASE RANGE 2)
 		add_test_generic(NAME append_break SCRIPT integrity/append_break.cmake CASE ${TESTCASE} TRACERS none)
