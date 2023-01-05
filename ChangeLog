@@ -1,6 +1,6 @@
-Tue Jan 03 2023 Łukasz Stolarczuk <lukasz.stolarczuk@intel.com>
+Thu Jan 05 2023 Łukasz Stolarczuk <lukasz.stolarczuk@intel.com>
 
-	* Version 0.2.1-rc1
+	* Version 0.2.1
 
 	This is, most likely, the last patch release of pmemstream project.
 	It contains multiple fixes, documentation updates, refactors, minor

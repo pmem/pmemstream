@@ -14,7 +14,7 @@ set(VERSION_MAJOR 0)
 set(VERSION_MINOR 2)
 set(VERSION_PATCH 1)
 # after release it's set to "devel" for package naming (when 'git' is not available)
-set(VERSION_PRERELEASE rc1)
+# set(VERSION_PRERELEASE rc1)
 
 # XXX: do we need "VERSION" at all?
 set(VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH})
