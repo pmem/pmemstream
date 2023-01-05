@@ -2,7 +2,6 @@
 !.gitattributes
 !.gitignore
 !.github/
-!.lgtm.yml
 build/
 *~
 *.swp

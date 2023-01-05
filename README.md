@@ -4,7 +4,7 @@
 [![pmemstream version](https://img.shields.io/github/tag/pmem/pmemstream.svg)](https://github.com/pmem/pmemstream/releases/latest)
 [![Coverity Scan Build Status](https://scan.coverity.com/projects/24120/badge.svg)](https://scan.coverity.com/projects/pmem-pmemstream)
 [![Coverage Status](https://codecov.io/github/pmem/pmemstream/coverage.svg?branch=master)](https://app.codecov.io/gh/pmem/pmemstream/branch/master)
-[![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/pmem/pmemstream.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/pmem/pmemstream/context:cpp)
+[![CodeQL](https://github.com/pmem/pmemstream/actions/workflows/codeql.yml/badge.svg)](https://github.com/pmem/pmemstream/actions/workflows/codeql.yml)
 
 `pmemstream` is a logging data structure optimized for persistent memory.
 
