@@ -23,6 +23,15 @@ For more information, including **C API** documentation see [pmem.io/pmemstream]
 
 ![example pmemstream](doc/pmemstream.png)
 
+# Discontinuation of the project
+⚠️pmemstream project will no longer be maintained by Intel.⚠️
+- Intel has ceased development and contributions including, but not limited to, maintenance, bug fixes, new releases,
+or updates, to this project.
+- Intel no longer accepts patches to this project.
+- If you have an ongoing need to use this project, are interested in independently developing it, or would like to
+maintain patches for the open source software community, please create your own fork of this project.
+- You will find more information [here](https://pmem.io/blog/2022/11/update-on-pmdk-and-our-long-term-support-strategy/)
+
 ## Table of contents
 1. [Build and install](#build-and-install)
 2. [Contact us](#contact-us)
@@ -34,8 +43,4 @@ For more information, including **C API** documentation see [pmem.io/pmemstream]
 ## Contact us
 For more information about **pmemstream**, please:
 - read our whitepaper [attached to 0.2.1 release](https://github.com/pmem/pmemstream/releases/download/0.2.1/Libpmemstream_whitepaper.docx),
-<!-- update contact points -->
-- contact Igor Chorążewicz (igor.chorazewicz@intel.com) or Piotr Balcer (piotr.balcer@intel.com),
-- or post on our **#pmem** Slack channel using
-[this invite link](https://join.slack.com/t/pmem-io/shared_invite/enQtNzU4MzQ2Mzk3MDQwLWQ1YThmODVmMGFkZWI0YTdhODg4ODVhODdhYjg3NmE4N2ViZGI5NTRmZTBiNDYyOGJjYTIyNmZjYzQxODcwNDg)
-or [Google group](https://groups.google.com/g/pmem).
+- contact email pmdk_support@intel.com
