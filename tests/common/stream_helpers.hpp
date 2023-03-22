@@ -371,7 +371,6 @@ struct pmemstream_helpers_type {
 			rrt = it->second;
 		}
 		for (const auto &e : data) {
-
 			auto [ret, entry] = stream.append(region, e, rrt);
 			UT_ASSERTeq(ret, 0);
 		}
