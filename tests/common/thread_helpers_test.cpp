@@ -16,7 +16,6 @@ static constexpr size_t concurrency = 128;
 int main()
 {
 	struct test_config_type test_config;
-
 	return run_test(test_config, [] {
 		std::atomic<size_t> counter;
 		counter = 0;
@@ -36,5 +35,17 @@ int main()
 			syncthreads();
 			UT_ASSERTeq(counter.load(), concurrency * 2);
 		});
+
+		setenv("PMEMSTREAM_HANDLE_SIGNAL_FOR_DEBUG", "1", 1);
+		try {
+			parallel_exec(2, [&](size_t id) {
+				auto ptr = (char *)nullptr;
+				std::cout << *ptr;
+				UT_ASSERT_UNREACHABLE;
+			});
+		} catch (std::runtime_error &e) {
+		} catch (...) {
+			UT_ASSERT_UNREACHABLE;
+		}
 	});
 }

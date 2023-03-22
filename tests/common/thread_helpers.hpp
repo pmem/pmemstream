@@ -11,6 +11,8 @@
 #include <thread>
 #include <vector>
 
+#include "test_sighandlers.hpp"
+
 static inline std::string get_msg_from_exception_ptr(std::exception_ptr ptr)
 {
 	try {
@@ -61,6 +63,7 @@ void parallel_exec(size_t threads_number, Function f)
 		threads.emplace_back(
 			[&](size_t id) {
 				try {
+					test_register_sighandlers();
 					f(id);
 				} catch (...) {
 					exception_ptrs[id] = std::current_exception();

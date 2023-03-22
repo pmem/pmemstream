@@ -155,32 +155,10 @@ void test_dump_backtrace(void)
 /*
  * test_sighandler -- fatal signal handler
  */
-void test_sighandler(int sig)
+void test_backtrace_sighandler(int sig)
 {
-#ifndef PMEMSTREAM_USE_TSAN
 	printf("\nSignal: %s, backtrace:\n", strsignal(sig));
 	test_dump_backtrace();
 	printf("\n");
 	exit(128 + sig);
-#endif
-}
-
-/*
- * test_register_sighandlers -- register signal handlers for various fatal
- * signals
- */
-void test_register_sighandlers(void)
-{
-#ifndef PMEMSTREAM_USE_TSAN
-	signal(SIGSEGV, test_sighandler);
-	signal(SIGABRT, test_sighandler);
-	signal(SIGILL, test_sighandler);
-	signal(SIGFPE, test_sighandler);
-	signal(SIGINT, test_sighandler);
-#ifndef _WIN32
-	signal(SIGALRM, test_sighandler);
-	signal(SIGQUIT, test_sighandler);
-	signal(SIGBUS, test_sighandler);
-#endif
-#endif
 }
